@@ -1,5 +1,15 @@
 # typestyles
 
+## 0.29.0
+
+### Minor Changes
+
+- [#253](https://github.com/type-styles/typestyles/pull/253) [`dda8658`](https://github.com/type-styles/typestyles/commit/dda865821d0c6ddfa89c6fa46d4c095e943efc79) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Public API redesign: `createTypeStyles` returns a flat `{ style, hash, recipe, tokens, global, … }` surface; nested `layers: { order, token, style, global? }`; `global.rule` / `global.rules`; remove root `styles` / `tokens` / `global` singletons. Migrate codemod emits `style` / `recipe` via `createTypeStyles`. Cache-bust extract module imports so Next route CSS re-runs register styles.
+
+### Patch Changes
+
+- [#256](https://github.com/type-styles/typestyles/pull/256) [`b5a2077`](https://github.com/type-styles/typestyles/commit/b5a2077e79ce041a4b31753624c352713d045a8e) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Fix flat `createTypeStyles` `recipe` typing ([#254](https://github.com/type-styles/typestyles/issues/254)): the factory overloads now discriminate on `mode` and `layers`, so `mode: 'attribute'` factories return attribute recipes (`{ className, attrs, props }` results) and layered factories get a `{ layer }` override checked against `layers.order`. The loose `(namespace, config: any, options?) => any` intersection that degraded callback configs and call results to `any` is gone. New exported types: `SemanticRecipeFn`, `LayeredSemanticRecipeFn`, `AttributeRecipeFn`, `LayeredAttributeRecipeFn`; `TypeStylesApi` is now generic over the recipe signature (`TypeStylesApi<Recipe>`) with the previous shape as default.
+
 ## 0.28.0
 
 ### Minor Changes

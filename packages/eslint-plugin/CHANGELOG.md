@@ -1,5 +1,11 @@
 # @typestyles/eslint-plugin
 
+## 0.4.0
+
+### Minor Changes
+
+- [#253](https://github.com/type-styles/typestyles/pull/253) [`dda8658`](https://github.com/type-styles/typestyles/commit/dda865821d0c6ddfa89c6fa46d4c095e943efc79) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Public API redesign: `createTypeStyles` returns a flat `{ style, hash, recipe, tokens, global, … }` surface; nested `layers: { order, token, style, global? }`; `global.rule` / `global.rules`; remove root `styles` / `tokens` / `global` singletons. Migrate codemod emits `style` / `recipe` via `createTypeStyles`. Cache-bust extract module imports so Next route CSS re-runs register styles.
+
 ## 0.3.1
 
 ### Patch Changes
