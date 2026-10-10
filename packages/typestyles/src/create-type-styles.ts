@@ -2,7 +2,13 @@ import type { ClassNamingConfig } from './class-naming';
 import { createGlobal } from './create-global';
 import type { GlobalApiLayered, GlobalApiUnlayered } from './create-global';
 import { createStyles } from './styles';
-import type { ComponentRegistryApi, StylesApi } from './styles';
+import type {
+  AttributeComponentFn,
+  ComponentRegistryApi,
+  LayeredAttributeComponentFn,
+  LayeredComponentFn,
+  StylesApi,
+} from './styles';
 import type { CSSProperties, StyleUtils } from './types';
 import type { BreakpointsConfig } from './breakpoints';
 import type { ColorModeMap } from './color-modes';
@@ -47,25 +53,49 @@ export type HashFn = (
   options?: { label?: string; layer?: string },
 ) => string;
 
+// ---------------------------------------------------------------------------
+// `recipe` call signatures per factory config. `createTypeStyles({ layers })`
+// always provides a `layers.style` default, so both bare `recipe(ns, config)`
+// calls and `recipe(ns, config, { layer })` overrides typecheck — the unlayered
+// and layered overload sets are intersected.
+// ---------------------------------------------------------------------------
+
+/** Semantic-mode `recipe` for factories without cascade layers (same overloads as `styles.component`). */
+export type SemanticRecipeFn = StylesApi['component'];
+
+/**
+ * Semantic-mode `recipe` for `createTypeStyles({ layers })` — bare calls use the factory
+ * `layers.style` default; a `{ layer }` third argument overrides it.
+ */
+export type LayeredSemanticRecipeFn<L extends string> = StylesApi['component'] &
+  LayeredComponentFn<L>;
+
+/**
+ * Attribute-mode (`mode: 'attribute'`) `recipe` — dimensioned and slot recipes resolve to
+ * `{ className, attrs, props }` results instead of class strings.
+ */
+export type AttributeRecipeFn = AttributeComponentFn;
+
+/**
+ * Attribute-mode `recipe` for `createTypeStyles({ mode: 'attribute', layers })` — bare calls use
+ * the factory `layers.style` default; a `{ layer }` third argument overrides it.
+ */
+export type LayeredAttributeRecipeFn<L extends string> = AttributeComponentFn &
+  LayeredAttributeComponentFn<L>;
+
 /** Flat public surface returned by {@link createTypeStyles}. */
-export type TypeStylesApi = ComponentRegistryApi & {
+export type TypeStylesApi<Recipe = LayeredSemanticRecipeFn<string>> = ComponentRegistryApi & {
   readonly classNaming: Readonly<ClassNamingConfig>;
   /** Create a single named class (was `styles.class`). */
   style: StyleFn;
   /** Deterministic hashed class from a style object (was `styles.hashClass`). */
   hash: HashFn;
   /**
-   * Multi-variant / slot recipe (was `styles.component`).
-   * Extra optional `{ layer?, themeable? }` is allowed when overriding the factory `layers.style` default.
+   * Multi-variant / slot recipe (was `styles.component`). Typed per factory config via the
+   * {@link createTypeStyles} overloads: attribute-mode factories return `{ className, attrs, props }`
+   * results; layered factories accept a `{ layer }` override on top of the `layers.style` default.
    */
-  recipe: StylesApi['component'] &
-    ((
-      namespace: string,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      config: any,
-      options?: { layer?: string; themeable?: boolean },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ) => any);
+  recipe: Recipe;
   tokens: TokensApi;
   global: GlobalApiUnlayered | GlobalApiLayered;
   compose: StylesApi['compose'];
@@ -131,12 +161,12 @@ type StylesApiWithLayersLoose = Omit<StylesApi, 'class' | 'hashClass'> & {
   hashClass: (properties: CSSProperties, options?: { label?: string; layer?: string }) => string;
 };
 
-function flattenTypeStylesApi(
+function flattenTypeStylesApi<Recipe = unknown>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   styles: any,
   tokens: TokensApi,
   global: GlobalApiUnlayered | GlobalApiLayered,
-): TypeStylesApi {
+): TypeStylesApi<Recipe> {
   const s = styles as ComponentRegistryApi & {
     classNaming: ClassNamingConfig;
     component: StylesApi['component'];
@@ -159,7 +189,7 @@ function flattenTypeStylesApi(
     classNaming: s.classNaming,
     style: buildStyleFn(s as StylesApi),
     hash: buildHashFn(s as StylesApi),
-    recipe: s.component as StylesApi['component'],
+    recipe: s.component as unknown as Recipe,
     tokens,
     global,
     compose: s.compose,
@@ -183,15 +213,25 @@ function flattenTypeStylesApi(
 }
 
 /** Unified factory: one `scopeId`, shared cascade layer stack, flat public surface. */
-export function createTypeStyles(
-  options: CreateTypeStylesOptionsBase & { layers: TypeStylesLayersConfig },
-): TypeStylesApi;
+export function createTypeStyles<const L extends string>(
+  options: CreateTypeStylesOptionsBase & { mode: 'attribute'; layers: TypeStylesLayersConfig<L> },
+): TypeStylesApi<LayeredAttributeRecipeFn<L>>;
 
-export function createTypeStyles(options?: CreateTypeStylesOptionsBase): TypeStylesApi;
+export function createTypeStyles(
+  options: CreateTypeStylesOptionsBase & { mode: 'attribute' },
+): TypeStylesApi<AttributeRecipeFn>;
+
+export function createTypeStyles<const L extends string>(
+  options: CreateTypeStylesOptionsBase & { layers: TypeStylesLayersConfig<L> },
+): TypeStylesApi<LayeredSemanticRecipeFn<L>>;
+
+export function createTypeStyles(
+  options?: CreateTypeStylesOptionsBase,
+): TypeStylesApi<SemanticRecipeFn>;
 
 export function createTypeStyles(
   options: CreateTypeStylesOptionsBase & { layers?: TypeStylesLayersConfig } = {},
-): TypeStylesApi {
+): TypeStylesApi<unknown> {
   const { layers, utils, ...rest } = options;
 
   if (layers != null) {
