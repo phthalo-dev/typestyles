@@ -114,7 +114,6 @@ function objectExpressionFromConfigArg(
   const expr = unwrapExpression(arg);
   if (ts.isObjectLiteralExpression(expr)) return expr;
   if (ts.isArrowFunction(expr)) {
-    if (ts.isObjectLiteralExpression(expr.body)) return expr.body;
     if (ts.isBlock(expr.body)) {
       for (const stmt of expr.body.statements) {
         if (
@@ -125,6 +124,10 @@ function objectExpressionFromConfigArg(
           return unwrapExpression(stmt.expression) as ts.ObjectLiteralExpression;
         }
       }
+    } else {
+      // `() => ({ ... })` wraps the object in parentheses.
+      const body = unwrapExpression(expr.body);
+      if (ts.isObjectLiteralExpression(body)) return body;
     }
   }
   return null;
@@ -407,15 +410,20 @@ function collectBindings(sourceFile: ts.SourceFile): Map<string, StylesBindingCo
   return bindings;
 }
 
-function calleeMethodName(expr: ts.Expression): string | null {
-  // New flat API: `style(...)` / `recipe(...)`
+function normalizeCalleeMethod(name: string): 'class' | 'component' | null {
+  if (name === 'style' || name === 'class') return 'class';
+  if (name === 'recipe' || name === 'component') return 'component';
+  return null;
+}
+
+function calleeMethodName(expr: ts.Expression): 'class' | 'component' | null {
+  // Flat API: `style(...)` / `recipe(...)` and `typestyles.style` / `typestyles.recipe`
+  // Legacy: `styles.class` / `styles.component`
   if (ts.isIdentifier(expr)) {
-    if (expr.text === 'style') return 'class';
-    if (expr.text === 'recipe') return 'component';
-    return null;
+    return normalizeCalleeMethod(expr.text);
   }
   if (!ts.isPropertyAccessExpression(expr)) return null;
-  if (ts.isIdentifier(expr.name)) return expr.name.text;
+  if (ts.isIdentifier(expr.name)) return normalizeCalleeMethod(expr.name.text);
   return null;
 }
 

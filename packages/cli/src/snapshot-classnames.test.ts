@@ -57,6 +57,81 @@ describe('snapshot-classnames', () => {
     );
   });
 
+  it('collects class names from typestyles.recipe property access', () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'typestyles-snapshot-'));
+    try {
+      fs.writeFileSync(
+        path.join(rootDir, 'runtime.ts'),
+        `
+import { createTypeStyles } from 'typestyles';
+export const typestyles = createTypeStyles({ scopeId: 'ds', mode: 'attribute' });
+`,
+      );
+      fs.writeFileSync(
+        path.join(rootDir, 'alert.ts'),
+        `
+import { typestyles } from './runtime';
+export const alert = typestyles.recipe('alert', (c) => ({
+  slots: ['root', 'body', 'title'],
+  base: {
+    root: { display: 'flex' },
+    body: { flex: 1 },
+    title: { fontWeight: 600 },
+  },
+  variants: {
+    tone: {
+      accent: { root: { color: 'blue' } },
+    },
+  },
+}));
+export const badge = typestyles.style('badge', { display: 'inline-flex' });
+`,
+      );
+
+      const snapshot = buildSnapshot(
+        collectPublicClassNamesSync({
+          rootDir,
+          include: ['runtime.ts', 'alert.ts'],
+        }),
+      );
+
+      expect(snapshot.classNames).toEqual(
+        expect.arrayContaining(['ds-alert', 'ds-alert__body', 'ds-alert__title', 'ds-badge']),
+      );
+      expect(snapshot.classNames).not.toContain('ds-alert--tone-accent');
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it('parses parenthesized arrow recipe configs', () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'typestyles-snapshot-'));
+    try {
+      fs.writeFileSync(
+        path.join(rootDir, 'card.ts'),
+        `
+import { createTypeStyles } from 'typestyles';
+const { recipe } = createTypeStyles({ mode: 'semantic' });
+export const card = recipe('card', () => ({
+  slots: ['root', 'body'],
+  base: { root: { padding: '8px' }, body: { margin: 0 } },
+}));
+`,
+      );
+
+      const snapshot = buildSnapshot(
+        collectPublicClassNamesSync({
+          rootDir,
+          include: ['card.ts'],
+        }),
+      );
+
+      expect(snapshot.classNames).toEqual(expect.arrayContaining(['card', 'card__body']));
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
   it('records flat attribute modifier classes and skips template-mode names', () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'typestyles-snapshot-'));
     try {
