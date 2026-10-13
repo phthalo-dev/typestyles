@@ -1,5 +1,12 @@
 # @typestyles/eslint-plugin
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [[`4464785`](https://github.com/type-styles/typestyles/commit/446478552a48aeabd85d6570bcbbb791ef9fdaba)]:
+  - @typestyles/cli@0.3.1
+
 ## 0.4.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @typestyles/cli
 
+## 0.3.1
+
+### Patch Changes
+
+- [#257](https://github.com/type-styles/typestyles/pull/257) [`4464785`](https://github.com/type-styles/typestyles/commit/446478552a48aeabd85d6570bcbbb791ef9fdaba) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Recognize `typestyles.recipe` / `typestyles.style` (and parenthesized arrow configs) when scanning public class names for `typestyles snapshot` and `no-removed-public-classname`.
+
 ## 0.3.0
 
 ### Minor Changes
