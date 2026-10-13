@@ -7,8 +7,9 @@ import {
 
 export const SNAPSHOT_HELP = `typestyles snapshot [options]
 
-Scan TypeScript sources for semantic \`styles.class\` / \`styles.component\` class names
-and write or print the public API snapshot used by \`@typestyles/no-removed-public-classname\`.
+Scan TypeScript sources for semantic \`style\` / \`recipe\` (and legacy \`styles.class\` /
+\`styles.component\`) class names and write or print the public API snapshot used by
+\`@typestyles/no-removed-public-classname\`.
 
 Options:
   --write                 Write ${PUBLIC_CLASSNAMES_SNAPSHOT} in the project root
