@@ -94,6 +94,8 @@ export type {
   ComponentVarRegistry,
   DimensionedComponentMeta,
   FlatComponentMeta,
+  RecipeSchemaAxis,
+  RecipeSchemaMeta,
   RegisteredComponentVar,
   SlotComponentMeta,
   MultiSlotComponentMeta,
@@ -101,6 +103,38 @@ export type {
   SlotVariantSelectorMap,
 } from './component-meta';
 export { getComponentMeta } from './component-meta';
+
+export { variant, variantEnum, variantBoolean, recipeAxisBrand } from './variant';
+export type {
+  BooleanVariantAxis,
+  EnumVariantAxis,
+  VariantAxis,
+  VariantAxisStyleKeys,
+  VariantOptions,
+} from './variant';
+
+export type {
+  AttributeSchemaRecipeFn,
+  LayeredAttributeSchemaRecipeFn,
+  LayeredSchemaRecipeFn,
+  LayeredSemanticSchemaRecipeFn,
+  RecipeDefinition,
+  RecipeDefaults,
+  RecipeDefaultsOf,
+  RecipeHandle,
+  RecipeCompoundSelectionValue,
+  RecipeOptionsFor,
+  RecipeReturnValue,
+  RecipeSlots,
+  RecipeStyleValue,
+  RecipeStyles,
+  RecipeVariantKeys,
+  RecipeVariantSelections,
+  RecipeVariants,
+  SchemaRecipeFn,
+  SchemaRecipeOptions,
+  SemanticSchemaRecipeFn,
+} from './schema-recipe';
 export { getRegisteredComponentRefs } from './component-registry';
 export type {
   ThemeComponentsOverrideMap,

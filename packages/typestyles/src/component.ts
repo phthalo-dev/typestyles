@@ -39,15 +39,20 @@ import {
 import { attachComposeMeta } from './compose-meta';
 import {
   attachComponentMeta,
+  attachComponentSchema,
   attachComponentVars,
   attachVarRegistry,
   buildClassVariantSelectorMap,
   firstClassToken,
   stampVarDefinitionsBrand,
   type ComponentVarRegistry,
+  type RecipeSchemaAxis,
+  type RecipeSchemaMeta,
   type SlotVariantSelectorMap,
   type VariantSelectorMap,
 } from './component-meta';
+import { recipeAxisBrand, type VariantAxis } from './variant';
+import type { RecipeDefinition, RecipeStyles } from './schema-recipe';
 
 // ---------------------------------------------------------------------------
 // Reserved keys that signal a dimensioned config (not flat variant keys)
@@ -497,6 +502,81 @@ export function createComponent(
   return finish(
     createFlatComponent(classNaming, namespace, resolved as FlatComponentConfig<string>, emitLayer),
   );
+}
+
+// ---------------------------------------------------------------------------
+// Schema-first recipe (Issue #259)
+// ---------------------------------------------------------------------------
+
+/**
+ * Determine whether a recipe second argument is a schema definition (branded axes)
+ * rather than a legacy style config. Detection is by the runtime brand so a legacy
+ * config is never mistaken for a definition.
+ */
+export function isSchemaRecipeDefinition(value: unknown): value is RecipeDefinition {
+  if (typeof value !== 'object' || value === null) return false;
+  const variants = (value as { variants?: unknown }).variants;
+  if (typeof variants !== 'object' || variants === null) return false;
+  return Object.values(variants).some(
+    (axis) =>
+      axis != null &&
+      typeof axis === 'object' &&
+      (axis as Record<PropertyKey, unknown>)[recipeAxisBrand] === true,
+  );
+}
+
+/** Build docs metadata (slots, axis kind, options, defaults) from a schema definition. */
+export function buildRecipeSchemaMeta(definition: RecipeDefinition): RecipeSchemaMeta {
+  const variants: Record<string, RecipeSchemaAxis> = {};
+  for (const [name, axis] of Object.entries(definition.variants)) {
+    const typed = axis as VariantAxis;
+    variants[name] =
+      typed.kind === 'boolean'
+        ? { kind: 'boolean', default: typed.default }
+        : { kind: 'enum', options: [...typed.options], default: typed.default };
+  }
+  return {
+    ...(definition.slots ? { slots: [...definition.slots] } : {}),
+    variants,
+  };
+}
+
+/**
+ * Create a recipe from a schema definition. Converts the axes into the
+ * `variants` / `defaultVariants` configuration the legacy runtime already understands,
+ * then stamps `.defaults` and `meta.schema` on the result.
+ */
+export function createSchemaComponent(
+  classNaming: ClassNamingConfig,
+  namespace: string,
+  definition: RecipeDefinition,
+  config: (ctx: ComponentConfigContext) => RecipeStyles<RecipeDefinition>,
+  buildOptions?: ComponentBuildOptions | string,
+): object {
+  const defaultVariants: Record<string, unknown> = {};
+  for (const [axis, value] of Object.entries(definition.variants)) {
+    defaultVariants[axis] = (value as VariantAxis).default;
+  }
+
+  const schemaCallback = (ctx: ComponentConfigContext): Record<string, unknown> => {
+    const styles = config(ctx) as Record<string, unknown>;
+    const resolved: Record<string, unknown> = { ...styles, defaultVariants };
+    if (definition.slots) resolved.slots = definition.slots;
+    else delete resolved.slots;
+    return resolved;
+  };
+
+  const handle = createComponent(classNaming, namespace, schemaCallback, buildOptions) as object;
+
+  Object.defineProperty(handle, 'defaults', {
+    value: { ...defaultVariants },
+    enumerable: true,
+    writable: false,
+    configurable: false,
+  });
+
+  attachComponentSchema(handle, buildRecipeSchemaMeta(definition));
+  return handle;
 }
 
 // ---------------------------------------------------------------------------
