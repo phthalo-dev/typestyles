@@ -158,17 +158,14 @@ button({ size: 'sm', elevated: true });
 
 ### What the definition checks
 
-Because `RecipeStyles<Def>` is a target type, TypeScript reports:
+TypeScript checks the callback's return against the definition:
 
 - **A missing option** — every enum option and both boolean branches must be styled.
 - **A slot style on the wrong slot** — each option's style is a `Partial<Record<Slot, …>>`.
+- **An unknown axis or option key** — `variants: { tone, nope }` and `tone: { info, extra }`
+  are errors, so a typo cannot silently drop a branch.
 - **Unknown options on the callable** — `alert({ tone: 'nope' })` and `alert({ material: 'x' })`
   are errors.
-
-**Note:** unknown keys added to a style map (a typo like
-`variants: { tone: { … }, nope: { … } }`) are not flagged: TypeScript does not perform
-excess-property checks on object literals returned from a function. Keep the definition and
-the callback in sync by importing shared axes.
 
 ## Boolean axes
 
@@ -185,10 +182,14 @@ variant.boolean({ default: false });
 In `mode: 'attribute'`, `true` emits the presence attribute (`data-elevated`) with an empty
 value and `false` omits it — the same behavior as today's `{ true, false }` option keys.
 
+**Note:** avoid `variant.enum(['true', 'false'])`. In attribute mode those two literals are
+emitted as the **presence boolean** above (the attribute is present or absent, not valued),
+which is almost never what you want — reach for `variant.boolean()` instead.
+
 ## Derived types
 
 ```ts
-import type { RecipeDefaults, RecipeVariants, VariantOptions } from 'typestyles';
+import type { RecipeDefaultsOf, RecipeVariants, VariantOptions } from 'typestyles';
 
 type AlertProps = RecipeVariants<typeof alert>;
 // {
@@ -197,15 +198,17 @@ type AlertProps = RecipeVariants<typeof alert>;
 //   contentGap?: 'spaced' | 'flush';
 // }
 
-type AlertDefaults = RecipeDefaults<typeof alert>;
+type AlertDefaults = RecipeDefaultsOf<typeof alert>;
 // { tone: 'info'; appearance: 'subtle'; contentGap: 'spaced' }
 
 type SurfaceAppearance = VariantOptions<typeof surfaceAppearance>;
 // 'subtle' | 'solid' | 'outline'
 ```
 
-`RecipeVariants` matches the callable, including `boolean` for `variant.boolean()`. React and
-Astro components extend it directly and read defaults from the handle:
+`RecipeVariants` is the shape to build React/Astro props from. It matches the callable
+including `boolean` for `variant.boolean()` — but **without `null`**, so
+`alert({ tone: null })` is accepted by the callable while `tone={null}` fails a prop typed
+as `AlertProps`. Defaults come from the handle:
 
 ```tsx
 import type { RecipeVariants } from 'typestyles';
@@ -221,7 +224,15 @@ export function CodeBlock({ variant = codeBlock.defaults.variant, code }: CodeBl
 }
 ```
 
-## Signed off by the schema metadata
+When the callback declares internal vars with `c.vars()`, they are threaded onto the handle,
+so `.vars` is typed with those leaves:
+
+```ts
+const v = alert.vars; // ComponentVarRefTree<{ surface: string }> | undefined
+v?.surface.var; // 'var(--alert-surface)'
+```
+
+## Schema metadata
 
 Docs generators read the schema instead of hand-written prop tables. For recipes created
 with the schema call shape, `getComponentMeta(recipe).schema` records the slots, each axis's

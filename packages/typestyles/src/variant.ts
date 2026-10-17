@@ -72,7 +72,12 @@ export type VariantAxisStyleKeys<A extends VariantAxis> = A extends {
     ? 'true' | 'false'
     : never;
 
-/** Create an enum axis. `options` must contain `config.default`. */
+/**
+ * Create an enum axis. `options` must contain `config.default`.
+ *
+ * **Note:** avoid `['true', 'false']`. In attribute mode those two literals are compiled to
+ * a presence boolean (attribute present/absent), so use {@link variantBoolean} instead.
+ */
 export function variantEnum<
   const Options extends readonly string[],
   const Default extends Options[number],

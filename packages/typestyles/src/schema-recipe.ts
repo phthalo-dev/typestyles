@@ -11,6 +11,7 @@ import type {
   ComponentConfigContext,
   ComponentVarDefinitions,
   ComponentVarRefTree,
+  InferComponentVarRefTreeDefinitions,
   SlotStyles,
   VariantOptionStyle,
 } from './types';
@@ -56,12 +57,9 @@ export type RecipeVariantKeys<Def extends RecipeDefinition> = keyof Def['variant
 export type RecipeAxisSelectionValue<A extends VariantAxis> = VariantOptions<A>;
 
 /**
- * Variant selections accepted by the recipe callable. Every axis is optional.
- *
- * ```ts
- * type AlertProps = RecipeVariants<typeof alert>;
- * // { tone?: 'info' | 'success' | …; appearance?: …; contentGap?: … }
- * ```
+ * Variant selections accepted by the recipe callable. Every axis is optional; `null`
+ * is accepted so a selection can be conditionally unset. Use {@link RecipeVariants} for
+ * the React/Astro props shape, which strips `null`.
  */
 export type RecipeVariantSelections<Def extends RecipeDefinition> = {
   [K in keyof Def['variants']]?: RecipeAxisSelectionValue<Def['variants'][K]> | null | undefined;
@@ -134,20 +132,67 @@ export type RecipeReturnValue<Def extends RecipeDefinition, Element> = Def exten
   : Element;
 
 /**
+ * Makes an **extra key** in a variant style map a compile error instead of a silent
+ * typo. TypeScript skips excess-property checks when the contextual target is a generic
+ * type (as `RecipeStyles<Def>` is), so `variants: { tone, nope }` and
+ * `tone: { info, extra }` would otherwise typecheck. Intersecting the inferred literal
+ * with `Record<extraKey, never>` reinstates the check — an unexpected key resolves to
+ * `never`, which the literal cannot satisfy.
+ */
+type ExactAxisStyleMap<RAxis, A extends VariantAxis> = RAxis &
+  Record<Exclude<keyof RAxis, RecipeOptionsFor<A>>, never>;
+
+type ExactVariantsMap<RVariants, Axes extends Record<string, VariantAxis>> = RVariants &
+  Record<Exclude<keyof RVariants, keyof Axes>, never> & {
+    [K in keyof RVariants & keyof Axes]: ExactAxisStyleMap<RVariants[K], Axes[K]>;
+  };
+
+/**
+ * The style callback's return type: `RecipeStyles<Def>` with unknown axes and unknown
+ * option keys rejected. `R` is the inferred literal, so `keyof R` still contains the
+ * excess keys TypeScript would otherwise drop.
+ */
+export type ExactRecipeStyles<Def extends RecipeDefinition, R> = R &
+  Record<Exclude<keyof R, keyof RecipeStyles<Def>>, never> & {
+    variants: ExactVariantsMap<R extends { variants: infer V } ? V : never, Def['variants']>;
+  };
+
+/**
+ * Extract the internal-var definitions declared via `c.vars()` from a callback return.
+ * Falls back to the loose `ComponentVarDefinitions` when the recipe declares no vars.
+ */
+export type RecipeVarsOf<R> = R extends { vars: infer V }
+  ? [InferComponentVarRefTreeDefinitions<V>] extends [never]
+    ? ComponentVarDefinitions
+    : InferComponentVarRefTreeDefinitions<V>
+  : ComponentVarDefinitions;
+
+/**
  * The value returned by a schema `recipe(...)` call: callable with the schema's
  * selections, plus `.defaults` (and `.vars` when `c.vars()` was used).
  */
-export type RecipeHandle<Def extends RecipeDefinition, Element = string> = ((
-  selections?: RecipeVariantSelections<Def>,
-) => RecipeReturnValue<Def, Element>) & {
+export type RecipeHandle<
+  Def extends RecipeDefinition,
+  Element = string,
+  Vars extends ComponentVarDefinitions = ComponentVarDefinitions,
+> = ((selections?: RecipeVariantSelections<Def>) => RecipeReturnValue<Def, Element>) & {
   /** Resolved axis defaults — one entry per axis. */
   readonly defaults: RecipeDefaults<Def>;
   /** Ref tree for internal vars declared via `c.vars()` during definition. */
-  readonly vars?: ComponentVarRefTree<ComponentVarDefinitions>;
+  readonly vars?: ComponentVarRefTree<Vars>;
 };
 
 /**
+ * Strip `null` / `undefined` from each property of an object type while preserving
+ * optionality (a homomorphic mapped type).
+ */
+type StripNullProps<T> = { [K in keyof T]: NonNullable<T[K]> };
+
+/**
  * Extract the go-to props type from a schema recipe handle.
+ *
+ * Null is stripped from every axis, so React/Astro props read
+ * `{ tone?: 'info' | 'danger' }` rather than `{ tone?: 'info' | 'danger' | null }`.
  *
  * @example
  * ```ts
@@ -156,7 +201,7 @@ export type RecipeHandle<Def extends RecipeDefinition, Element = string> = ((
  * ```
  */
 export type RecipeVariants<Handle> = Handle extends (selections?: infer S) => unknown
-  ? NonNullable<S>
+  ? StripNullProps<NonNullable<S>>
   : never;
 
 /** Extract the `.defaults` object from a schema recipe handle. */
@@ -174,19 +219,25 @@ export type SchemaRecipeOptions<L extends string = string> = {
 // ---------------------------------------------------------------------------
 
 /** Unlayered schema `recipe` signature. */
-export type SchemaRecipeFn<Element> = <const Def extends RecipeDefinition>(
+export type SchemaRecipeFn<Element> = <
+  const Def extends RecipeDefinition,
+  const R extends RecipeStyles<Def>,
+>(
   namespace: string,
   definition: Def,
-  config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
-) => RecipeHandle<Def, Element>;
+  config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
+) => RecipeHandle<Def, Element, RecipeVarsOf<R>>;
 
 /** Layered schema `recipe` signature — a `{ layer }` override follows the callback. */
-export type LayeredSchemaRecipeFn<L extends string, Element> = <const Def extends RecipeDefinition>(
+export type LayeredSchemaRecipeFn<L extends string, Element> = <
+  const Def extends RecipeDefinition,
+  const R extends RecipeStyles<Def>,
+>(
   namespace: string,
   definition: Def,
-  config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
+  config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
   options: SchemaRecipeOptions<L>,
-) => RecipeHandle<Def, Element>;
+) => RecipeHandle<Def, Element, RecipeVarsOf<R>>;
 
 /** Attribute-mode schema recipe: results are `{ className, attrs, props }`. */
 export type AttributeSchemaRecipeFn = SchemaRecipeFn<ComponentAttrsResult>;

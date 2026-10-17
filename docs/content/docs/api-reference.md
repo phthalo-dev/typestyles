@@ -63,7 +63,7 @@ const button = recipe(
 button.defaults; // { size: 'md', elevated: false }
 ```
 
-**Related types:** `VariantAxis`, `EnumVariantAxis`, `BooleanVariantAxis`, `VariantOptions`, `RecipeDefinition`, `RecipeStyles`, `RecipeHandle`, `RecipeVariants`, `RecipeDefaults`, `RecipeVariantSelections`, `SchemaRecipeOptions`. Also `recipeAxisBrand` (runtime brand).
+**Related types:** `VariantAxis`, `EnumVariantAxis`, `BooleanVariantAxis`, `VariantOptions`, `RecipeDefinition`, `RecipeStyles`, `ExactRecipeStyles`, `RecipeHandle`, `RecipeVariants`, `RecipeDefaults`, `RecipeDefaultsOf`, `RecipeVarsOf`, `RecipeVariantSelections`, `SchemaRecipeOptions`. Also `recipeAxisBrand` (runtime brand).
 
 ### `tokens` (from `createTypeStyles` / `createTokens`)
 
