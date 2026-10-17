@@ -42,9 +42,11 @@ import {
 import { decomposeAtomicStyle, classNamesAndRulesForProperties } from './atomic-decompose';
 import { createComponent, createSchemaComponent, isSchemaRecipeDefinition } from './component';
 import type {
+  ExactRecipeStyles,
   RecipeDefinition,
   RecipeHandle,
   RecipeStyles,
+  RecipeVarsOf,
   SchemaRecipeOptions,
 } from './schema-recipe';
 import { createScope, type ScopeOptions } from './scope';
@@ -340,11 +342,11 @@ export type StylesApi = ComponentRegistryApi & {
   class: (name: string, properties: CSSProperties) => string;
   hashClass: (properties: CSSProperties, label?: string) => string;
   component: {
-    <const Def extends RecipeDefinition>(
+    <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
       namespace: string,
       definition: Def,
-      config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
-    ): RecipeHandle<Def, string>;
+      config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
+    ): RecipeHandle<Def, string, RecipeVarsOf<R>>;
     <
       const Slots extends readonly string[],
       V extends SlotVariantDefinitions<Slots[number]>,
@@ -495,12 +497,12 @@ export type CreateStylesInput = Partial<Omit<ClassNamingConfig, 'cascadeLayers'>
 };
 
 export type LayeredComponentFn<L extends string> = {
-  <const Def extends RecipeDefinition>(
+  <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
     namespace: string,
     definition: Def,
-    config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
+    config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
     options: SchemaRecipeOptions<L>,
-  ): RecipeHandle<Def, string>;
+  ): RecipeHandle<Def, string, RecipeVarsOf<R>>;
   <
     const Slots extends readonly string[],
     V extends SlotVariantDefinitions<Slots[number]>,
@@ -555,12 +557,12 @@ export type LayeredComponentFn<L extends string> = {
 };
 
 export type LayeredComponentFnWithUtils<L extends string> = {
-  <const Def extends RecipeDefinition>(
+  <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
     namespace: string,
     definition: Def,
-    config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
+    config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
     options: SchemaRecipeOptions<L>,
-  ): RecipeHandle<Def, string>;
+  ): RecipeHandle<Def, string, RecipeVarsOf<R>>;
   <
     const Slots extends readonly string[],
     V extends SlotVariantDefinitions<Slots[number]>,
@@ -957,11 +959,11 @@ export type StylesWithUtilsApi<U extends StyleUtils> = ComponentRegistryApi & {
   class: (name: string, properties: CSSPropertiesWithUtils<U>) => string;
   hashClass: (properties: CSSPropertiesWithUtils<U>, label?: string) => string;
   component: {
-    <const Def extends RecipeDefinition>(
+    <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
       namespace: string,
       definition: Def,
-      config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
-    ): RecipeHandle<Def, string>;
+      config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
+    ): RecipeHandle<Def, string, RecipeVarsOf<R>>;
     <
       const Slots extends readonly string[],
       V extends SlotVariantDefinitions<Slots[number]>,
@@ -1010,11 +1012,11 @@ export type StylesWithUtilsApi<U extends StyleUtils> = ComponentRegistryApi & {
 // ---------------------------------------------------------------------------
 
 export type AttributeComponentFn = {
-  <const Def extends RecipeDefinition>(
+  <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
     namespace: string,
     definition: Def,
-    config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
-  ): RecipeHandle<Def, ComponentAttrsResult>;
+    config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
+  ): RecipeHandle<Def, ComponentAttrsResult, RecipeVarsOf<R>>;
   <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
     namespace: string,
     config: SlotComponentConfigInput<Slots, V>,
@@ -1040,12 +1042,12 @@ export type AttributeComponentFn = {
 };
 
 export type LayeredAttributeComponentFn<L extends string> = {
-  <const Def extends RecipeDefinition>(
+  <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
     namespace: string,
     definition: Def,
-    config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
+    config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
     options: SchemaRecipeOptions<L>,
-  ): RecipeHandle<Def, ComponentAttrsResult>;
+  ): RecipeHandle<Def, ComponentAttrsResult, RecipeVarsOf<R>>;
   <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
     namespace: string,
     config: SlotComponentConfigInput<Slots, V>,

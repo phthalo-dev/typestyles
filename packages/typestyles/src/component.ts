@@ -517,11 +517,17 @@ export function isSchemaRecipeDefinition(value: unknown): value is RecipeDefinit
   if (typeof value !== 'object' || value === null) return false;
   const variants = (value as { variants?: unknown }).variants;
   if (typeof variants !== 'object' || variants === null) return false;
-  return Object.values(variants).some(
-    (axis) =>
-      axis != null &&
-      typeof axis === 'object' &&
-      (axis as Record<PropertyKey, unknown>)[recipeAxisBrand] === true,
+  const axes = Object.values(variants);
+  // Every axis must be branded — a mixed object is neither a valid definition nor a
+  // legacy config, so do not guess. An empty `variants` is not a definition either.
+  return (
+    axes.length > 0 &&
+    axes.every(
+      (axis) =>
+        axis != null &&
+        typeof axis === 'object' &&
+        (axis as Record<PropertyKey, unknown>)[recipeAxisBrand] === true,
+    )
   );
 }
 

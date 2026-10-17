@@ -88,6 +88,22 @@ const _wrongSlot = attribute.component('wrong-slot', def, () => ({
 }));
 void _wrongSlot;
 
+// Acceptance 1: an unknown axis and an unknown option are errors inside the callback.
+const _unknownAxis = attribute.component('unknown-axis', def, () => ({
+  variants: { tone: { a: {}, b: {} } },
+  // @ts-expect-error — "nope" is not a declared axis
+  nope: { a: {}, b: {} },
+}));
+void _unknownAxis;
+
+const _unknownOption = attribute.component('unknown-option', def, () => ({
+  variants: {
+    // @ts-expect-error — "extra" is not a declared option
+    tone: { a: {}, b: {}, extra: {} },
+  },
+}));
+void _unknownOption;
+
 // Acceptance 2: the callable accepts schema options and rejects unknown ones; props optional.
 const fromAlert = alert({ tone: 'tip', appearance: 'solid' });
 void fromAlert.root.props;
@@ -113,6 +129,30 @@ const _toneUnion: Expect<
 > = true;
 void _elevatedIsBoolean;
 void _toneUnion;
+
+// Feedback: props must not include `null` (React/Astro accept `tone={null}` otherwise).
+// Mutual assignability pins the whole shape, and the explicit `null` case must fail.
+const _alertPropsShape: {
+  tone?: 'info' | 'success' | 'warning' | 'danger' | 'tip';
+  appearance?: 'subtle' | 'solid' | 'outline';
+  contentGap?: 'spaced' | 'flush';
+  elevated?: boolean;
+} = {} as AlertVariants;
+const _alertPropsBack: AlertVariants = {} as {
+  tone?: 'info' | 'success' | 'warning' | 'danger' | 'tip';
+  appearance?: 'subtle' | 'solid' | 'outline';
+  contentGap?: 'spaced' | 'flush';
+  elevated?: boolean;
+};
+void _alertPropsShape;
+void _alertPropsBack;
+// @ts-expect-error — `null` is not a valid axis prop value
+const _noNullTone: AlertVariants = { tone: null };
+void _noNullTone;
+
+// Feedback: `.vars` from c.vars() is threaded onto the handle (leaf ref has `.var`).
+const _surfaceVar = alert.vars?.surface.var;
+void _surfaceVar;
 
 // Acceptance 4: a shared enum axis is reusable, and VariantOptions is its union.
 const controlSize = variant.enum(['sm', 'md', 'lg'], { default: 'md' });
@@ -212,3 +252,24 @@ const tsBadge = ts.recipe('ts-badge', { variants: { tone: surfaceAppearance } },
   variants: { tone: { subtle: {}, solid: {}, outline: {} } },
 }));
 void tsBadge({ tone: 'solid' }).attrs;
+
+// withUtils schema path shares the same contextual typing and exact checks.
+const utilApi = attribute.withUtils({ pad: (n: number) => ({ padding: n }) });
+const utilRecipe = utilApi.component(
+  'util-recipe',
+  { variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) } },
+  () => ({ variants: { tone: { a: {}, b: {} } } }),
+);
+void utilRecipe({ tone: 'a' }).attrs;
+
+const _utilUnknownOption = utilApi.component(
+  'util-recipe-bad',
+  { variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) } },
+  () => ({
+    variants: {
+      // @ts-expect-error — "extra" is not a declared option
+      tone: { a: {}, b: {}, extra: {} },
+    },
+  }),
+);
+void _utilUnknownOption;

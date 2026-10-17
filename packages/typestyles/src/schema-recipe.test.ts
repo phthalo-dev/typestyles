@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createStyles } from './styles';
 import { createTypeStyles } from './create-type-styles';
 import { getComponentMeta } from './component-meta';
+import { isSchemaRecipeDefinition } from './component';
 import { variant } from './variant';
 import { reset, getRegisteredCss } from './sheet';
 import { registeredNamespaces } from './registry';
@@ -280,5 +281,35 @@ describe('schema-first recipe (variant axes)', () => {
 
     expect(getComponentMeta(legacy)?.schema).toBeUndefined();
     expect('defaults' in legacy).toBe(false);
+  });
+
+  it('requires every axis to be branded, not just one', () => {
+    const axis = variant.enum(['a', 'b'], { default: 'a' });
+    // A fully-branded definition is recognized.
+    expect(isSchemaRecipeDefinition({ variants: { tone: axis } })).toBe(true);
+    // A single branded axis among style objects is a hand-built object, not a definition.
+    expect(isSchemaRecipeDefinition({ variants: { tone: axis, size: { sm: {} } } })).toBe(false);
+    // Empty or non-definition shapes are rejected.
+    expect(isSchemaRecipeDefinition({ variants: {} })).toBe(false);
+    expect(isSchemaRecipeDefinition({ base: {} })).toBe(false);
+  });
+
+  it('supports schema recipes through withUtils', () => {
+    const styles = createStyles({ mode: 'attribute' });
+    const withUtils = styles.withUtils({
+      insetX: (value: number) => ({ paddingLeft: value, paddingRight: value }),
+    });
+    const chip = withUtils.component(
+      'util-chip',
+      { variants: { tone: variant.enum(['info', 'danger'], { default: 'info' }) } },
+      () => ({ variants: { tone: { info: {}, danger: {} } } }),
+    );
+
+    expect(chip().attrs).toEqual({ 'data-tone': 'info' });
+    expect(getComponentMeta(chip)?.schema?.variants.tone).toEqual({
+      kind: 'enum',
+      options: ['info', 'danger'],
+      default: 'info',
+    });
   });
 });
