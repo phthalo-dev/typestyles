@@ -1,5 +1,11 @@
 # typestyles
 
+## 0.30.0
+
+### Minor Changes
+
+- [#260](https://github.com/type-styles/typestyles/pull/260) [`fe19d88`](https://github.com/type-styles/typestyles/commit/fe19d887abfef4cd7587ade5034c2a8100a0f608) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Schema-first recipes: add `variant.enum(options, { default })` and `variant.boolean({ default })` axis helpers, plus a `recipe(namespace, definition, callback, options?)` call shape whose style callback is contextually typed from the definition. The callback is checked against the definition: missing options, unknown axes, and unknown option keys are all errors. Schema recipes expose `.defaults`, an internal-var-typed `.vars`, derived `RecipeVariants` (null-free props) / `RecipeDefaultsOf` / `VariantOptions` types, and `getComponentMeta(recipe).schema` for docs generators. Legacy `recipe` call shapes are unchanged.
+
 ## 0.29.0
 
 ### Minor Changes
