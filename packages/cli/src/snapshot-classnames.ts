@@ -101,7 +101,13 @@ function firstStringArg(args: ts.NodeArray<ts.Expression>): string | null {
 
 function unwrapExpression(expr: ts.Expression): ts.Expression {
   let current = expr;
-  while (ts.isParenthesizedExpression(current)) {
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isSatisfiesExpression(current) ||
+    ts.isTypeAssertionExpression(current) ||
+    ts.isNonNullExpression(current)
+  ) {
     current = current.expression;
   }
   return current;
@@ -152,6 +158,41 @@ function hasObjectKey(obj: ts.ObjectLiteralExpression, key: string): boolean {
   });
 }
 
+/** Read the `slots` array literal from an object, if present. */
+function slotsArrayFromObject(obj: ts.ObjectLiteralExpression): ts.ArrayLiteralExpression | null {
+  const slotsProp = obj.properties.find((prop) => {
+    if (!ts.isPropertyAssignment(prop)) return false;
+    return getStaticObjectKey(prop.name) === 'slots';
+  });
+  if (!slotsProp || !ts.isPropertyAssignment(slotsProp)) return null;
+  const init = unwrapExpression(slotsProp.initializer);
+  return ts.isArrayLiteralExpression(init) ? init : null;
+}
+
+/**
+ * A schema-first recipe call: `recipe(namespace, definition, callback, options?)`.
+ *
+ * The style config is the third argument (the callback); the second is a definition
+ * `{ slots?, variants }` whose axes are branded `variant.enum(...)` / `variant.boolean(...)`
+ * values rather than style objects. In the legacy shapes the third argument is an options
+ * object (`{ layer }`), never a function, so a function there is an unambiguous tell.
+ */
+function isSchemaRecipeCall(node: ts.CallExpression): boolean {
+  if (node.arguments.length < 3) return false;
+  const callback = node.arguments[2];
+  if (!callback) return false;
+  const unwrapped = unwrapExpression(callback);
+  return ts.isArrowFunction(unwrapped) || ts.isFunctionExpression(unwrapped);
+}
+
+/** Slots declared on a schema recipe's definition argument, if any. */
+function definitionSlots(arg: ts.Expression | undefined): ts.ArrayLiteralExpression | null {
+  if (!arg) return null;
+  const def = unwrapExpression(arg);
+  if (!ts.isObjectLiteralExpression(def)) return null;
+  return slotsArrayFromObject(def);
+}
+
 type ComponentClassNamePart = {
   suffix?: string;
   element?: string;
@@ -161,13 +202,17 @@ type ComponentClassNamePart = {
 
 function collectClassNamePartsFromConfig(
   obj: ts.ObjectLiteralExpression,
+  slotsOverride?: ts.ArrayLiteralExpression | null,
 ): ComponentClassNamePart[] {
   const parts: ComponentClassNamePart[] = [];
 
   const hasVariants = hasObjectKey(obj, 'variants');
   const hasCompound = hasObjectKey(obj, 'compoundVariants');
   const hasDefaults = hasObjectKey(obj, 'defaultVariants');
-  const hasSlots = hasObjectKey(obj, 'slots');
+  // Schema-first recipes carry `slots` on the definition (second call argument), not on
+  // the callback's returned config, so the caller passes it in.
+  const slotsNode = slotsOverride ?? slotsArrayFromObject(obj);
+  const hasSlots = slotsNode !== null;
 
   if (hasSlots && (hasVariants || hasCompound || hasDefaults)) {
     const baseObj = obj.properties.find((prop) => {
@@ -232,16 +277,8 @@ function collectClassNamePartsFromConfig(
   }
 
   if (hasSlots && !hasVariants && !hasCompound && !hasDefaults) {
-    const slotsProp = obj.properties.find((prop) => {
-      if (!ts.isPropertyAssignment(prop)) return false;
-      return getStaticObjectKey(prop.name) === 'slots';
-    });
-    if (
-      slotsProp &&
-      ts.isPropertyAssignment(slotsProp) &&
-      ts.isArrayLiteralExpression(slotsProp.initializer)
-    ) {
-      for (const element of slotsProp.initializer.elements) {
+    if (slotsNode) {
+      for (const element of slotsNode.elements) {
         if (element && ts.isStringLiteral(element)) {
           parts.push({ element: element.text === 'root' ? undefined : element.text });
         }
@@ -505,8 +542,14 @@ function collectCallsFromSourceFile(
             });
           }
         } else {
-          const configObj = objectExpressionFromConfigArg(node.arguments[1]);
-          const parts = configObj ? collectClassNamePartsFromConfig(configObj) : [{}];
+          const schemaCall = isSchemaRecipeCall(node);
+          const configObj = objectExpressionFromConfigArg(
+            schemaCall ? node.arguments[2] : node.arguments[1],
+          );
+          const slotsOverride = schemaCall ? definitionSlots(node.arguments[1]) : undefined;
+          const parts = configObj
+            ? collectClassNamePartsFromConfig(configObj, slotsOverride)
+            : [{}];
           for (const part of parts) {
             const className = componentClassName(config, namespace, part);
             if (className) {
