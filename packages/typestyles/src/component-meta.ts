@@ -35,6 +35,22 @@ export type ComponentMetaBase = {
   namingMode: ClassNamingMode;
   /** Internal vars registered via `c.var()` / `c.vars()` during recipe definition. */
   varRegistry?: ComponentVarRegistry;
+  /**
+   * Schema for recipes created with the schema-first `recipe(namespace, definition, …)`
+   * call shape (Issue #259). Absent for recipes using the legacy config shapes.
+   */
+  schema?: RecipeSchemaMeta;
+};
+
+/** One axis in a schema recipe's metadata: enum options or a boolean default. */
+export type RecipeSchemaAxis =
+  | { kind: 'enum'; options: readonly string[]; default: string }
+  | { kind: 'boolean'; default: boolean };
+
+/** Routing metadata for docs generators: declared slots and axes with their defaults. */
+export type RecipeSchemaMeta = {
+  slots?: readonly string[];
+  variants: Record<string, RecipeSchemaAxis>;
 };
 
 /** Class modes: full class name without dot. Attribute: attr fragment only. */
@@ -128,6 +144,19 @@ export function attachVarRegistry(
   if (!existing) return;
   Object.defineProperty(target, COMPONENT_META, {
     value: { ...existing, varRegistry },
+    enumerable: false,
+    writable: false,
+    configurable: true,
+  });
+}
+
+/** Attach or merge the schema blob onto an existing component metadata (Issue #259). */
+export function attachComponentSchema(target: object, schema: RecipeSchemaMeta | undefined): void {
+  if (!schema) return;
+  const existing = getComponentMeta(target);
+  if (!existing) return;
+  Object.defineProperty(target, COMPONENT_META, {
+    value: { ...existing, schema },
     enumerable: false,
     writable: false,
     configurable: true,

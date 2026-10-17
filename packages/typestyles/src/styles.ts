@@ -4,6 +4,7 @@ import type {
   StyleUtils,
   VariantDefinitions,
   ComponentAttrsReturn,
+  ComponentAttrsResult,
   SlotAttrsReturn,
   ComponentConfig,
   ComponentConfigContext,
@@ -39,7 +40,13 @@ import {
   type ClassNamingConfig,
 } from './class-naming';
 import { decomposeAtomicStyle, classNamesAndRulesForProperties } from './atomic-decompose';
-import { createComponent } from './component';
+import { createComponent, createSchemaComponent, isSchemaRecipeDefinition } from './component';
+import type {
+  RecipeDefinition,
+  RecipeHandle,
+  RecipeStyles,
+  SchemaRecipeOptions,
+} from './schema-recipe';
 import { createScope, type ScopeOptions } from './scope';
 import { createOverride, type OverrideFn, type OverrideOptions } from './override';
 import { getComponentMeta } from './component-meta';
@@ -333,6 +340,11 @@ export type StylesApi = ComponentRegistryApi & {
   class: (name: string, properties: CSSProperties) => string;
   hashClass: (properties: CSSProperties, label?: string) => string;
   component: {
+    <const Def extends RecipeDefinition>(
+      namespace: string,
+      definition: Def,
+      config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
+    ): RecipeHandle<Def, string>;
     <
       const Slots extends readonly string[],
       V extends SlotVariantDefinitions<Slots[number]>,
@@ -483,6 +495,12 @@ export type CreateStylesInput = Partial<Omit<ClassNamingConfig, 'cascadeLayers'>
 };
 
 export type LayeredComponentFn<L extends string> = {
+  <const Def extends RecipeDefinition>(
+    namespace: string,
+    definition: Def,
+    config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
+    options: SchemaRecipeOptions<L>,
+  ): RecipeHandle<Def, string>;
   <
     const Slots extends readonly string[],
     V extends SlotVariantDefinitions<Slots[number]>,
@@ -537,6 +555,12 @@ export type LayeredComponentFn<L extends string> = {
 };
 
 export type LayeredComponentFnWithUtils<L extends string> = {
+  <const Def extends RecipeDefinition>(
+    namespace: string,
+    definition: Def,
+    config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
+    options: SchemaRecipeOptions<L>,
+  ): RecipeHandle<Def, string>;
   <
     const Slots extends readonly string[],
     V extends SlotVariantDefinitions<Slots[number]>,
@@ -807,9 +831,25 @@ function buildStylesRuntimeApi(
 
   const componentImpl = (
     namespace: string,
-    config: Record<string, unknown> | ((ctx: ComponentConfigContext) => Record<string, unknown>),
-    options?: ComponentCreateOptions<string>,
+    configOrDefinition: unknown,
+    callbackOrOptions?: unknown,
+    maybeOptions?: ComponentCreateOptions<string>,
   ) => {
+    if (isSchemaRecipeDefinition(configOrDefinition)) {
+      const handle = createSchemaComponent(
+        classNaming,
+        namespace,
+        configOrDefinition,
+        callbackOrOptions as (ctx: ComponentConfigContext) => RecipeStyles<RecipeDefinition>,
+        maybeOptions,
+      );
+      registerComponentFromOptions(registry, namespace, handle, maybeOptions);
+      return handle;
+    }
+    const config = configOrDefinition as
+      | Record<string, unknown>
+      | ((ctx: ComponentConfigContext) => Record<string, unknown>);
+    const options = callbackOrOptions as ComponentCreateOptions<string> | undefined;
     const handle = createComponent(classNaming, namespace, config, options);
     registerComponentFromOptions(registry, namespace, handle, options);
     return handle;
@@ -917,6 +957,11 @@ export type StylesWithUtilsApi<U extends StyleUtils> = ComponentRegistryApi & {
   class: (name: string, properties: CSSPropertiesWithUtils<U>) => string;
   hashClass: (properties: CSSPropertiesWithUtils<U>, label?: string) => string;
   component: {
+    <const Def extends RecipeDefinition>(
+      namespace: string,
+      definition: Def,
+      config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
+    ): RecipeHandle<Def, string>;
     <
       const Slots extends readonly string[],
       V extends SlotVariantDefinitions<Slots[number]>,
@@ -965,6 +1010,11 @@ export type StylesWithUtilsApi<U extends StyleUtils> = ComponentRegistryApi & {
 // ---------------------------------------------------------------------------
 
 export type AttributeComponentFn = {
+  <const Def extends RecipeDefinition>(
+    namespace: string,
+    definition: Def,
+    config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
+  ): RecipeHandle<Def, ComponentAttrsResult>;
   <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
     namespace: string,
     config: SlotComponentConfigInput<Slots, V>,
@@ -990,6 +1040,12 @@ export type AttributeComponentFn = {
 };
 
 export type LayeredAttributeComponentFn<L extends string> = {
+  <const Def extends RecipeDefinition>(
+    namespace: string,
+    definition: Def,
+    config: (ctx: ComponentConfigContext) => RecipeStyles<Def>,
+    options: SchemaRecipeOptions<L>,
+  ): RecipeHandle<Def, ComponentAttrsResult>;
   <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
     namespace: string,
     config: SlotComponentConfigInput<Slots, V>,
@@ -1080,10 +1136,34 @@ export function createStylesWithUtils<U extends StyleUtils>(
 
   function component(
     namespace: string,
-    config: Record<string, unknown> | ((ctx: ComponentConfigContext) => Record<string, unknown>),
-    options?: ComponentCreateOptions<string>,
+    configOrDefinition: unknown,
+    callbackOrOptions?: unknown,
+    maybeOptions?: ComponentCreateOptions<string>,
   ): unknown {
     let handle: unknown;
+    if (isSchemaRecipeDefinition(configOrDefinition)) {
+      const definition = configOrDefinition;
+      const userConfig = callbackOrOptions as (
+        ctx: ComponentConfigContext,
+      ) => Record<string, unknown>;
+      handle = createSchemaComponent(
+        classNaming,
+        namespace,
+        definition,
+        (ctx) =>
+          transformComponentConfigWithUtils({
+            ...userConfig(ctx),
+            ...(definition.slots ? { slots: definition.slots } : {}),
+          }) as unknown as RecipeStyles<RecipeDefinition>,
+        maybeOptions,
+      );
+      registerComponentFromOptions(registry, namespace, handle, maybeOptions);
+      return handle;
+    }
+    const config = configOrDefinition as
+      | Record<string, unknown>
+      | ((ctx: ComponentConfigContext) => Record<string, unknown>);
+    const options = callbackOrOptions as ComponentCreateOptions<string> | undefined;
     if (typeof config === 'function') {
       handle = createComponent(
         classNaming,
@@ -1158,10 +1238,34 @@ function createStylesWithUtilsLayered<U extends StyleUtils>(
 
   function component(
     namespace: string,
-    config: Record<string, unknown> | ((ctx: ComponentConfigContext) => Record<string, unknown>),
-    options?: ComponentCreateOptions<string>,
+    configOrDefinition: unknown,
+    callbackOrOptions?: unknown,
+    maybeOptions?: ComponentCreateOptions<string>,
   ): unknown {
     let handle: unknown;
+    if (isSchemaRecipeDefinition(configOrDefinition)) {
+      const definition = configOrDefinition;
+      const userConfig = callbackOrOptions as (
+        ctx: ComponentConfigContext,
+      ) => Record<string, unknown>;
+      handle = createSchemaComponent(
+        classNaming,
+        namespace,
+        definition,
+        (ctx) =>
+          transformComponentConfigWithUtils({
+            ...userConfig(ctx),
+            ...(definition.slots ? { slots: definition.slots } : {}),
+          }) as unknown as RecipeStyles<RecipeDefinition>,
+        maybeOptions,
+      );
+      registerComponentFromOptions(registry, namespace, handle, maybeOptions);
+      return handle;
+    }
+    const config = configOrDefinition as
+      | Record<string, unknown>
+      | ((ctx: ComponentConfigContext) => Record<string, unknown>);
+    const options = callbackOrOptions as ComponentCreateOptions<string> | undefined;
     if (typeof config === 'function') {
       handle = createComponent(
         classNaming,

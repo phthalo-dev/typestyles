@@ -21,7 +21,7 @@ export const { style, recipe, tokens, global } = createTypeStyles({ scopeId: 'ap
 
 - `style(name, properties, options?)`: Create a single named class (was `styles.class`)
 - `hash(properties, options?)`: Deterministic hashed class (was `styles.hashClass`); `options` may include `label` and `layer`
-- `recipe(namespace, config, options?)`: Multi-variant / slot recipe (was `styles.component`); optional `{ layer?, themeable? }`
+- `recipe(namespace, config, options?)`: Multi-variant / slot recipe (was `styles.component`); optional `{ layer?, themeable? }`. Also accepts the **schema-first** shape `recipe(namespace, definition, callback, options?)` — see [`variant`](#variant-schema-axes) and [Schema-first recipes](/docs/schema-recipes)
 - `compose(...fns)`: Compose multiple style functions
 - `override(component, config, options?)`: Recipe-shaped typed overrides from component `__tsMeta`, including typed **`vars`** (see [Theming patterns](/docs/theming-patterns#override-component-internal-vars))
 - `scope(opts, className, overrides)`: Proximity-correct overrides via CSS `@scope`
@@ -34,9 +34,36 @@ export const { style, recipe, tokens, global } = createTypeStyles({ scopeId: 'ap
 
 **Related exports:** `colorModes` (`['light', 'dark']`), `conditional(when, style, id?)`, `whenStyle(condition, style)`, `StylableOverride`, `ConditionalOverride`, `ModeAwareValue`, `container`, `createContainerRef`, `supports`, `atRuleBlock`, `createBreakpointMediaFn`, `createMediaFn`, `resolveBreakpointMediaKey`, `has`, `is`, `where`.
 
-**Helpers:** `getComponentMeta(component)` — read public component metadata attached by `recipe()`.
+**Helpers:** `getComponentMeta(component)` — read public component metadata attached by `recipe()` (including `schema` for [schema-first recipes](/docs/schema-recipes)).
 
 **Related types:** `TypeStylesApi`, `TypeStylesLayersConfig`, `OverrideConfig`, `OverrideConfigFor`, `InferVarDefinitions`, `ComponentVarValues`, `ComponentVarAssignValue`, `ComponentCreateOptions`, `OverrideOptions`, `OverrideFn`, `ComponentMeta`, `ComponentVarRegistry`, `VariantOptionKey`, `CompoundSelectionValue`, `ContainerQueryKey`, `ContainerObjectKey`, `HasNestedKey`, `IsNestedKey`, `WhereNestedKey`, `IsPseudoArg`. See [Custom selectors & at-rules](/docs/custom-at-rules) and [TypeScript tips](/docs/typescript-tips).
+
+### `variant` (schema axes)
+
+`variant.enum(options, { default })` and `variant.boolean({ default })` build branded axes for [schema-first recipes](/docs/schema-recipes). Pass a definition `{ slots?, variants }` as the second `recipe` argument so the style callback is contextually typed from known keys.
+
+```ts
+import { createTypeStyles, variant } from 'typestyles';
+
+const { recipe } = createTypeStyles({ mode: 'attribute' });
+
+const controlSize = variant.enum(['sm', 'md', 'lg'], { default: 'md' });
+
+const button = recipe(
+  'button',
+  { variants: { size: controlSize, elevated: variant.boolean({ default: false }) } },
+  () => ({
+    variants: {
+      size: { sm: {}, md: {}, lg: {} },
+      elevated: { true: {}, false: {} },
+    },
+  }),
+);
+
+button.defaults; // { size: 'md', elevated: false }
+```
+
+**Related types:** `VariantAxis`, `EnumVariantAxis`, `BooleanVariantAxis`, `VariantOptions`, `RecipeDefinition`, `RecipeStyles`, `RecipeHandle`, `RecipeVariants`, `RecipeDefaults`, `RecipeVariantSelections`, `SchemaRecipeOptions`. Also `recipeAxisBrand` (runtime brand).
 
 ### `tokens` (from `createTypeStyles` / `createTokens`)
 
