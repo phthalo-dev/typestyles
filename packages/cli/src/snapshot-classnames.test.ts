@@ -183,4 +183,106 @@ export const custom = tmpl.component('custom', {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
   });
+
+  it('collects class names from a schema-first recipe (definition + callback)', () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'typestyles-snapshot-'));
+    try {
+      fs.writeFileSync(
+        path.join(rootDir, 'runtime.ts'),
+        `
+import { createTypeStyles } from 'typestyles';
+export const { recipe } = createTypeStyles({ scopeId: 'ds', mode: 'semantic' });
+`,
+      );
+      fs.writeFileSync(
+        path.join(rootDir, 'alert.ts'),
+        `
+import { recipe } from './runtime';
+import { variant } from 'typestyles';
+export const alert = recipe(
+  'alert',
+  {
+    slots: ['root', 'body', 'title'] as const,
+    variants: {
+      tone: variant.enum(['info', 'danger'], { default: 'info' }),
+      elevated: variant.boolean({ default: false }),
+    },
+  },
+  (c) => {
+    const v = c.vars({ accent: { value: 'blue', syntax: '<color>' } });
+    return {
+      base: { root: { color: v.accent.var }, body: { flex: 1 }, title: { fontWeight: 600 } },
+      variants: {
+        tone: {
+          info: { root: { color: 'blue' } },
+          danger: { root: { color: 'red' } },
+        },
+        elevated: { true: { root: { boxShadow: '0 1px 2px' } }, false: {} },
+      },
+    };
+  },
+  { layer: 'components' },
+);
+`,
+      );
+
+      const snapshot = buildSnapshot(
+        collectPublicClassNamesSync({
+          rootDir,
+          include: ['runtime.ts', 'alert.ts'],
+        }),
+      );
+
+      expect(snapshot.classNames).toEqual(
+        expect.arrayContaining([
+          'ds-alert',
+          'ds-alert__body',
+          'ds-alert__title',
+          'ds-alert--tone-info',
+          'ds-alert--tone-danger',
+          'ds-alert--elevated-true',
+        ]),
+      );
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  it('collects a schema-first single-target recipe and suppresses attribute dimensions', () => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'typestyles-snapshot-'));
+    try {
+      fs.writeFileSync(
+        path.join(rootDir, 'runtime.ts'),
+        `
+import { createTypeStyles } from 'typestyles';
+export const typestyles = createTypeStyles({ scopeId: 'ds', mode: 'attribute' });
+`,
+      );
+      fs.writeFileSync(
+        path.join(rootDir, 'button.ts'),
+        `
+import { typestyles } from './runtime';
+import { variant } from 'typestyles';
+export const button = typestyles.recipe(
+  'button',
+  { variants: { size: variant.enum(['sm', 'lg'], { default: 'sm' }) } },
+  () => ({ base: { borderRadius: 4 }, variants: { size: { sm: {}, lg: {} } } }),
+);
+`,
+      );
+
+      const snapshot = buildSnapshot(
+        collectPublicClassNamesSync({
+          rootDir,
+          include: ['runtime.ts', 'button.ts'],
+        }),
+      );
+
+      expect(snapshot.classNames).toContain('ds-button');
+      // Dimensioned attribute variants compile to data-* attrs, not public classes.
+      expect(snapshot.classNames).not.toContain('ds-button--size-lg');
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
 });
