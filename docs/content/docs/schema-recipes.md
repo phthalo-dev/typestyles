@@ -262,6 +262,8 @@ pipelines are unaffected.
   exposed on the handle.
 - `compoundVariants` is allowed in the callback and is checked against the schema's option
   unions.
+- `override()` and `OverrideConfigFor<typeof recipe>` follow the definition's axes and
+  slots, including boolean axes and `c.vars()` keys.
 - Schema recipes do **not** take `defaultVariants` — defaults live on the axes, and the
   handle exposes `.defaults`.
 

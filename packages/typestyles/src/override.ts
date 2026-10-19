@@ -25,6 +25,13 @@ import {
   type ConditionCompileContext,
 } from './condition-compile';
 import type {
+  RecipeDefinition,
+  RecipeHandle,
+  RecipeHasSlots,
+  RecipeOptionsFor,
+  RecipeSlots,
+} from './schema-recipe';
+import type {
   ComponentAttrsReturn,
   ComponentReturn,
   ComponentVarDefinitions,
@@ -729,26 +736,89 @@ export type InferVarDefinitions<C> = C extends {
   : never;
 
 /**
+ * Axis → option → style map, derived from a schema definition.
+ * Option keys are the style-map keys (`'true' | 'false'` for boolean axes).
+ */
+type SchemaVariantStyleMap<Def extends RecipeDefinition> = {
+  [K in keyof Def['variants']]: {
+    [O in RecipeOptionsFor<Def['variants'][K]>]: VariantOptionStyle;
+  };
+};
+
+/** Axis → option → per-slot style map, for slotted schema definitions. */
+type SchemaSlotVariantStyleMap<Def extends RecipeDefinition, S extends string> = {
+  [K in keyof Def['variants']]: {
+    [O in RecipeOptionsFor<Def['variants'][K]>]: Partial<Record<S, VariantOptionStyle>>;
+  };
+};
+
+/**
+ * Vars to thread into an override config.
+ *
+ * Schema handles always carry a `Vars` type parameter. Recipes that never called
+ * `c.vars()` use the unconstrained `ComponentVarDefinitions` fallback (`string` index).
+ * Collapse that to `never` so `vars` is forbidden, matching legacy recipes with no
+ * var schema. A declared `c.vars()` object has specific keys, so it passes through.
+ */
+type SchemaOverrideVars<Vars extends ComponentVarDefinitions> = string extends keyof Vars
+  ? never
+  : Vars;
+
+/**
+ * `override()` config for a schema-first recipe handle.
+ *
+ * Discriminated by {@link RecipeHandle}'s definition brand, so axis and option keys
+ * stay narrow. The `Vars` parameter of {@link OverrideConfigFor} is ignored here —
+ * schema vars are read off the handle.
+ */
+export type SchemaOverrideConfigFor<C> =
+  C extends RecipeHandle<infer Def, infer _Element, infer Vars>
+    ? RecipeHasSlots<Def> extends true
+      ? SlotOverrideConfig<
+          readonly RecipeSlots<Def>[],
+          SchemaSlotVariantStyleMap<Def, RecipeSlots<Def>>,
+          SchemaOverrideVars<Vars>
+        >
+      : OverrideConfig<SchemaVariantStyleMap<Def>, SchemaOverrideVars<Vars>>
+    : never;
+
+/**
  * Infer the `override()` config shape from a component return type.
  * Branches mirror {@link OverrideFn}.
+ *
+ * Schema handles are tested first via `defaults` — every {@link RecipeHandle} has it, and
+ * no legacy return shape does. Axis unions come from the definition brand inside
+ * {@link SchemaOverrideConfigFor}.
  */
 export type OverrideConfigFor<
   C,
   Vars extends ComponentVarDefinitions = InferVarDefinitions<C>,
-> = C extends ComponentReturn<infer V> | ComponentAttrsReturn<infer V>
-  ? OverrideConfig<V, Vars>
-  : C extends FlatComponentReturn<infer K>
-    ? FlatOverrideConfig<K, Vars>
-    : C extends MultiSlotReturn<infer Slots>
-      ? MultiSlotOverrideConfig<Slots, Vars>
-      : C extends
-            | SlotComponentFunction<infer Slots, infer V>
-            | SlotAttrsReturn<infer Slots, infer V>
-        ? SlotOverrideConfig<Slots, V, Vars>
-        : never;
+> = C extends { readonly defaults: Record<string, unknown> }
+  ? SchemaOverrideConfigFor<C>
+  : C extends ComponentReturn<infer V> | ComponentAttrsReturn<infer V>
+    ? OverrideConfig<V, Vars>
+    : C extends FlatComponentReturn<infer K>
+      ? FlatOverrideConfig<K, Vars>
+      : C extends MultiSlotReturn<infer Slots>
+        ? MultiSlotOverrideConfig<Slots, Vars>
+        : C extends
+              | SlotComponentFunction<infer Slots, infer V>
+              | SlotAttrsReturn<infer Slots, infer V>
+          ? SlotOverrideConfig<Slots, V, Vars>
+          : never;
 
 /** Overload surface mirrored on `override`. */
 export type OverrideFn<L extends string = string> = {
+  /**
+   * Schema-first recipes. First so a handle (a function with `defaults`) is not matched
+   * structurally by a later slot overload. `defaults` is the discriminator — every schema
+   * handle has it, no legacy return does.
+   */
+  <C extends { readonly defaults: Record<string, unknown> }>(
+    component: C,
+    config: SchemaOverrideConfigFor<C>,
+    options?: OverrideOptions<L>,
+  ): void;
   /** Recipes with stamped `__varDefinitions` (config `vars` or `{ varDefinitions }` option). */
   <C extends { readonly __varDefinitions: ComponentVarDefinitions }>(
     component: C,

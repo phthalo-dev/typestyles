@@ -81,6 +81,7 @@ export type {
   MultiSlotOverrideConfig,
   FlatOverrideConfig,
   OverrideConfigFor,
+  SchemaOverrideConfigFor,
   InferVarDefinitions,
   ComponentVarAssignValue,
   ComponentVarValues,

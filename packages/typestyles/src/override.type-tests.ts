@@ -5,6 +5,7 @@
 import { createStyles } from './styles';
 import { when } from './theme';
 import { conditional } from './override';
+import { variant } from './variant';
 import type { OverrideConfigFor } from './override';
 import type { VariantOptionStyle } from './types';
 
@@ -438,3 +439,163 @@ const noVarsOverride: OverrideConfigFor<typeof button> = {
   vars: { background: 'crimson' },
 };
 void noVarsOverride;
+
+// Schema-first recipes (Issue #265) — OverrideConfigFor / override() follow the definition's axes.
+const schemaButton = styles.component(
+  'ov-type-schema-btn',
+  {
+    variants: {
+      tone: variant.enum(['neutral', 'accent'], { default: 'neutral' }),
+      size: variant.enum(['sm', 'md'], { default: 'md' }),
+      elevated: variant.boolean({ default: false }),
+    },
+  },
+  () => ({
+    variants: {
+      tone: { neutral: {}, accent: {} },
+      size: { sm: {}, md: {} },
+      elevated: { true: {}, false: {} },
+    },
+  }),
+);
+void schemaButton;
+
+const schemaButtonOverride: OverrideConfigFor<typeof schemaButton> = {
+  base: { color: 'red' },
+  variants: {
+    tone: { accent: { textTransform: 'uppercase' } },
+    elevated: { true: { boxShadow: 'none' } },
+  },
+  compoundVariants: [
+    {
+      variants: { tone: 'accent', size: 'md', elevated: true },
+      style: { letterSpacing: '0.02em' },
+    },
+  ],
+};
+void schemaButtonOverride;
+
+styles.override(schemaButton, { base: { color: 'red' } });
+styles.override(schemaButton, {
+  variants: { elevated: { true: { boxShadow: 'none' } } },
+  compoundVariants: [{ variants: { elevated: true, tone: 'accent' }, style: { outline: 'none' } }],
+});
+
+const schemaButtonBad: OverrideConfigFor<typeof schemaButton> = {
+  variants: {
+    // @ts-expect-error — schema config rejects unknown variant dimension
+    missing: { accent: { color: 'red' } },
+  },
+};
+void schemaButtonBad;
+
+// @ts-expect-error — schema config rejects unknown variant option
+styles.override(schemaButton, {
+  variants: { tone: { nope: { color: 'red' } } },
+});
+
+// @ts-expect-error — schema config rejects unknown compound dimension
+styles.override(schemaButton, {
+  compoundVariants: [{ variants: { nope: 'accent' }, style: { fontWeight: 700 } }],
+});
+
+const schemaNoVars: OverrideConfigFor<typeof schemaButton> = {
+  base: { color: 'red' },
+  // @ts-expect-error — schema recipe declared no vars
+  vars: { background: 'crimson' },
+};
+void schemaNoVars;
+
+const schemaAlert = styles.component(
+  'ov-type-schema-alert',
+  {
+    slots: ['root', 'title'] as const,
+    variants: {
+      tone: variant.enum(['neutral', 'accent'], { default: 'neutral' }),
+    },
+  },
+  () => ({
+    variants: {
+      tone: {
+        neutral: { root: {} },
+        accent: { title: { color: 'blue' } },
+      },
+    },
+  }),
+);
+void schemaAlert;
+
+const schemaAlertOverride: OverrideConfigFor<typeof schemaAlert> = {
+  base: { root: { gap: '8px' } },
+  variants: { tone: { accent: { title: { fontWeight: 700 } } } },
+  compoundVariants: [
+    {
+      variants: { tone: 'accent' },
+      style: { title: { letterSpacing: '0.02em' } },
+    },
+  ],
+};
+void schemaAlertOverride;
+
+styles.override(schemaAlert, {
+  base: { root: { display: 'flex' } },
+  variants: { tone: { accent: { title: { color: 'red' } } } },
+});
+
+const schemaAlertBad: OverrideConfigFor<typeof schemaAlert> = {
+  base: {
+    root: { gap: '4px' },
+    // @ts-expect-error — schema slot config rejects unknown slot
+    nope: { color: 'red' },
+  },
+};
+void schemaAlertBad;
+
+const schemaAlertDimBad: OverrideConfigFor<typeof schemaAlert> = {
+  variants: {
+    // @ts-expect-error — schema slot config rejects unknown variant dimension
+    missing: { accent: { title: { color: 'red' } } },
+  },
+};
+void schemaAlertDimBad;
+
+const schemaVarsRecipe = styles.component(
+  'ov-type-schema-vars',
+  {
+    variants: {
+      tone: variant.enum(['neutral', 'accent'], { default: 'neutral' }),
+    },
+  },
+  (c) => {
+    const v = c.vars({ surface: '#fff' });
+    return {
+      vars: v,
+      variants: {
+        tone: {
+          neutral: { color: v.surface.var },
+          accent: {},
+        },
+      },
+    };
+  },
+);
+void schemaVarsRecipe;
+
+const schemaVarsOk: OverrideConfigFor<typeof schemaVarsRecipe> = {
+  vars: { surface: 'transparent' },
+  base: { color: 'red' },
+};
+void schemaVarsOk;
+
+styles.override(schemaVarsRecipe, { vars: { surface: 'transparent' } });
+
+const schemaVarsBad: OverrideConfigFor<typeof schemaVarsRecipe> = {
+  vars: {
+    // @ts-expect-error — unknown var key
+    missing: 'x',
+  },
+};
+void schemaVarsBad;
+
+// @ts-expect-error — unknown var key on the call
+styles.override(schemaVarsRecipe, { vars: { missing: 'x' } });
