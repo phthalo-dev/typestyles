@@ -1,5 +1,12 @@
 # @typestyles/props
 
+## 0.4.34
+
+### Patch Changes
+
+- Updated dependencies [[`0594c19`](https://github.com/type-styles/typestyles/commit/0594c19538e45306395737f67f6db82bebb6ff27)]:
+  - typestyles@0.30.1
+
 ## 0.4.33
 
 ### Patch Changes

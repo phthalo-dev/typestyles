@@ -1,5 +1,11 @@
 # typestyles
 
+## 0.30.1
+
+### Patch Changes
+
+- [#266](https://github.com/type-styles/typestyles/pull/266) [`0594c19`](https://github.com/type-styles/typestyles/commit/0594c19538e45306395737f67f6db82bebb6ff27) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - `OverrideConfigFor` and `override()` now accept schema-first recipes. Theme configs follow the definition's axes, slots, and `c.vars()` keys instead of resolving to `never`.
+
 ## 0.30.0
 
 ### Minor Changes
