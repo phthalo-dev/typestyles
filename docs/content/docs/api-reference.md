@@ -23,7 +23,7 @@ export const { style, recipe, tokens, global } = createTypeStyles({ scopeId: 'ap
 - `hash(properties, options?)`: Deterministic hashed class (was `styles.hashClass`); `options` may include `label` and `layer`
 - `recipe(namespace, config, options?)`: Multi-variant / slot recipe (was `styles.component`); optional `{ layer?, themeable? }`. Also accepts the **schema-first** shape `recipe(namespace, definition, callback, options?)` — see [`variant`](#variant-schema-axes) and [Schema-first recipes](/docs/schema-recipes)
 - `compose(...fns)`: Compose multiple style functions
-- `override(component, config, options?)`: Recipe-shaped typed overrides from component `__tsMeta`, including typed **`vars`** (see [Theming patterns](/docs/theming-patterns#override-component-internal-vars))
+- `override(component, config, options?)`: Recipe-shaped typed overrides from component `__tsMeta`, including typed **`vars`** and [schema-first recipes](/docs/schema-recipes) (see [Theming patterns](/docs/theming-patterns#override-component-internal-vars))
 - `scope(opts, className, overrides)`: Proximity-correct overrides via CSS `@scope`
 - `property(id, options?)` / `property.declare` / `property.set`: Standalone CSS custom properties (optional `@property` when `syntax` is set)
 - `container(…)`, `supports(…)`, `has(…)`, `is(…)`, `where(…)`, `atRuleBlock(…)`, `when(…)`, `breakpoint(…)`, `media(…)`, `containerRef(label)`: Nested-selector / at-rule helpers (also available as top-level named exports)

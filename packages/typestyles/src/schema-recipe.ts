@@ -168,6 +168,16 @@ export type RecipeVarsOf<R> = R extends { vars: infer V }
   : ComponentVarDefinitions;
 
 /**
+ * Phantom brand carrying a recipe's `Def` on {@link RecipeHandle}.
+ *
+ * Declared and never emitted. A required unique-symbol property is invertible, so
+ * `RecipeHandle<infer Def>` recovers the axis unions. Inferring `Def` from the call
+ * signature is not — it collapses to the `RecipeDefinition` constraint (`keyof variants`
+ * becomes `string`). `override()` / `OverrideConfigFor` depend on this.
+ */
+declare const recipeDefinitionBrand: unique symbol;
+
+/**
  * The value returned by a schema `recipe(...)` call: callable with the schema's
  * selections, plus `.defaults` (and `.vars` when `c.vars()` was used).
  */
@@ -178,6 +188,11 @@ export type RecipeHandle<
 > = ((selections?: RecipeVariantSelections<Def>) => RecipeReturnValue<Def, Element>) & {
   /** Resolved axis defaults — one entry per axis. */
   readonly defaults: RecipeDefaults<Def>;
+  /**
+   * Definition brand for {@link OverrideConfigFor}. Not present at runtime.
+   * Required (not optional) so TypeScript can infer `Def`.
+   */
+  readonly [recipeDefinitionBrand]: Def;
   /** Ref tree for internal vars declared via `c.vars()` during definition. */
   readonly vars?: ComponentVarRefTree<Vars>;
 };
