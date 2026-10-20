@@ -156,6 +156,46 @@ const layeredCodeBlock = layeredAttr.component(
 );
 void layeredCodeBlock().root;
 void layeredCodeBlock;
+const layeredBorderName: string = layeredCodeBlock.vars.border.name;
+const layeredBorderVar: string = layeredCodeBlock.vars.border.var;
+void layeredBorderName;
+void layeredBorderVar;
+
+const layeredFlat = layeredAttr.component(
+  'layered-flat-vars',
+  (c) => {
+    const v = c.vars({ zIndex: { value: '0', syntax: '<integer>' as const } });
+    return { vars: v, base: { zIndex: v.zIndex.var } };
+  },
+  { layer: 'components' },
+);
+const layeredZIndex: string = layeredFlat.vars.zIndex.name;
+void layeredZIndex;
+
+const layeredSlotVariants = layeredAttr.component(
+  'layered-slot-variant-vars',
+  (c) => {
+    const v = c.vars({ anchorX: '0px' });
+    return {
+      vars: v,
+      slots: ['root', 'anchor'] as const,
+      base: { root: { position: 'relative' }, anchor: { left: v.anchorX.var } },
+      variants: {
+        open: {
+          true: { root: { display: 'block' } },
+          false: { root: { display: 'none' } },
+        },
+      },
+    };
+  },
+  { layer: 'components' },
+);
+const layeredAnchor: string = layeredSlotVariants.vars.anchorX.name;
+void layeredSlotVariants({ open: true }).root;
+void layeredAnchor;
+
+const codeBorderName: string = codeBlock.vars.border.name;
+void codeBorderName;
 
 // Full slot map (code-block scale) — every declared slot has a style block
 const layeredCodeBlockFull = layeredAttr.component(
