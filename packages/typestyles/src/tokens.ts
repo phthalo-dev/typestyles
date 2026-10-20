@@ -5,6 +5,7 @@ import type {
   TokenRegistry,
   ThemeConfig,
   Theme,
+  ThemeCondition,
   ThemeOverrides,
   TokenSchema,
   DeclaredTokenRef,
@@ -38,9 +39,9 @@ import {
   createTheme,
   when,
   colorMode,
-  resolvedDarkWhen,
+  DEFAULT_COLOR_MODE_ATTRIBUTE,
+  resolvedColorModeDarkWhen,
   type CreateThemeOptions,
-  resolvedDarkWhenOnRoot,
 } from './theme';
 import type { CascadeLayersInput } from './layers';
 import { applyLayerToRules, assertOwnLayer, resolveCascadeLayers } from './layers';
@@ -113,6 +114,12 @@ export type CreateTokensOptions = {
    * Color mode keys for `{ light, dark }` on token leaves — compiled to `light-dark()`.
    */
   colorModes?: ColorModeMap;
+  /**
+   * HTML attribute for automatic dark fallbacks of values that cannot compile to
+   * `light-dark()`. Matches the attribute on `:root` / the theme class and on a
+   * descendant. Default: `"data-color-mode"`.
+   */
+  colorModeAttribute?: string;
   /**
    * When set with **`tokenLayer`**, `:root` custom properties and theme surfaces are wrapped in
    * `@layer tokenLayer { … }`, and a matching `@layer …;` order preamble is registered.
@@ -392,11 +399,12 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
   const scopeId = options.scopeId?.trim() || undefined;
   const themeStyles = options.themeStyles;
   const colorModes = options.colorModes;
+  const colorModeAttribute = options.colorModeAttribute?.trim() || DEFAULT_COLOR_MODE_ATTRIBUTE;
+  const rootDarkWhen = resolvedColorModeDarkWhen(colorModeAttribute);
   const themeOptions: CreateThemeOptions = {
     colorModes,
-    resolvedDarkWhen: resolvedDarkWhen('data-mode', 'self'),
+    resolvedDarkWhen: rootDarkWhen,
   };
-  const rootDarkWhen = resolvedDarkWhenOnRoot();
 
   if (process.env.NODE_ENV !== 'production') {
     if (options.layers && options.tokenLayer == null) {
@@ -839,7 +847,7 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
   function emitTheme<E extends Record<string, CreateTokenValues> = Record<string, never>>(
     name: string,
     config: ThemeConfig,
-    callOptions?: { replace?: boolean },
+    callOptions?: { replace?: boolean; resolvedDarkWhen?: ThemeCondition },
   ): Theme<E> {
     const resolved = normalizeThemeConfig(config, colorModes);
 
@@ -859,11 +867,13 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
       create(namespace, values);
     });
 
+    const darkWhen = callOptions?.resolvedDarkWhen ?? themeOptions.resolvedDarkWhen;
     const surface = createTheme(name, prepared, scopeId, themeLayerContext, themeTokenNaming, {
       ...themeOptions,
+      resolvedDarkWhen: darkWhen,
       source,
       createChildTheme: (childName, merged, childOptions) =>
-        emitTheme<E>(childName, merged, childOptions) as Theme,
+        emitTheme<E>(childName, merged, { ...childOptions, resolvedDarkWhen: darkWhen }) as Theme,
     });
 
     const withTokens = {
@@ -885,13 +895,13 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
     use: use as TokensApi<R>['use'],
     declare: declare as TokensApi<R>['declare'],
     createTheme: ((input: CreateThemeInput) => {
-      const { name, replace, components, modes, tokens: themeTokens } = input;
+      const { name, replace, components, modes, tokens: themeTokens, resolvedDarkWhen } = input;
       const config: ThemeConfig = {
         modes,
         tokens: themeTokens,
         ...(components !== undefined ? { components } : {}),
       };
-      return emitTheme(name, config, { replace });
+      return emitTheme(name, config, { replace, resolvedDarkWhen });
     }) as TokensApi<R>['createTheme'],
     ensureNamespace,
     disposeTheme: (name, options) => disposeThemeByName(scopeId, name, { tokenLayer, ...options }),

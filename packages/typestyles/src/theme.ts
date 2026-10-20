@@ -42,7 +42,8 @@ export type CreateThemeOptions = {
   colorModes?: ColorModeMap;
   /**
    * Condition for dark-only token fallback rules (non-`light-dark()` leaves).
-   * Defaults to explicit `data-mode="dark"` or system dark when not pinned to light.
+   * Defaults to `data-color-mode="dark"` on the theme element or a descendant,
+   * or system dark when the theme element is not pinned to light.
    */
   resolvedDarkWhen?: ThemeCondition;
   /**
@@ -145,9 +146,12 @@ export const when = {
   prefersLight: { type: 'media', query: '(prefers-color-scheme: light)' } as ThemeConditionMedia,
 } as const;
 
+/** HTML attribute used by automatic dark fallbacks when `colorModeAttribute` is omitted. */
+export const DEFAULT_COLOR_MODE_ATTRIBUTE = 'data-color-mode';
+
 /** Explicit attribute dark or system dark when not pinned to light (common app color-mode contract). */
 export function resolvedDarkWhen(
-  attribute = 'data-mode',
+  attribute = DEFAULT_COLOR_MODE_ATTRIBUTE,
   scope: 'self' | 'ancestor' = 'ancestor',
 ): ThemeCondition {
   return condOr(
@@ -156,9 +160,23 @@ export function resolvedDarkWhen(
   );
 }
 
-/** Dark-mode condition for `:root` token overrides (`:root[data-mode="dark"]`). */
-export function resolvedDarkWhenOnRoot(attribute = 'data-mode'): ThemeCondition {
+/** Dark-mode condition for `:root` token overrides (`:root[data-color-mode="dark"]`). */
+export function resolvedDarkWhenOnRoot(attribute = DEFAULT_COLOR_MODE_ATTRIBUTE): ThemeCondition {
   return resolvedDarkWhen(attribute, 'self');
+}
+
+/**
+ * Automatic dark fallback for values that cannot compile to `light-dark()`.
+ * Matches the attribute on the anchor (`:root` or the theme class) or on a
+ * descendant, and system dark when the anchor is not pinned to light.
+ */
+export function resolvedColorModeDarkWhen(
+  attribute = DEFAULT_COLOR_MODE_ATTRIBUTE,
+): ThemeCondition {
+  return condOr(
+    resolvedDarkWhen(attribute, 'self'),
+    condAttr(attribute, 'dark', { scope: 'descendant' }),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -462,7 +480,7 @@ export function createTheme(
   options?: CreateThemeInternalOptions,
 ): Theme {
   const colorModes = options?.colorModes;
-  const darkWhen = options?.resolvedDarkWhen ?? resolvedDarkWhen('data-mode', 'self');
+  const darkWhen = options?.resolvedDarkWhen ?? resolvedColorModeDarkWhen();
 
   const segment = themeSegment(scopeId, name);
   const className = `theme-${segment}`;

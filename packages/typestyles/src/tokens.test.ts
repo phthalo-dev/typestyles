@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, expectTypeOf } from 'vitest';
 import { createTokens } from './tokens';
-import { createTheme } from './theme';
+import { createTheme, when } from './theme';
+import { createTypeStyles } from './create-type-styles';
 import { atProperty } from './at-property';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 import type { TokenRef, TokenValues } from './types';
@@ -928,8 +929,25 @@ describe('tokens.create mode-aware leaves', () => {
     flushSync();
     const css = getRegisteredCss();
     expect(css).toContain('--app-brand-glow: 0 0 0 3px blue');
-    expect(css).toContain(':root[data-mode="dark"]');
+    expect(css).toContain(':root[data-color-mode="dark"]');
+    expect(css).toContain(':root [data-color-mode="dark"]');
     expect(css).toContain('--app-brand-glow: 0 0 16px navy');
+  });
+
+  it('uses colorModeAttribute for root dark fallbacks', () => {
+    const api = createTokens({
+      scopeId: 'app',
+      colorModes: ['light', 'dark'],
+      colorModeAttribute: 'data-theme',
+    });
+    api.create('brand', {
+      glow: { light: '0 0 0 3px blue', dark: '0 0 16px navy' },
+    });
+    flushSync();
+    const css = getRegisteredCss();
+    expect(css).toContain(':root[data-theme="dark"]');
+    expect(css).toContain(':root [data-theme="dark"]');
+    expect(css).not.toContain('data-color-mode');
   });
 
   it('falls back to light value when colorModes is not configured', () => {
@@ -977,5 +995,53 @@ describe('tokens.createTheme mode-aware leaves', () => {
     flushSync();
     const css = getRegisteredCss();
     expect(css).toMatch(/--app-color-accent-default:\s*light-dark\(#111, #eee\)/);
+  });
+
+  it('emits self and descendant dark fallbacks on the color-mode attribute', () => {
+    const api = createTokens({ scopeId: 'app', colorModes: ['light', 'dark'] });
+    api.createTheme({
+      name: 'shadow',
+      tokens: {
+        shadow: { glow: { light: '0 0 0 1px #000', dark: '0 0 16px #fff' } },
+      },
+    });
+    flushSync();
+    const css = getRegisteredCss();
+    expect(css).toContain('.theme-app-shadow[data-color-mode="dark"]');
+    expect(css).toContain('.theme-app-shadow [data-color-mode="dark"]');
+    expect(css).toMatch(
+      /\.theme-app-shadow\[data-color-mode="dark"\][\s\S]*--app-shadow-glow:\s*0 0 16px #fff/,
+    );
+  });
+
+  it('honors resolvedDarkWhen on createTheme', () => {
+    const api = createTokens({ scopeId: 'app', colorModes: ['light', 'dark'] });
+    api.createTheme({
+      name: 'pinned',
+      resolvedDarkWhen: when.attr('data-tone', 'dark', { scope: 'ancestor' }),
+      tokens: {
+        shadow: { glow: { light: '0 0 0 1px #000', dark: '0 0 16px #fff' } },
+      },
+    });
+    flushSync();
+    const css = getRegisteredCss();
+    expect(css).toContain('[data-tone="dark"] .theme-app-pinned');
+    expect(css).not.toContain('.theme-app-pinned[data-color-mode');
+    expect(css).not.toContain('.theme-app-pinned [data-color-mode');
+  });
+
+  it('threads colorModeAttribute from createTypeStyles', () => {
+    const { tokens } = createTypeStyles({
+      scopeId: 'app',
+      colorModes: ['light', 'dark'],
+      colorModeAttribute: 'data-scheme',
+    });
+    tokens.create('brand', {
+      glow: { light: '0 0 0 3px blue', dark: '0 0 16px navy' },
+    });
+    flushSync();
+    const css = getRegisteredCss();
+    expect(css).toContain(':root[data-scheme="dark"]');
+    expect(css).toContain(':root [data-scheme="dark"]');
   });
 });

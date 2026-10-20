@@ -1,6 +1,7 @@
 import type {
   CreateTokenValues,
   ThemeComponentOverrideEntry,
+  ThemeCondition,
   ThemeConfig,
   ThemeOverrideContext,
   ThemeSource,
@@ -40,12 +41,18 @@ type CreateThemeConfigFields = Omit<ThemeConfig, 'components'>;
  * - **`modes`** — conditional override layers (see theming docs / `tokens.colorMode.*` presets).
  * - **`components`** — per-recipe CSS overrides scoped to this theme class.
  * - **`replace`** — when true (default), reusing `name` replaces the previous theme registration.
+ * - **`resolvedDarkWhen`** — condition for dark fallbacks of values that cannot compile to `light-dark()`.
  *
  * Fork child themes with {@link Theme.override}, not a second `createTheme` merge API.
  */
 export type CreateThemeInput<T extends CreateThemeConfigFields = CreateThemeConfigFields> = {
   name: string;
   replace?: boolean;
+  /**
+   * Overrides the instance dark fallback for values that cannot compile to `light-dark()`.
+   * Defaults to the color-mode attribute on the theme class or a descendant.
+   */
+  resolvedDarkWhen?: ThemeCondition;
 } & T &
   ThemeComponentsFor<T>;
 

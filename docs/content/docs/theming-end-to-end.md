@@ -157,7 +157,7 @@ Sharing one root theme across many brands? Use [`Theme.override`](/docs/theming-
 
 ## Mount (React)
 
-Root mode-aware tokens compile to `light-dark()`. With `colorModes` configured, `createTheme` also emits `color-scheme: light dark` on the theme class. For an explicit `data-mode` toggle, see [condition scopes](/docs/theming-patterns#condition-scopes-self-ancestor-descendant) or [attribute-driven modes](/docs/theming-patterns#light--dark--system-on-data).
+Root mode-aware tokens compile to `light-dark()`. With `colorModes` configured, `createTheme` also emits `color-scheme: light dark` on the theme class. Values that cannot use `light-dark()` fall back on `data-color-mode` (see [Mode-aware token leaves](/docs/tokens#mode-aware-token-leaves)). For an explicit attribute toggle, see [condition scopes](/docs/theming-patterns#condition-scopes-self-ancestor-descendant) or [attribute-driven modes](/docs/theming-patterns#light--dark--system-on-data).
 
 ```tsx
 // App.tsx
