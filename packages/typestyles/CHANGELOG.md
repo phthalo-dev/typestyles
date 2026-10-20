@@ -1,5 +1,11 @@
 # typestyles
 
+## 0.31.0
+
+### Minor Changes
+
+- [#269](https://github.com/type-styles/typestyles/pull/269) [`4c21864`](https://github.com/type-styles/typestyles/commit/4c2186401543d13f7c4216fa27eefe4e88d4891f) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - **BREAKING:** Automatic dark fallbacks for token values that cannot compile to `light-dark()` now match `data-color-mode` instead of `data-mode`, on `:root` or the theme class and on a descendant. Pass `colorModeAttribute` to `createTypeStyles` / `createTokens` to use another attribute, or `resolvedDarkWhen` on `tokens.createTheme()` for a custom condition.
+
 ## 0.30.1
 
 ### Patch Changes
