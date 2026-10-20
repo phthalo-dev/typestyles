@@ -292,7 +292,8 @@ tokens.create('brand', {
 });
 // --app-brand-accent: light-dark(#111827, #f9fafb);
 // --app-brand-glow: 0 0 0 3px blue;
-// + dark override rule for --app-brand-glow when dark mode is active
+// + dark override for --app-brand-glow under data-color-mode="dark"
+//   on :root or a descendant, and under system dark when not pinned to light
 ```
 
 `colorModes` from `typestyles` is `['light', 'dark']`. **Array order** defines
@@ -301,6 +302,20 @@ from key names alone. v1 supports at most two registered modes.
 
 Theme surfaces created while `colorModes` is configured also emit `color-scheme: light dark` on
 the theme class so `light-dark()` resolves correctly in the subtree.
+
+Values that cannot use `light-dark()` (shadow shorthands, lengths) keep the light value on the
+base rule and emit a dark override. That override matches `data-color-mode="dark"` on `:root` or
+the theme class, and on a descendant, plus system dark when that element is not `data-color-mode="light"`.
+Pass `colorModeAttribute` to rename the attribute, or `resolvedDarkWhen` on `tokens.createTheme()`
+for a custom condition:
+
+```ts
+const { tokens } = createTypeStyles({
+  scopeId: 'app',
+  colorModes,
+  colorModeAttribute: 'data-theme', // default: 'data-color-mode'
+});
+```
 
 ### Themes use the same leaf shape
 

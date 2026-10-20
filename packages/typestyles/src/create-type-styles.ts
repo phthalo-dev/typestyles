@@ -124,6 +124,11 @@ export type TypeStylesApi<Recipe = LayeredSemanticRecipeFn<string>> = ComponentR
 type CreateTypeStylesOptionsBase = NamingPartial & {
   utils?: StyleUtils;
   mode?: ClassNamingConfig['mode'];
+  /**
+   * HTML attribute for automatic dark fallbacks of token values that cannot compile
+   * to `light-dark()`. Default: `"data-color-mode"`.
+   */
+  colorModeAttribute?: string;
 };
 
 function cascadeInputFromLayers(
@@ -232,7 +237,7 @@ export function createTypeStyles(
 export function createTypeStyles(
   options: CreateTypeStylesOptionsBase & { layers?: TypeStylesLayersConfig } = {},
 ): TypeStylesApi<unknown> {
-  const { layers, utils, ...rest } = options;
+  const { layers, utils, colorModeAttribute, ...rest } = options;
 
   if (layers != null) {
     if (layers.token == null || layers.token === '') {
@@ -266,6 +271,7 @@ export function createTypeStyles(
       layers: cascade,
       tokenLayer: layers.token,
       colorModes: rest.colorModes,
+      colorModeAttribute,
       themeStyles: styles,
     });
     const global = createGlobal({
@@ -281,6 +287,7 @@ export function createTypeStyles(
   const tokens = createTokens({
     scopeId: rest.scopeId,
     colorModes: rest.colorModes,
+    colorModeAttribute,
     themeStyles: styles,
   });
   const global = createGlobal({ scopeId: rest.scopeId, breakpoints: rest.breakpoints });

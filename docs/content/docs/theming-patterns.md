@@ -722,7 +722,8 @@ Set `data-color-mode` on `html` (or another ancestor); apply `shell.className` o
 When you register `colorModes` on `createTypeStyles` or `createTokens`, token leaves can use
 `{ light, dark }` in `tokens.create()` and `tokens.createTheme({ tokens })`. Color-compatible
 values compile to CSS `light-dark()` on `--*` variables; shadow-like shorthands get a dark
-override rule instead.
+override rule instead. That rule matches `data-color-mode="dark"` on the anchor or a descendant
+(override the attribute with `colorModeAttribute`, or the condition with `resolvedDarkWhen`).
 
 ```ts
 import { colorModes, createTypeStyles } from 'typestyles';

@@ -2,7 +2,15 @@ import { createStyles } from './styles';
 import { createTokens } from './tokens';
 import { createTypeStyles } from './create-type-styles';
 import { createGlobal } from './create-global';
-import { createTheme, createDarkMode, when, colorMode, resolvedDarkWhen } from './theme';
+import {
+  createTheme,
+  createDarkMode,
+  when,
+  colorMode,
+  DEFAULT_COLOR_MODE_ATTRIBUTE,
+  resolvedDarkWhen,
+  resolvedColorModeDarkWhen,
+} from './theme';
 import { createKeyframes } from './keyframes';
 import {
   getRegisteredCss,
@@ -293,7 +301,15 @@ export { flattenTokenEntries, flattenTokenPaths, isTokenDescriptor } from './typ
 
 export { createVar, assignVars };
 
-export { createTheme, createDarkMode, when, colorMode, resolvedDarkWhen };
+export {
+  createTheme,
+  createDarkMode,
+  when,
+  colorMode,
+  DEFAULT_COLOR_MODE_ATTRIBUTE,
+  resolvedDarkWhen,
+  resolvedColorModeDarkWhen,
+};
 export {
   canUseLightDarkForTokenValue,
   cloneThemeValues,

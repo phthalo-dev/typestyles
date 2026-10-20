@@ -892,9 +892,10 @@ describe('mode-aware leaves with modes', () => {
     );
     flushSync();
     const css = getRegisteredCss();
-    expect(css).toContain('.theme-fallback-self[data-mode="dark"]');
+    expect(css).toContain('.theme-fallback-self[data-color-mode="dark"]');
+    expect(css).toContain('.theme-fallback-self [data-color-mode="dark"]');
     expect(css).toMatch(
-      /\.theme-fallback-self\[data-mode="dark"\][\s\S]*--shadow-glow:\s*0 0 16px #fff/,
+      /\.theme-fallback-self\[data-color-mode="dark"\][\s\S]*--shadow-glow:\s*0 0 16px #fff/,
     );
   });
 });
