@@ -339,7 +339,6 @@ function finishComponentResult<T extends object>(
  */
 export type ComponentBuildOptions = {
   layer?: string;
-  varDefinitions?: ComponentVarDefinitions;
 };
 
 export function createComponent<
@@ -381,7 +380,7 @@ export function createComponent(
 ): unknown {
   const options: ComponentBuildOptions =
     typeof buildOptions === 'string' ? { layer: buildOptions } : (buildOptions ?? {});
-  const { layer, varDefinitions } = options;
+  const { layer } = options;
 
   let emitLayer = layer;
   if (classNaming.cascadeLayers) {
@@ -405,7 +404,7 @@ export function createComponent(
     varRefTree,
     varDefinitions: configVarDefinitions,
   } = resolveComponentConfig(classNaming, namespace, config);
-  const recipeVarDefinitions = varDefinitions ?? configVarDefinitions;
+  const recipeVarDefinitions = configVarDefinitions;
   const finish = <T extends object>(result: T) =>
     finishComponentResult(result, varRegistry, recipeVarDefinitions, varRefTree);
   if (isMultiSlotConfig(resolved)) {

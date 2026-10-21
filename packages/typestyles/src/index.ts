@@ -31,18 +31,7 @@ import { whenStyle } from './when-style';
 import { atan2, calc, clamp, cos, hypot, pow, sin, sqrt, tan } from './css-math';
 import { content } from './css-content';
 
-export type {
-  StylesApi,
-  StylesApiWithLayers,
-  CreateStylesInput,
-  LayerOption,
-  ComponentCreateOptions,
-  LayeredComponentFn,
-  AttributeStylesApi,
-  AttributeStylesApiWithLayers,
-  AttributeComponentFn,
-  LayeredAttributeComponentFn,
-} from './styles';
+export type { StylesApi, CreateStylesInput, ComponentCreateOptions, RecipeFn } from './styles';
 export type { CreateTokensOptions, TokensApi } from './tokens';
 export type { ThemeTokenContext } from './theme-token-context';
 export type { BreakpointMap, BreakpointsConfig, ResponsiveValue } from './breakpoints';
@@ -123,11 +112,7 @@ export type {
 } from './variant';
 
 export type {
-  AttributeSchemaRecipeFn,
   ExactRecipeStyles,
-  LayeredAttributeSchemaRecipeFn,
-  LayeredSchemaRecipeFn,
-  LayeredSemanticSchemaRecipeFn,
   RecipeAxisSelectionValue,
   RecipeCompoundSelectionValue,
   RecipeDefaultValue,
@@ -145,9 +130,6 @@ export type {
   RecipeVariantSelections,
   RecipeVariants,
   RecipeVarsOf,
-  SchemaRecipeFn,
-  SchemaRecipeOptions,
-  SemanticSchemaRecipeFn,
 } from './schema-recipe';
 export { getRegisteredComponentRefs } from './component-registry';
 export type {
@@ -157,16 +139,7 @@ export type {
 
 /** Primary app/library entry. Prefer this over the lower-level factories. */
 export { createTypeStyles };
-export type {
-  TypeStylesApi,
-  TypeStylesLayersConfig,
-  StyleFn,
-  HashFn,
-  SemanticRecipeFn,
-  LayeredSemanticRecipeFn,
-  AttributeRecipeFn,
-  LayeredAttributeRecipeFn,
-} from './create-type-styles';
+export type { TypeStylesApi, TypeStylesLayersConfig, StyleFn, HashFn } from './create-type-styles';
 
 /**
  * Lower-level factories (prefer {@link createTypeStyles} for apps).

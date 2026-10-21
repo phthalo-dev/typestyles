@@ -24,7 +24,7 @@ import type {
  * `U` is `undefined` until utils are registered. `L` is `undefined` when the
  * factory has no cascade layers. `Attrs` is attribute mode.
  */
-export type StylesSurface<
+type StylesSurface<
   U = undefined,
   L extends string | undefined = undefined,
   Attrs extends boolean = false,
@@ -77,35 +77,23 @@ type ScopeFn<U, L extends string | undefined> = [L] extends [undefined]
       overrides: StyleProps<U>,
     ) => void;
 
-export type StylesApi = StylesSurface;
-export type StylesApiWithLayers<L extends string> = StylesSurface<undefined, L, false>;
-export type StylesWithUtilsApi<U extends StyleUtils> = StylesSurface<U, undefined, false>;
-export type StylesWithUtilsApiLayered<U extends StyleUtils, L extends string> = StylesSurface<
-  U,
-  L,
-  false
->;
-export type AttributeStylesApi = StylesSurface<undefined, undefined, true>;
-export type AttributeStylesApiWithLayers<L extends string> = StylesSurface<undefined, L, true>;
-export type AttributeStylesWithUtilsApi<U extends StyleUtils> = StylesSurface<U, undefined, true>;
-export type AttributeStylesWithUtilsApiLayered<
-  U extends StyleUtils,
-  L extends string,
-> = StylesSurface<U, L, true>;
-
-/** @deprecated Identical to {@link LayeredComponentFn}. Utils do not change recipe signatures. */
-export type LayeredComponentFnWithUtils<L extends string> = RecipeFn<L, false>;
-export type LayeredComponentFn<L extends string> = RecipeFn<L, false>;
-export type AttributeComponentFn = RecipeFn<undefined, true>;
-export type LayeredAttributeComponentFn<L extends string> = RecipeFn<L, true>;
-
 type HasUtils<O> = O extends { utils: infer U extends StyleUtils } ? U : undefined;
 type HasAttrs<O> = O extends { mode: 'attribute' } ? true : false;
 type LayerNames<O> = O extends { layers: infer L extends readonly string[] }
   ? L[number]
-  : O extends { layers: object }
-    ? string
-    : undefined;
+  : O extends { layers: { readonly order: infer L extends readonly string[] } }
+    ? L[number]
+    : O extends { layers: object }
+      ? string
+      : undefined;
 
-/** Return type of {@link createStyles}, derived from the options object instead of an overload list. */
-export type CreateStylesResult<O> = StylesSurface<HasUtils<O>, LayerNames<O>, HasAttrs<O>>;
+/**
+ * Return type of {@link createStyles}, derived from the options object.
+ *
+ * The default `StylesApi` is semantic mode with no utils and no cascade layers.
+ * Pass the same options you gave the factory to name another variant:
+ * `StylesApi<{ mode: 'attribute'; layers: readonly ['components'] }>`.
+ */
+// `{}` is the empty options bag (no utils, no layers, semantic mode), not a value type.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type StylesApi<O = {}> = StylesSurface<HasUtils<O>, LayerNames<O>, HasAttrs<O>>;

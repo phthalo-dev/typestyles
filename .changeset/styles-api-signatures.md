@@ -2,4 +2,4 @@
 'typestyles': patch
 ---
 
-Collapse the copied `createStyles` and `recipe` overload lists into one parameterized signature. Passing `{ varDefinitions }` to `recipe()` no longer infers `.vars`; declare `vars` on the config or call `c.vars()`.
+Collapse style and recipe signatures onto `StylesApi` and `RecipeFn`. Declare component vars with `vars` on the config or `c.vars()`; `recipe()` options are `{ layer, themeable }`.

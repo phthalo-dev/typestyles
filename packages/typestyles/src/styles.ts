@@ -4,8 +4,8 @@ import type {
   ComposeFn,
   ComposeSelectorInput,
   ComponentConfigContext,
-  ComponentVarDefinitions,
   StyleUtils,
+  StylesPropertyFn,
 } from './types';
 import { serializeStyle } from './serialize-style';
 import { insertRules, invalidateClassNamespaceForDev } from './sheet';
@@ -13,7 +13,6 @@ import type { CascadeLayersInput } from './layers';
 import { applyLayerToRules, assertOwnLayer, resolveCascadeLayers } from './layers';
 import { registeredNamespaces, trackEmittedClassName, warnUnscopedCollision } from './registry';
 import {
-  defaultClassNamingConfig,
   emittedClassName,
   hashString,
   mergeClassNaming,
@@ -24,7 +23,7 @@ import {
 import { decomposeAtomicStyle, classNamesAndRulesForProperties } from './atomic-decompose';
 import { createComponent, createSchemaComponent, isSchemaRecipeDefinition } from './component';
 import type { RecipeDefinition, RecipeStyles } from './schema-recipe';
-import type { CreateStylesResult, StylesWithUtilsApi } from './styles-api';
+import type { StylesApi } from './styles-api';
 import {
   collectComposeAllowedKeys,
   devWarnComposeUnknownKeys,
@@ -50,7 +49,12 @@ import {
 import { supports as supportsQuery } from './supports';
 import { atRuleBlock as atRuleBlockFn } from './at-rule-block';
 import { whenStyle as whenStyleFn } from './when-style';
-import { createBreakpointMediaFn, createMediaFn } from './media';
+import {
+  createBreakpointMediaFn,
+  createMediaFn,
+  type BreakpointMediaFn,
+  type MediaFn,
+} from './media';
 import { has as hasNested, is as isNested, where as whereNested } from './relational-pseudo';
 import { resolveBreakpoints, type BreakpointsConfig } from './breakpoints';
 import { resolveColorModes, type ColorModeMap } from './color-modes';
@@ -248,36 +252,14 @@ export function compose<const S extends readonly ComposeSelectorInput[]>(
   return fn as ComposeFn<S>;
 }
 
-export type {
-  AttributeComponentFn,
-  AttributeStylesApi,
-  AttributeStylesApiWithLayers,
-  AttributeStylesWithUtilsApi,
-  AttributeStylesWithUtilsApiLayered,
-  CreateStylesResult,
-  LayeredAttributeComponentFn,
-  LayeredComponentFn,
-  LayeredComponentFnWithUtils,
-  StylesApi,
-  StylesApiWithLayers,
-  StylesWithUtilsApi,
-  StylesWithUtilsApiLayered,
-} from './styles-api';
+export type { StylesApi };
+export type { ComponentCreateOptions, RecipeFn } from './recipe-fn';
 
-/** Options argument for `recipe()` — `layer` is required when this factory was created with `layers`. */
-export type ComponentCreateOptions<L extends string = string> = {
-  readonly layer?: L;
-  readonly varDefinitions?: ComponentVarDefinitions;
-  /**
-   * When `false`, the component is omitted from {@link ComponentRegistryApi.getThemeableComponents}
-   * and cannot be targeted by theme `components` overrides (see theming docs).
-   * @default true
-   */
+/** Runtime options bag. Unlayered calls may pass `{ themeable }` with no `layer`. */
+type RecipeRuntimeOptions = {
+  readonly layer?: string;
   readonly themeable?: boolean;
 };
-
-/** @deprecated Use {@link ComponentCreateOptions} — kept as alias for `layer`-only call sites. */
-export type LayerOption<L extends string = string> = { readonly layer: L };
 
 export type CreateStylesInput = Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
   layers?: CascadeLayersInput;
@@ -318,9 +300,7 @@ export type CreateStylesInput = Partial<Omit<ClassNamingConfig, 'cascadeLayers'>
  * Pass **`utils`** to register shorthand expanders on this instance (same behavior as
  * `styles.withUtils(utils)` on the default export, without a second parallel API object).
  */
-export function createStyles<const O extends CreateStylesInput>(
-  options?: O,
-): CreateStylesResult<O> {
+export function createStyles<const O extends CreateStylesInput>(options?: O): StylesApi<O> {
   const partial = (options ?? {}) as CreateStylesInput;
   const {
     layers,
@@ -365,37 +345,14 @@ export function createStyles<const O extends CreateStylesInput>(
   }
 
   const registry = createComponentRegistry();
-  return buildStylesApi(classNaming, registry, utils) as unknown as CreateStylesResult<O>;
-}
-
-/**
- * Create a utility-aware styles API, similar to Stitches' `utils`.
- *
- * @example
- * ```ts
- * const u = styles.withUtils({
- *   marginX: (value: string | number) => ({ marginLeft: value, marginRight: value }),
- *   size: (value: string | number) => ({ width: value, height: value }),
- * });
- *
- * const card = u.component('card', {
- *   base: { size: 40, marginX: 16 },
- * });
- * ```
- */
-export function createStylesWithUtils<U extends StyleUtils>(
-  utils: U,
-  classNaming: ClassNamingConfig = defaultClassNamingConfig,
-  registry: ComponentRegistry = createComponentRegistry(),
-): StylesWithUtilsApi<U> {
-  return buildStylesApi(classNaming, registry, utils) as unknown as StylesWithUtilsApi<U>;
+  return buildStylesApi(classNaming, registry, utils) as unknown as StylesApi<O>;
 }
 
 function registerComponentFromOptions(
   registry: ComponentRegistry,
   namespace: string,
   handle: unknown,
-  options?: ComponentCreateOptions<string>,
+  options?: RecipeRuntimeOptions,
 ): void {
   registry.register(namespace, handle as object, options?.themeable !== false);
 }
@@ -406,11 +363,50 @@ function createMediaHelpers(classNaming: ClassNamingConfig) {
   return { breakpoint, media };
 }
 
+type StylesHashClass =
+  | ((properties: CSSProperties, label?: string) => string)
+  | ((
+      properties: CSSProperties,
+      options?: { readonly layer?: string; readonly label?: string },
+    ) => string);
+
+/** Fields shared by every `createStyles` result. `satisfies` on the builder keeps this list honest. */
+type StylesCore = {
+  classNaming: ClassNamingConfig;
+  container: typeof containerQuery;
+  containerRef: (label: string) => ContainerNameRef;
+  supports: typeof supportsQuery;
+  atRuleBlock: typeof atRuleBlockFn;
+  when: typeof whenStyleFn;
+  breakpoint: BreakpointMediaFn;
+  media: MediaFn;
+  has: typeof hasNested;
+  is: typeof isNested;
+  where: typeof whereNested;
+  class: (name: string, properties: CSSProperties, options?: { readonly layer?: string }) => string;
+  hashClass: StylesHashClass;
+  component: (
+    namespace: string,
+    configOrDefinition: unknown,
+    callbackOrOptions?: unknown,
+    maybeOptions?: RecipeRuntimeOptions,
+  ) => unknown;
+  compose: typeof compose;
+  scope: (opts: ScopeOptions, className: string, overrides: CSSProperties) => void;
+  override: (componentHandle: object, config: unknown, options?: OverrideOptions<string>) => void;
+};
+
+type StylesBuilderResult = StylesCore &
+  ComponentRegistryApi & {
+    property?: StylesPropertyFn;
+    withUtils?: (utils: StyleUtils) => StylesBuilderResult;
+  };
+
 function buildStylesApi(
   classNaming: ClassNamingConfig,
   registry: ComponentRegistry,
   utils?: StyleUtils,
-) {
+): StylesBuilderResult {
   const layered = Boolean(classNaming.cascadeLayers);
   const apply = utils
     ? (properties: CSSPropertiesWithUtils<StyleUtils>): CSSProperties =>
@@ -422,7 +418,7 @@ function buildStylesApi(
     namespace: string,
     configOrDefinition: unknown,
     callbackOrOptions?: unknown,
-    maybeOptions?: ComponentCreateOptions<string>,
+    maybeOptions?: RecipeRuntimeOptions,
   ) => {
     if (isSchemaRecipeDefinition(configOrDefinition)) {
       const definition = configOrDefinition;
@@ -449,7 +445,7 @@ function buildStylesApi(
     const config = configOrDefinition as
       | Record<string, unknown>
       | ((ctx: ComponentConfigContext) => Record<string, unknown>);
-    const options = callbackOrOptions as ComponentCreateOptions<string> | undefined;
+    const options = callbackOrOptions as RecipeRuntimeOptions | undefined;
     let resolved: typeof config;
     if (!transform) {
       resolved = config;
@@ -499,6 +495,12 @@ function buildStylesApi(
     );
   };
 
+  const hashClass: StylesHashClass = layered
+    ? (properties: CSSProperties, options?: { layer?: string; label?: string }) =>
+        createHashClass(classNaming, normalize(properties), options?.label, options?.layer)
+    : (properties: CSSProperties, label?: string) =>
+        createHashClass(classNaming, normalize(properties), label);
+
   const api = {
     classNaming,
     container: containerQuery,
@@ -513,11 +515,7 @@ function buildStylesApi(
     where: whereNested,
     class: (name: string, properties: CSSProperties, options?: { layer?: string }) =>
       createClass(classNaming, name, normalize(properties), layered ? options?.layer : undefined),
-    hashClass: layered
-      ? (properties: CSSProperties, options?: { layer?: string; label?: string }) =>
-          createHashClass(classNaming, normalize(properties), options?.label, options?.layer)
-      : (properties: CSSProperties, label?: string) =>
-          createHashClass(classNaming, normalize(properties), label),
+    hashClass,
     component,
     compose,
     scope,
@@ -532,7 +530,7 @@ function buildStylesApi(
     {
       ...api,
       property: createStylesPropertyFn(classNaming),
-      withUtils: <U extends StyleUtils>(next: U) => buildStylesApi(classNaming, registry, next),
+      withUtils: (next: StyleUtils) => buildStylesApi(classNaming, registry, next),
     },
     registry,
   );

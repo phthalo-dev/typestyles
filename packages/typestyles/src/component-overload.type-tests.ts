@@ -296,3 +296,22 @@ const modeAware = styles.component('mode-aware-btn', {
   },
 });
 void modeAware;
+
+// Object-form `layers.order` keeps the layer-name union, same as a tuple.
+const objectLayers = createStyles({
+  layers: { order: ['tokens', 'components'] as const },
+});
+objectLayers.class('object-layer', { color: 'red' }, { layer: 'components' });
+// @ts-expect-error — layer is not on `layers.order`
+objectLayers.class('object-layer-bad', { color: 'red' }, { layer: 'nope' });
+
+// `{ varDefinitions }` is not a recipe option. Vars come from `vars` or `c.vars()`.
+layered.component(
+  'no-var-definitions-option',
+  { base: { color: 'red' } },
+  {
+    layer: 'components',
+    // @ts-expect-error — varDefinitions does not declare component vars
+    varDefinitions: { color: 'red' },
+  },
+);

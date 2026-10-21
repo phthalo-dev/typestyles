@@ -27,34 +27,52 @@ import type {
   RecipeHandle,
   RecipeStyles,
   RecipeVarsOf,
-  SchemaRecipeOptions,
 } from './schema-recipe';
+
+/**
+ * Third argument to a layered `recipe()` / `component()` call.
+ * `layer` is one name from the factory's cascade-layer stack.
+ */
+export type ComponentCreateOptions<L extends string = string> = {
+  readonly layer: L;
+  /**
+   * When `false`, the component is omitted from theme `components` overrides.
+   * @default true
+   */
+  readonly themeable?: boolean;
+};
+
+/**
+ * How `{ layer }` is accepted.
+ *
+ * - `none` — no options argument (unlayered factories).
+ * - `required` — `{ layer }` is required (`createStyles({ layers })` without a style default).
+ * - `optional` — a bare call uses the factory default, and `{ layer }` overrides it
+ *   (`createTypeStyles({ layers })`). This is an intersection of the `none` and `required`
+ *   lists so schema's `(name, definition, callback)` stays contextually typed.
+ */
+export type RecipeLayerArg = 'none' | 'required' | 'optional';
 
 /**
  * `recipe` / `component` call signatures, written once.
  *
  * `L` is the cascade-layer name union (`undefined` when the factory has no layers).
  * `Attrs` selects attribute-mode returns for dimensioned and slot recipes.
- * Utils do not change these signatures.
+ * `Layer` is {@link RecipeLayerArg}. Utils do not change these signatures.
  *
  * Kinds stay ordered overloads: their config objects overlap, and excess-property
  * checks only fire when the parameter type is concrete. `vars` is stamped by the
  * overloads that infer it from the config object or from a `c.vars()` ref tree.
- *
- * Unlayered calls take `(name, config)` only. An optional third argument would
- * also match schema's `(name, definition, callback)` and drop contextual typing
- * inside that callback. Layered calls require `{ layer }` as the next argument.
  */
 export type RecipeFn<
   L extends string | undefined = undefined,
   Attrs extends boolean = false,
-> = RecipeCalls<L, Attrs>;
+  Layer extends RecipeLayerArg = [L] extends [undefined] ? 'none' : 'required',
+> = [Layer] extends ['optional']
+  ? RecipeCalls<undefined, Attrs> & RecipeCalls<L & string, Attrs>
+  : RecipeCalls<[Layer] extends ['none'] ? undefined : L, Attrs>;
 
 type SchemaElement<Attrs extends boolean> = Attrs extends true ? ComponentAttrsResult : string;
-
-type SchemaTail<L extends string | undefined> = [L] extends [undefined]
-  ? []
-  : [options: SchemaRecipeOptions<L & string>];
 
 type WithVars<R, Vars extends ComponentVarDefinitions> = R & {
   readonly __varDefinitions: Vars;
@@ -67,17 +85,14 @@ type VarsCallback<Config, Vars extends ComponentVarDefinitions> = (
   vars: ComponentVarRefTree<Vars> & { readonly [componentVarDefinitionsKey]: Vars };
 };
 
-type CallOptions<L extends string> = {
-  readonly layer: L;
-  readonly themeable?: boolean;
-  /** Accepted at runtime. Does not infer `.vars`. */
-  readonly varDefinitions?: ComponentVarDefinitions;
-};
-
-/** No extra arguments when unlayered, so schema's 3-arg form stays the only match. */
+/**
+ * No extra arguments when unlayered, so schema's `(name, definition, callback)` stays the
+ * only 3-arg match. An optional third parameter would also match that form and drop
+ * contextual typing inside the callback.
+ */
 type Tail<L extends string | undefined> = [L] extends [undefined]
   ? []
-  : [options: CallOptions<L & string>];
+  : [options: ComponentCreateOptions<L & string>];
 
 type SlotReturn<
   Slots extends readonly string[],
@@ -94,7 +109,7 @@ type RecipeCalls<L extends string | undefined, Attrs extends boolean> = {
     namespace: string,
     definition: Def,
     config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
-    ...schemaOptions: SchemaTail<L>
+    ...schemaOptions: Tail<L>
   ): RecipeHandle<Def, SchemaElement<Attrs>, RecipeVarsOf<R>>;
 
   <

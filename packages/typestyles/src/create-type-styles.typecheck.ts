@@ -112,6 +112,13 @@ void cardOverride.bogusKey;
 // @ts-expect-error — `layer` must be one of the configured `layers.order` names
 semanticLayered.recipe('card-bad-layer', { base: { display: 'grid' } }, { layer: 'nope' });
 
+semanticLayered.style('card-style', { display: 'grid' }, { layer: 'components' });
+// @ts-expect-error — `layer` must be one of the configured `layers.order` names
+semanticLayered.style('card-style-bad', { display: 'grid' }, { layer: 'nope' });
+semanticLayered.hash({ display: 'grid' }, { label: 'card', layer: 'tokens' });
+// @ts-expect-error — `layer` must be one of the configured `layers.order` names
+semanticLayered.hash({ display: 'grid' }, { layer: 'nope' });
+
 // `layers.order` as a plain mutable array (no `as const`, as in most app code) still infers
 // the layer-name union for `{ layer }` overrides.
 const mutableOrder = createTypeStyles({
@@ -144,6 +151,10 @@ const badge = plain.recipe('badge', {
   defaultVariants: { tone: 'hot' },
 });
 const badgeClass: string = badge();
+plain.style('plain-style', { display: 'inline-flex' });
+plain.hash({ color: 'red' }, { label: 'plain' });
+// @ts-expect-error — unlayered factories do not take a layer override
+plain.style('plain-style-bad', { display: 'inline-flex' }, { layer: 'components' });
 
 export {
   button,

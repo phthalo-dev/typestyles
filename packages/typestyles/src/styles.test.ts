@@ -1,11 +1,5 @@
 import { describe, it, expect, beforeEach, vi, expectTypeOf } from 'vitest';
-import {
-  createClass,
-  createHashClass,
-  compose,
-  createStyles,
-  createStylesWithUtils,
-} from './styles';
+import { createClass, createHashClass, compose, createStyles } from './styles';
 import { cx } from './index';
 import { createComponent } from './component';
 import { defaultClassNamingConfig, mergeClassNaming } from './class-naming';
@@ -252,13 +246,13 @@ describe('compose', () => {
   });
 });
 
-describe('createStylesWithUtils', () => {
+describe('createStyles({ utils })', () => {
   beforeEach(() => {
     reset();
     registeredNamespaces.clear();
   });
 
-  it('createStyles({ utils }) matches createStylesWithUtils', () => {
+  it('expands utility keys passed to createStyles({ utils })', () => {
     const viaFactory = createStyles({
       utils: {
         marginX: (value: string | number) => ({ marginLeft: value, marginRight: value }),
@@ -279,9 +273,11 @@ describe('createStylesWithUtils', () => {
   });
 
   it('expands utility keys in class()', () => {
-    const u = createStylesWithUtils({
-      marginX: (value: string | number) => ({ marginLeft: value, marginRight: value }),
-      size: (value: string | number) => ({ width: value, height: value }),
+    const u = createStyles({
+      utils: {
+        marginX: (value: string | number) => ({ marginLeft: value, marginRight: value }),
+        size: (value: string | number) => ({ width: value, height: value }),
+      },
     });
 
     const cls = u.class('util-class-test', {
@@ -304,8 +300,10 @@ describe('createStylesWithUtils', () => {
   });
 
   it('expands utility keys in component() with dimensioned variants', () => {
-    const u = createStylesWithUtils({
-      paddingY: (value: string | number) => ({ paddingTop: value, paddingBottom: value }),
+    const u = createStyles({
+      utils: {
+        paddingY: (value: string | number) => ({ paddingTop: value, paddingBottom: value }),
+      },
     });
 
     const card = u.component('util-comp', {
@@ -332,8 +330,10 @@ describe('createStylesWithUtils', () => {
   });
 
   it('expands utility keys when component() uses a function config', () => {
-    const u = createStylesWithUtils({
-      padY: (value: string | number) => ({ paddingTop: value, paddingBottom: value }),
+    const u = createStyles({
+      utils: {
+        padY: (value: string | number) => ({ paddingTop: value, paddingBottom: value }),
+      },
     });
 
     const box = u.component('util-fn-comp', (c) => {
@@ -362,8 +362,10 @@ describe('createStylesWithUtils', () => {
   });
 
   it('preserves top-level config vars through withUtils component()', () => {
-    const u = createStylesWithUtils({
-      padY: (value: string | number) => ({ paddingTop: value, paddingBottom: value }),
+    const u = createStyles({
+      utils: {
+        padY: (value: string | number) => ({ paddingTop: value, paddingBottom: value }),
+      },
     });
 
     const chip = u.component('util-config-vars', {
@@ -388,8 +390,10 @@ describe('createStylesWithUtils', () => {
   });
 
   it('preserves callback vars: v through withUtils component()', () => {
-    const u = createStylesWithUtils({
-      padY: (value: string | number) => ({ paddingTop: value, paddingBottom: value }),
+    const u = createStyles({
+      utils: {
+        padY: (value: string | number) => ({ paddingTop: value, paddingBottom: value }),
+      },
     });
 
     const card = u.component('util-cb-vars', (c) => {
@@ -412,8 +416,10 @@ describe('createStylesWithUtils', () => {
   });
 
   it('expands utility keys in component() with flat variants', () => {
-    const u = createStylesWithUtils({
-      marginX: (value: string | number) => ({ marginLeft: value, marginRight: value }),
+    const u = createStyles({
+      utils: {
+        marginX: (value: string | number) => ({ marginLeft: value, marginRight: value }),
+      },
     });
 
     const card = u.component('util-flat', {
@@ -441,8 +447,10 @@ describe('createStylesWithUtils', () => {
   });
 
   it('allows utility output to include nested selectors', () => {
-    const u = createStylesWithUtils({
-      hoverColor: (value: string) => ({ '&:hover': { color: value } }),
+    const u = createStyles({
+      utils: {
+        hoverColor: (value: string) => ({ '&:hover': { color: value } }),
+      },
     });
 
     u.class('util-nested-test', {
@@ -460,8 +468,10 @@ describe('createStylesWithUtils', () => {
   });
 
   it('preserves declaration order so direct props can override utility output', () => {
-    const u = createStylesWithUtils({
-      marginX: (value: string | number) => ({ marginLeft: value, marginRight: value }),
+    const u = createStyles({
+      utils: {
+        marginX: (value: string | number) => ({ marginLeft: value, marginRight: value }),
+      },
     });
 
     u.class('util-order-test', {
@@ -481,8 +491,10 @@ describe('createStylesWithUtils', () => {
   });
 
   it('expands utility keys in hashClass()', () => {
-    const u = createStylesWithUtils({
-      size: (value: string | number) => ({ width: value, height: value }),
+    const u = createStyles({
+      utils: {
+        size: (value: string | number) => ({ width: value, height: value }),
+      },
     });
 
     const cls = u.hashClass({ size: 30 }, 'avatar');

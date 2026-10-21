@@ -394,7 +394,7 @@ const layoutVarsOk: LayoutOverride = {
 };
 void layoutVarsOk;
 
-// Pattern B — varDefinitions option stamps __varDefinitions for inference
+// c.vars() stamps __varDefinitions for inference
 const brandedNav = styles.component('ov-type-branded-nav', (c) => {
   const v = c.vars(sideNavVarDefinitions);
   return {

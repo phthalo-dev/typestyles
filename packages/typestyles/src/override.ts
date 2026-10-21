@@ -727,7 +727,7 @@ export function createOverride(
 }
 
 /**
- * Infer var definitions stamped on a component return (`varDefinitions` option or Pattern A export).
+ * Infer var definitions stamped on a component return (`config.vars` or `c.vars()`).
  */
 export type InferVarDefinitions<C> = C extends {
   readonly __varDefinitions: infer D extends ComponentVarDefinitions;
