@@ -16,6 +16,21 @@ describe('extractNamespaces', () => {
     expect(result.prefixes).toEqual(['.button-', '.card-', '.legacy-']);
   });
 
+  it('ignores API examples that only appear inside strings, templates, and comments', () => {
+    const code = [
+      "throw new Error(`recipe({ name: '${namespace}', … })`);",
+      'throw new Error("recipe({ name: \'button\' })");',
+      'throw new Error(\'style("card")\');',
+      "// recipe({ name: 'ghost' })",
+      "/* tokens.create('color', {}) */",
+      'const label = `prefix ${recipe({ name: "inside", styles: { base: {} } })}`;',
+      "recipe({ name: 'card', styles: { base: {} } });",
+    ].join('\n');
+    const result = extractNamespaces(code);
+    expect(result.prefixes).toEqual(['.inside-', '.card-']);
+    expect(result.keys).toEqual([]);
+  });
+
   it('extracts createTheme names from positional and named-argument forms', () => {
     expect(
       extractNamespaces(`tokens.createTheme('dark', { tokens: { color: { primary: '#fff' } } })`)

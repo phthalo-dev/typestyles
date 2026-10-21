@@ -13,22 +13,162 @@ const GLOBAL_FONT_FACE_RE = /global\.fontFace\(\s*['"]([^'"]+)['"]/g;
 const CREATE_THEME_ARG_SCAN = 4000;
 
 /**
+ * `1` where `code[i]` is a comment, string, or the static text of a template
+ * literal. `${…}` expressions stay `0` so a real `recipe()` inside one still counts.
+ * Published bundles quote `recipe({ name: '${namespace}', … })` in error text;
+ * without this, that placeholder is reported as a duplicate class namespace.
+ */
+function codeSpanMask(code: string): Uint8Array {
+  const mask = new Uint8Array(code.length);
+  let i = 0;
+
+  const mark = (from: number, to: number) => {
+    const end = Math.min(to, code.length);
+    for (let j = from; j < end; j++) mask[j] = 1;
+  };
+
+  const skipString = (quote: '"' | "'") => {
+    const start = i;
+    i += 1;
+    while (i < code.length) {
+      if (code[i] === '\\') {
+        i += 2;
+        continue;
+      }
+      if (code[i] === quote) {
+        i += 1;
+        break;
+      }
+      i += 1;
+    }
+    mark(start, i);
+  };
+
+  const scanExpression = () => {
+    let depth = 0;
+    while (i < code.length) {
+      const c = code[i];
+      const next = code[i + 1];
+      if (c === '/' && next === '/') {
+        const start = i;
+        i += 2;
+        while (i < code.length && code[i] !== '\n') i += 1;
+        mark(start, i);
+        continue;
+      }
+      if (c === '/' && next === '*') {
+        const start = i;
+        i += 2;
+        while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) i += 1;
+        if (i < code.length) i += 2;
+        mark(start, i);
+        continue;
+      }
+      if (c === '"' || c === "'") {
+        skipString(c);
+        continue;
+      }
+      if (c === '`') {
+        scanTemplate();
+        continue;
+      }
+      if (c === '{') {
+        depth += 1;
+        i += 1;
+        continue;
+      }
+      if (c === '}') {
+        i += 1;
+        if (depth === 0) return;
+        depth -= 1;
+        continue;
+      }
+      i += 1;
+    }
+  };
+
+  const scanTemplate = () => {
+    const open = i;
+    i += 1;
+    let staticFrom = open;
+    while (i < code.length) {
+      if (code[i] === '\\') {
+        i += 2;
+        continue;
+      }
+      if (code[i] === '`') {
+        i += 1;
+        mark(staticFrom, i);
+        return;
+      }
+      if (code[i] === '$' && code[i + 1] === '{') {
+        mark(staticFrom, i);
+        i += 2;
+        scanExpression();
+        staticFrom = i;
+        continue;
+      }
+      i += 1;
+    }
+    mark(staticFrom, i);
+  };
+
+  while (i < code.length) {
+    const c = code[i];
+    const next = code[i + 1];
+    if (c === '/' && next === '/') {
+      const start = i;
+      i += 2;
+      while (i < code.length && code[i] !== '\n') i += 1;
+      mark(start, i);
+      continue;
+    }
+    if (c === '/' && next === '*') {
+      const start = i;
+      i += 2;
+      while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) i += 1;
+      if (i < code.length) i += 2;
+      mark(start, i);
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      skipString(c);
+      continue;
+    }
+    if (c === '`') {
+      scanTemplate();
+      continue;
+    }
+    i += 1;
+  }
+
+  return mask;
+}
+
+/** Placeholders such as `${namespace}` are not class prefixes. */
+function isStaticNamespace(name: string): boolean {
+  return !name.includes('$') && !name.includes('{') && !name.includes('}');
+}
+
+/**
  * Recipe namespaces from `recipe({ name: 'x' })` / `styles.component({ name: 'x' })`
  * and the removed positional `recipe('x', …)`.
  */
-function extractRecipeNames(code: string): string[] {
+function extractRecipeNames(code: string, mask: Uint8Array): string[] {
   const names: string[] = [];
   for (const match of code.matchAll(STYLES_COMPONENT_CALL_RE)) {
-    const start = (match.index ?? 0) + match[0].length;
+    const index = match.index ?? 0;
+    if (mask[index]) continue;
+    const start = index + match[0].length;
     const args = code.slice(start, start + CREATE_THEME_ARG_SCAN);
     const positional = args.match(/^\s*['"]([^'"]+)['"]/);
     if (positional) {
-      names.push(positional[1]);
+      if (isStaticNamespace(positional[1])) names.push(positional[1]);
       continue;
     }
     if (!/^\s*\{/.test(args)) continue;
     const named = args.match(/\bname\s*:\s*['"]([^'"]+)['"]/);
-    if (named) names.push(named[1]);
+    if (named && isStaticNamespace(named[1])) names.push(named[1]);
   }
   return names;
 }
@@ -37,20 +177,22 @@ function extractRecipeNames(code: string): string[] {
  * Theme names from positional `createTheme('x', …)` and object
  * `createTheme({ … name: 'x' … })` (name may appear after other fields).
  */
-function extractCreateThemeNames(code: string): string[] {
+function extractCreateThemeNames(code: string, mask: Uint8Array): string[] {
   const names: string[] = [];
   for (const match of code.matchAll(CREATE_THEME_CALL_RE)) {
-    const start = (match.index ?? 0) + match[0].length;
+    const index = match.index ?? 0;
+    if (mask[index]) continue;
+    const start = index + match[0].length;
     const args = code.slice(start, start + CREATE_THEME_ARG_SCAN);
     const positional = args.match(/^\s*['"]([^'"]+)['"]/);
     if (positional) {
-      names.push(positional[1]);
+      if (isStaticNamespace(positional[1])) names.push(positional[1]);
       continue;
     }
     if (!/^\s*\{/.test(args)) continue;
     // `name` may follow `from` / `tokens` / comments — match first prop named `name`.
     const named = args.match(/\bname\s*:\s*['"]([^'"]+)['"]/);
-    if (named) names.push(named[1]);
+    if (named && isStaticNamespace(named[1])) names.push(named[1]);
   }
   return names;
 }
@@ -137,26 +279,33 @@ export function extractNamespaces(code: string): {
 } {
   const keys: string[] = [];
   const prefixes: string[] = [];
+  const mask = codeSpanMask(code);
+  const inCode = (index: number | undefined) => index !== undefined && mask[index] === 0;
 
-  for (const name of extractRecipeNames(code)) {
+  for (const name of extractRecipeNames(code, mask)) {
     prefixes.push(`.${name}-`);
   }
   for (const match of code.matchAll(STYLES_CLASS_RE)) {
+    if (!inCode(match.index) || !isStaticNamespace(match[1])) continue;
     prefixes.push(`.${match[1]}-`);
   }
   for (const match of code.matchAll(TOKENS_CREATE_RE)) {
+    if (!inCode(match.index) || !isStaticNamespace(match[1])) continue;
     keys.push(`tokens:${match[1]}`);
   }
-  for (const themeName of extractCreateThemeNames(code)) {
+  for (const themeName of extractCreateThemeNames(code, mask)) {
     keys.push(`theme:${themeName}`);
   }
   for (const match of code.matchAll(KEYFRAMES_CREATE_RE)) {
+    if (!inCode(match.index) || !isStaticNamespace(match[1])) continue;
     keys.push(`keyframes:${match[1]}`);
   }
   for (const match of code.matchAll(GLOBAL_STYLE_RE)) {
+    if (!inCode(match.index)) continue;
     prefixes.push(match[1]);
   }
   for (const match of code.matchAll(GLOBAL_FONT_FACE_RE)) {
+    if (!inCode(match.index)) continue;
     prefixes.push(`font-face:${match[1]}`);
   }
 
