@@ -1,5 +1,13 @@
 # typestyles
 
+## 0.31.1
+
+### Patch Changes
+
+- [#271](https://github.com/type-styles/typestyles/pull/271) [`5b73636`](https://github.com/type-styles/typestyles/commit/5b736366f00c8a6977d5867f7cb90c12091d98ac) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Legacy recipes that return `vars: c.vars(...)` now expose those names on `recipe.vars` (`name` and `var`), including attribute-mode slot, flat, and dimensioned callbacks. Schema recipes were already typed this way.
+
+- [#273](https://github.com/type-styles/typestyles/pull/273) [`1e43920`](https://github.com/type-styles/typestyles/commit/1e43920aecc4bc8c8c367a6a2695e0bbfe5f2be9) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Collapse style and recipe signatures onto `StylesApi` and `RecipeFn`. Declare component vars with `vars` on the config or `c.vars()`; `recipe()` options are `{ layer, themeable }`.
+
 ## 0.31.0
 
 ### Minor Changes
