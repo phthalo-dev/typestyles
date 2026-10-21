@@ -819,7 +819,7 @@ export type OverrideFn<L extends string = string> = {
     config: SchemaOverrideConfigFor<C>,
     options?: OverrideOptions<L>,
   ): void;
-  /** Recipes with stamped `__varDefinitions` (config `vars` or `{ varDefinitions }` option). */
+  /** Recipes with stamped `__varDefinitions` (`config.vars` or `c.vars()`). */
   <C extends { readonly __varDefinitions: ComponentVarDefinitions }>(
     component: C,
     config: OverrideConfigFor<C>,
