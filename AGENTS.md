@@ -87,6 +87,25 @@ pnpm --filter typestyles build
 - Changesets for releases (`.changeset/`)
 - Prettier + ESLint; husky pre-commit runs lint-staged
 
+### Type tests
+
+`pnpm typecheck` (`tsc --noEmit`) is what locks call-signature behavior. `tsconfig.json` excludes `**/*.test.ts`, so a negative check inside a Vitest file never runs.
+
+Put compile-only fixtures in `*.type-tests.ts` or `*.typecheck.ts` next to the implementation (see `packages/typestyles/src/create-type-styles.typecheck.ts` and `component-overload.type-tests.ts`). Those files are part of `tsc` and are not executed by Vitest.
+
+Reject a call or property with a comment on the line above it:
+
+```ts
+// @ts-expect-error — `layer` must be one of the configured `layers.order` names
+styles.class('card', { color: 'red' }, { layer: 'nope' });
+```
+
+Say what should fail. An unused `@ts-expect-error` fails typecheck, which is the signal that the negative case started compiling. Do not leave that directive on a line that is supposed to succeed.
+
+### Style API types
+
+`createStyles` returns `StylesApi<Options>`. `recipe` / `component` is `RecipeFn`. Layers, utils, and attribute mode are parameters of those two types. Do not add a named alias per combination (`StylesApiWithLayers`, `SemanticRecipeFn`, and the rest of that matrix). Component vars come from `vars` on the config or `c.vars()`, not a `varDefinitions` option on the call.
+
 ## Common pitfalls
 
 - Styles must be **imported** from a side-effect entry (e.g. `typestyles-entry.ts`) for build extraction to emit CSS
