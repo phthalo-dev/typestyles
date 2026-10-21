@@ -7,8 +7,6 @@
  * slot names are checked, without inferring a variant map from the callback return.
  */
 import type {
-  ComponentAttrsResult,
-  ComponentConfigContext,
   ComponentVarDefinitions,
   ComponentVarRefTree,
   InferComponentVarRefTreeDefinitions,
@@ -221,46 +219,3 @@ export type RecipeVariants<Handle> = Handle extends (selections?: infer S) => un
 
 /** Extract the `.defaults` object from a schema recipe handle. */
 export type RecipeDefaultsOf<Handle> = Handle extends { readonly defaults: infer D } ? D : never;
-
-/** Options accepted by the layered schema `recipe` call (`{ layer }` plus `themeable` opt-out). */
-export type SchemaRecipeOptions<L extends string = string> = {
-  readonly layer: L;
-  readonly themeable?: boolean;
-};
-
-// ---------------------------------------------------------------------------
-// Schema recipe `recipe(...)` signature fragments, reused across the per-mode
-// recipe surfaces in styles.ts / create-type-styles.ts.
-// ---------------------------------------------------------------------------
-
-/** Unlayered schema `recipe` signature. */
-export type SchemaRecipeFn<Element> = <
-  const Def extends RecipeDefinition,
-  const R extends RecipeStyles<Def>,
->(
-  namespace: string,
-  definition: Def,
-  config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
-) => RecipeHandle<Def, Element, RecipeVarsOf<R>>;
-
-/** Layered schema `recipe` signature — a `{ layer }` override follows the callback. */
-export type LayeredSchemaRecipeFn<L extends string, Element> = <
-  const Def extends RecipeDefinition,
-  const R extends RecipeStyles<Def>,
->(
-  namespace: string,
-  definition: Def,
-  config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
-  options: SchemaRecipeOptions<L>,
-) => RecipeHandle<Def, Element, RecipeVarsOf<R>>;
-
-/** Attribute-mode schema recipe: results are `{ className, attrs, props }`. */
-export type AttributeSchemaRecipeFn = SchemaRecipeFn<ComponentAttrsResult>;
-export type LayeredAttributeSchemaRecipeFn<L extends string> = LayeredSchemaRecipeFn<
-  L,
-  ComponentAttrsResult
->;
-
-/** Semantic-mode schema recipe: results are class strings. */
-export type SemanticSchemaRecipeFn = SchemaRecipeFn<string>;
-export type LayeredSemanticSchemaRecipeFn<L extends string> = LayeredSchemaRecipeFn<L, string>;

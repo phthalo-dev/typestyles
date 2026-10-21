@@ -727,7 +727,7 @@ export function createOverride(
 }
 
 /**
- * Infer var definitions stamped on a component return (`varDefinitions` option or Pattern A export).
+ * Infer var definitions stamped on a component return (`config.vars` or `c.vars()`).
  */
 export type InferVarDefinitions<C> = C extends {
   readonly __varDefinitions: infer D extends ComponentVarDefinitions;
@@ -819,7 +819,7 @@ export type OverrideFn<L extends string = string> = {
     config: SchemaOverrideConfigFor<C>,
     options?: OverrideOptions<L>,
   ): void;
-  /** Recipes with stamped `__varDefinitions` (config `vars` or `{ varDefinitions }` option). */
+  /** Recipes with stamped `__varDefinitions` (`config.vars` or `c.vars()`). */
   <C extends { readonly __varDefinitions: ComponentVarDefinitions }>(
     component: C,
     config: OverrideConfigFor<C>,

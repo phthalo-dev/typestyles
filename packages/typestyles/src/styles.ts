@@ -1,37 +1,18 @@
 import type {
   CSSProperties,
   CSSPropertiesWithUtils,
-  StyleUtils,
-  VariantDefinitions,
-  ComponentAttrsReturn,
-  ComponentAttrsResult,
-  SlotAttrsReturn,
-  ComponentConfig,
+  ComposeFn,
+  ComposeSelectorInput,
   ComponentConfigContext,
-  ComponentConfigInput,
-  ComponentReturn,
-  FlatComponentConfigInput,
-  FlatComponentConfig,
-  FlatComponentReturn,
-  SlotVariantDefinitions,
-  SlotComponentConfig,
-  SlotComponentConfigInput,
-  SlotComponentFunction,
-  MultiSlotConfigInput,
-  MultiSlotConfig,
-  MultiSlotReturn,
-  ComponentVarDefinitions,
-  ComponentVarRefTree,
-  componentVarDefinitionsKey,
+  StyleUtils,
   StylesPropertyFn,
 } from './types';
 import { serializeStyle } from './serialize-style';
 import { insertRules, invalidateClassNamespaceForDev } from './sheet';
-import type { CascadeLayersInput, CascadeLayersObjectInput } from './layers';
+import type { CascadeLayersInput } from './layers';
 import { applyLayerToRules, assertOwnLayer, resolveCascadeLayers } from './layers';
 import { registeredNamespaces, trackEmittedClassName, warnUnscopedCollision } from './registry';
 import {
-  defaultClassNamingConfig,
   emittedClassName,
   hashString,
   mergeClassNaming,
@@ -41,16 +22,15 @@ import {
 } from './class-naming';
 import { decomposeAtomicStyle, classNamesAndRulesForProperties } from './atomic-decompose';
 import { createComponent, createSchemaComponent, isSchemaRecipeDefinition } from './component';
-import type {
-  ExactRecipeStyles,
-  RecipeDefinition,
-  RecipeHandle,
-  RecipeStyles,
-  RecipeVarsOf,
-  SchemaRecipeOptions,
-} from './schema-recipe';
+import type { RecipeDefinition, RecipeStyles } from './schema-recipe';
+import type { StylesApi } from './styles-api';
+import {
+  collectComposeAllowedKeys,
+  devWarnComposeUnknownKeys,
+  type ComposeAwareFn,
+} from './compose-meta';
 import { createScope, type ScopeOptions } from './scope';
-import { createOverride, type OverrideFn, type OverrideOptions } from './override';
+import { createOverride, type OverrideOptions } from './override';
 import { getComponentMeta } from './component-meta';
 import {
   attachComponentRegistryMethods,
@@ -230,13 +210,6 @@ export function createHashClass(
   return className;
 }
 
-import type { ComposeFn, ComposeSelectorInput } from './types';
-import {
-  collectComposeAllowedKeys,
-  devWarnComposeUnknownKeys,
-  type ComposeAwareFn,
-} from './compose-meta';
-
 /**
  * Compose multiple component functions or class strings into one.
  * Returns a new function that calls all inputs and joins results.
@@ -279,212 +252,14 @@ export function compose<const S extends readonly ComposeSelectorInput[]>(
   return fn as ComposeFn<S>;
 }
 
-// ---------------------------------------------------------------------------
-// withUtils
-// ---------------------------------------------------------------------------
+export type { StylesApi };
+export type { ComponentCreateOptions, RecipeFn } from './recipe-fn';
 
-/**
- * Callback config that returns a `c.vars()` ref tree. `Vars` is the definition
- * object; the brand on the ref tree is what makes `recipe.vars.*` specific.
- */
-type CallbackConfigWithVars<Config, Vars extends ComponentVarDefinitions> = (
-  ctx: ComponentConfigContext,
-) => Omit<Config, 'vars'> & {
-  vars: ComponentVarRefTree<Vars> & { readonly [componentVarDefinitionsKey]: Vars };
-};
-
-/**
- * Stamp override metadata and replace the loose `.vars` on legacy recipe returns
- * with the ref tree for the definitions passed to `c.vars()`.
- *
- * Intersecting a required `vars` narrows the optional loose tree on
- * {@link MultiSlotReturn} / {@link SlotComponentFunction} / flat and dimensioned
- * returns. Call signatures stay on `R`.
- */
-type ComponentWithVarDefinitions<R, Vars extends ComponentVarDefinitions> = R & {
-  readonly __varDefinitions: Vars;
-  readonly vars: ComponentVarRefTree<Vars>;
-};
-
-export type StylesApi = ComponentRegistryApi & {
-  /** Resolved naming config for this instance (useful for debugging). */
-  readonly classNaming: Readonly<ClassNamingConfig>;
-  /**
-   * Typed `@container` object keys for nested styles (size features, named containers, or raw conditions).
-   * Same function as the named export `container` from `typestyles`.
-   */
-  readonly container: typeof containerQuery;
-  /**
-   * Readable `container-name` for `containerName`: `{scopeId}-{label}` or `{prefix}-{label}` when `scopeId` is empty.
-   * Same as `createContainerRef(label, { scopeId, prefix })` from this instance’s naming config.
-   */
-  readonly containerRef: (label: string) => ContainerNameRef;
-  /**
-   * Typed `@supports` object keys for nested styles (declaration features or raw conditions).
-   * Same function as the named export `supports` from `typestyles`.
-   */
-  readonly supports: typeof supportsQuery;
-  /**
-   * Build a spreadable `{ [ @key ]: nested }` so computed `@…` keys stay typed (see `atRuleBlock` export).
-   */
-  readonly atRuleBlock: typeof atRuleBlockFn;
-  /**
-   * Expand a `ThemeCondition` into nested `&` / `@media` keys for recipe slots (see `whenStyle` export).
-   * Prefer this inside `recipe`; use `conditional()` + `conditions[]` on `override`.
-   */
-  readonly when: typeof whenStyleFn;
-  /**
-   * Typed `@media` object keys from configured viewport breakpoints (see `breakpoint` / `media`).
-   */
-  readonly breakpoint: BreakpointMediaFn;
-  /**
-   * Spreadable viewport breakpoint blocks — `media(name, block)` or `media(name, feature, block)`.
-   */
-  readonly media: MediaFn;
-  /**
-   * Nested `&:has(…)` object keys (same helpers as the `has` export).
-   */
-  readonly has: typeof hasNested;
-  /**
-   * Nested `&:is(…)` object keys for grouped states (same as the `is` export).
-   */
-  readonly is: typeof isNested;
-  /**
-   * Nested `&:where(…)` keys — zero-specificity defaults (same as the `where` export).
-   */
-  readonly where: typeof whereNested;
-  /**
-   * Register a standalone CSS custom property (optionally with `@property` when `syntax` is set).
-   * Returns `{ name, var, toString }` for use in style values and variant overrides.
-   */
-  property: StylesPropertyFn;
-  class: (name: string, properties: CSSProperties) => string;
-  hashClass: (properties: CSSProperties, label?: string) => string;
-  component: {
-    <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
-      namespace: string,
-      definition: Def,
-      config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
-    ): RecipeHandle<Def, string, RecipeVarsOf<R>>;
-    <
-      const Slots extends readonly string[],
-      V extends SlotVariantDefinitions<Slots[number]>,
-      const Vars extends ComponentVarDefinitions,
-    >(
-      namespace: string,
-      config: SlotComponentConfig<Slots, V> & { vars: Vars },
-    ): ComponentWithVarDefinitions<SlotComponentFunction<Slots, V>, Vars>;
-    <
-      const Slots extends readonly string[],
-      V extends SlotVariantDefinitions<Slots[number]>,
-      const Vars extends ComponentVarDefinitions,
-    >(
-      namespace: string,
-      config: SlotComponentConfigInput<Slots, V>,
-      options: ComponentCreateOptions & { readonly varDefinitions: Vars },
-    ): ComponentWithVarDefinitions<SlotComponentFunction<Slots, V>, Vars>;
-    <
-      const Slots extends readonly string[],
-      V extends SlotVariantDefinitions<Slots[number]>,
-      const Vars extends ComponentVarDefinitions,
-    >(
-      namespace: string,
-      config: (ctx: ComponentConfigContext) => Omit<SlotComponentConfig<Slots, V>, 'vars'> & {
-        vars: ComponentVarRefTree<Vars> & { readonly [componentVarDefinitionsKey]: Vars };
-      },
-    ): ComponentWithVarDefinitions<SlotComponentFunction<Slots, V>, Vars>;
-    <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
-      namespace: string,
-      config: SlotComponentConfigInput<Slots, V>,
-    ): SlotComponentFunction<Slots, V>;
-    <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: MultiSlotConfig<Slots> & { vars: Vars },
-    ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-    <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: MultiSlotConfigInput<Slots>,
-      options: ComponentCreateOptions & { readonly varDefinitions: Vars },
-    ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-    <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: (ctx: ComponentConfigContext) => Omit<MultiSlotConfig<Slots>, 'vars'> & {
-        vars: ComponentVarRefTree<Vars> & { readonly [componentVarDefinitionsKey]: Vars };
-      },
-    ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-    <const Slots extends readonly string[]>(
-      namespace: string,
-      config: MultiSlotConfigInput<Slots>,
-    ): MultiSlotReturn<Slots>;
-    <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: ComponentConfig<V> & { vars: Vars },
-    ): ComponentWithVarDefinitions<ComponentReturn<V>, Vars>;
-    <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: ComponentConfigInput<V>,
-      options: ComponentCreateOptions & { readonly varDefinitions: Vars },
-    ): ComponentWithVarDefinitions<ComponentReturn<V>, Vars>;
-    <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: (ctx: ComponentConfigContext) => Omit<ComponentConfig<V>, 'vars'> & {
-        vars: ComponentVarRefTree<Vars> & { readonly [componentVarDefinitionsKey]: Vars };
-      },
-    ): ComponentWithVarDefinitions<ComponentReturn<V>, Vars>;
-    <const V extends VariantDefinitions>(
-      namespace: string,
-      config: ComponentConfigInput<V>,
-    ): ComponentReturn<V>;
-    <const K extends string, const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: FlatComponentConfig<K> & { vars: Vars },
-    ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-    <const K extends string, const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: FlatComponentConfigInput<K>,
-      options: ComponentCreateOptions & { readonly varDefinitions: Vars },
-    ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-    <const K extends string, const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: (ctx: ComponentConfigContext) => Omit<FlatComponentConfig<K>, 'vars'> & {
-        vars: ComponentVarRefTree<Vars> & { readonly [componentVarDefinitionsKey]: Vars };
-      },
-    ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-    <const K extends string>(
-      namespace: string,
-      config: FlatComponentConfigInput<K>,
-    ): FlatComponentReturn<K>;
-  };
-  withUtils: <U extends StyleUtils>(utils: U) => StylesWithUtilsApi<U>;
-  compose: typeof compose;
-  /**
-   * Proximity-correct theme overrides via CSS `@scope` for nested theme regions.
-   * Prefer component-scoped CSS custom properties (Tier 1) when possible; see theming docs.
-   */
-  scope: (opts: ScopeOptions, className: string, overrides: CSSProperties) => void;
-  /**
-   * Recipe-shaped component restyling from `__tsMeta`. Call on the **same** `styles`
-   * instance that created the component — cross-instance calls are unsupported and
-   * may emit into the wrong sheet. Prefer `{ layer: 'overrides' }` when layers are
-   * configured; if omitted and an `"overrides"` layer exists, that name is used.
-   */
-  override: OverrideFn;
-};
-
-/** Options argument for `recipe()` — `layer` required when `createStyles({ layers })` is used. */
-export type ComponentCreateOptions<L extends string = string> = {
-  readonly layer?: L;
-  readonly varDefinitions?: ComponentVarDefinitions;
-  /**
-   * When `false`, the component is omitted from {@link ComponentRegistryApi.getThemeableComponents}
-   * and cannot be targeted by theme `components` overrides (see theming docs).
-   * @default true
-   */
+/** Runtime options bag. Unlayered calls may pass `{ themeable }` with no `layer`. */
+type RecipeRuntimeOptions = {
+  readonly layer?: string;
   readonly themeable?: boolean;
 };
-
-/** @deprecated Use {@link ComponentCreateOptions} — kept as alias for `layer`-only call sites. */
-export type LayerOption<L extends string = string> = { readonly layer: L };
 
 export type CreateStylesInput = Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
   layers?: CascadeLayersInput;
@@ -508,243 +283,9 @@ export type CreateStylesInput = Partial<Omit<ClassNamingConfig, 'cascadeLayers'>
    * Prefer setting this via `createTypeStyles({ layers: { style } })`.
    */
   styleLayer?: string;
-  /**
-   * When set, prefer the overloads that return `StylesWithUtilsApi` — this field exists so combined
-   * option objects type-check; do not rely on `createStyles(options?: CreateStylesInput)` alone for utils.
-   */
+  /** Shorthand expanders. Same result as calling `withUtils` on the returned API. */
   utils?: StyleUtils;
 };
-
-export type LayeredComponentFn<L extends string> = {
-  <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
-    namespace: string,
-    definition: Def,
-    config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
-    options: SchemaRecipeOptions<L>,
-  ): RecipeHandle<Def, string, RecipeVarsOf<R>>;
-  <
-    const Slots extends readonly string[],
-    V extends SlotVariantDefinitions<Slots[number]>,
-    const Vars extends ComponentVarDefinitions,
-  >(
-    namespace: string,
-    config: SlotComponentConfig<Slots, V> & { vars: Vars },
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<SlotComponentFunction<Slots, V>, Vars>;
-  <
-    const Slots extends readonly string[],
-    V extends SlotVariantDefinitions<Slots[number]>,
-    const Vars extends ComponentVarDefinitions,
-  >(
-    namespace: string,
-    config: CallbackConfigWithVars<SlotComponentConfig<Slots, V>, Vars>,
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<SlotComponentFunction<Slots, V>, Vars>;
-  <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
-    namespace: string,
-    config: SlotComponentConfigInput<Slots, V>,
-    options: LayerOption<L>,
-  ): SlotComponentFunction<Slots, V>;
-  <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: MultiSlotConfig<Slots> & { vars: Vars },
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-  <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: (ctx: ComponentConfigContext) => Omit<MultiSlotConfig<Slots>, 'vars'> & {
-      vars: ComponentVarRefTree<Vars> & { readonly [componentVarDefinitionsKey]: Vars };
-    },
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-  <const Slots extends readonly string[]>(
-    namespace: string,
-    config: MultiSlotConfigInput<Slots>,
-    options: LayerOption<L>,
-  ): MultiSlotReturn<Slots>;
-  <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: ComponentConfig<V> & { vars: Vars },
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<ComponentReturn<V>, Vars>;
-  <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: CallbackConfigWithVars<ComponentConfig<V>, Vars>,
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<ComponentReturn<V>, Vars>;
-  <const V extends VariantDefinitions>(
-    namespace: string,
-    config: ComponentConfigInput<V>,
-    options: LayerOption<L>,
-  ): ComponentReturn<V>;
-  <const K extends string, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: FlatComponentConfig<K> & { vars: Vars },
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-  <const K extends string, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: CallbackConfigWithVars<FlatComponentConfig<K>, Vars>,
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-  <const K extends string>(
-    namespace: string,
-    config: FlatComponentConfigInput<K>,
-    options: LayerOption<L>,
-  ): FlatComponentReturn<K>;
-};
-
-export type LayeredComponentFnWithUtils<L extends string> = {
-  <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
-    namespace: string,
-    definition: Def,
-    config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
-    options: SchemaRecipeOptions<L>,
-  ): RecipeHandle<Def, string, RecipeVarsOf<R>>;
-  <
-    const Slots extends readonly string[],
-    V extends SlotVariantDefinitions<Slots[number]>,
-    const Vars extends ComponentVarDefinitions,
-  >(
-    namespace: string,
-    config: SlotComponentConfig<Slots, V> & { vars: Vars },
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<SlotComponentFunction<Slots, V>, Vars>;
-  <
-    const Slots extends readonly string[],
-    V extends SlotVariantDefinitions<Slots[number]>,
-    const Vars extends ComponentVarDefinitions,
-  >(
-    namespace: string,
-    config: CallbackConfigWithVars<SlotComponentConfig<Slots, V>, Vars>,
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<SlotComponentFunction<Slots, V>, Vars>;
-  <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
-    namespace: string,
-    config: SlotComponentConfigInput<Slots, V>,
-    options: LayerOption<L>,
-  ): SlotComponentFunction<Slots, V>;
-  <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: MultiSlotConfig<Slots> & { vars: Vars },
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-  <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: (ctx: ComponentConfigContext) => Omit<MultiSlotConfig<Slots>, 'vars'> & {
-      vars: ComponentVarRefTree<Vars> & { readonly [componentVarDefinitionsKey]: Vars };
-    },
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-  <const Slots extends readonly string[]>(
-    namespace: string,
-    config: MultiSlotConfigInput<Slots>,
-    options: LayerOption<L>,
-  ): MultiSlotReturn<Slots>;
-  <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: ComponentConfig<V> & { vars: Vars },
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<ComponentReturn<V>, Vars>;
-  <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: CallbackConfigWithVars<ComponentConfig<V>, Vars>,
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<ComponentReturn<V>, Vars>;
-  <const V extends VariantDefinitions>(
-    namespace: string,
-    config: ComponentConfigInput<V>,
-    options: LayerOption<L>,
-  ): ComponentReturn<V>;
-  <const K extends string, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: FlatComponentConfig<K> & { vars: Vars },
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-  <const K extends string, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: CallbackConfigWithVars<FlatComponentConfig<K>, Vars>,
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-  <const K extends string>(
-    namespace: string,
-    config: FlatComponentConfigInput<K>,
-    options: LayerOption<L>,
-  ): FlatComponentReturn<K>;
-};
-
-export type StylesWithUtilsApiLayered<U extends StyleUtils, L extends string> = Omit<
-  StylesWithUtilsApi<U>,
-  'class' | 'hashClass' | 'component' | 'scope' | 'override'
-> & {
-  scope: (
-    opts: ScopeOptions & { layer?: L },
-    className: string,
-    overrides: CSSPropertiesWithUtils<U>,
-  ) => void;
-  override: OverrideFn<L>;
-  class: (name: string, properties: CSSPropertiesWithUtils<U>, options?: LayerOption<L>) => string;
-  hashClass: (
-    properties: CSSPropertiesWithUtils<U>,
-    options?: LayerOption<L> & { label?: string },
-  ) => string;
-  component: LayeredComponentFnWithUtils<L>;
-  compose: typeof compose;
-};
-
-export type StylesApiWithLayers<L extends string> = Omit<
-  StylesApi,
-  'class' | 'hashClass' | 'component' | 'withUtils' | 'scope' | 'override'
-> & {
-  scope: (opts: ScopeOptions & { layer?: L }, className: string, overrides: CSSProperties) => void;
-  override: OverrideFn<L>;
-  class: (name: string, properties: CSSProperties, options: LayerOption<L>) => string;
-  hashClass: (properties: CSSProperties, options: LayerOption<L> & { label?: string }) => string;
-  component: LayeredComponentFn<L>;
-  withUtils: <U extends StyleUtils>(utils: U) => StylesWithUtilsApiLayered<U, L>;
-};
-
-export function createStyles<const L extends readonly string[], U extends StyleUtils>(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
-    mode: 'attribute';
-    layers: L;
-    tokenLayer?: L[number];
-    utils: U;
-  },
-): AttributeStylesWithUtilsApiLayered<U, L[number]>;
-
-export function createStyles<U extends StyleUtils>(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
-    mode: 'attribute';
-    layers: CascadeLayersObjectInput;
-    tokenLayer?: string;
-    utils: U;
-  },
-): AttributeStylesWithUtilsApiLayered<U, string>;
-
-export function createStyles<U extends StyleUtils>(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & { mode: 'attribute'; utils: U },
-): AttributeStylesWithUtilsApi<U>;
-
-export function createStyles<const L extends readonly string[]>(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
-    mode: 'attribute';
-    layers: L;
-    tokenLayer?: L[number];
-  },
-): AttributeStylesApiWithLayers<L[number]>;
-
-export function createStyles(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
-    mode: 'attribute';
-    layers: CascadeLayersObjectInput;
-    tokenLayer?: string;
-  },
-): AttributeStylesApiWithLayers<string>;
-
-export function createStyles(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & { mode: 'attribute' },
-): AttributeStylesApi;
 
 /**
  * Create a styles API with its own class naming config (scope, mode, prefix).
@@ -759,53 +300,7 @@ export function createStyles(
  * Pass **`utils`** to register shorthand expanders on this instance (same behavior as
  * `styles.withUtils(utils)` on the default export, without a second parallel API object).
  */
-export function createStyles<const L extends readonly string[], U extends StyleUtils>(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
-    layers: L;
-    tokenLayer?: L[number];
-    utils: U;
-  },
-): StylesWithUtilsApiLayered<U, L[number]>;
-
-export function createStyles<U extends StyleUtils>(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
-    layers: CascadeLayersObjectInput;
-    tokenLayer?: string;
-    utils: U;
-  },
-): StylesWithUtilsApiLayered<U, string>;
-
-export function createStyles<U extends StyleUtils>(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & { utils: U },
-): StylesWithUtilsApi<U>;
-
-export function createStyles<const L extends readonly string[]>(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
-    layers: L;
-    tokenLayer?: L[number];
-  },
-): StylesApiWithLayers<L[number]>;
-
-export function createStyles(
-  options: Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
-    layers: CascadeLayersObjectInput;
-    tokenLayer?: string;
-  },
-): StylesApiWithLayers<string>;
-
-export function createStyles(options?: CreateStylesInput): StylesApi;
-
-export function createStyles(
-  options?: CreateStylesInput,
-):
-  | StylesApi
-  | StylesApiWithLayers<string>
-  | StylesWithUtilsApi<StyleUtils>
-  | StylesWithUtilsApiLayered<StyleUtils, string>
-  | AttributeStylesApi
-  | AttributeStylesApiWithLayers<string>
-  | AttributeStylesWithUtilsApi<StyleUtils>
-  | AttributeStylesWithUtilsApiLayered<StyleUtils, string> {
+export function createStyles<const O extends CreateStylesInput>(options?: O): StylesApi<O> {
   const partial = (options ?? {}) as CreateStylesInput;
   const {
     layers,
@@ -850,28 +345,14 @@ export function createStyles(
   }
 
   const registry = createComponentRegistry();
-
-  if (utils !== undefined) {
-    if (classNaming.cascadeLayers) {
-      return attachComponentRegistryMethods(
-        createStylesWithUtilsLayered(utils, classNaming, registry),
-        registry,
-      ) as unknown as StylesWithUtilsApiLayered<StyleUtils, string>;
-    }
-    return attachComponentRegistryMethods(
-      createStylesWithUtils(utils, classNaming, registry),
-      registry,
-    ) as unknown as StylesWithUtilsApi<StyleUtils>;
-  }
-
-  return buildStylesRuntimeApi(classNaming, registry);
+  return buildStylesApi(classNaming, registry, utils) as unknown as StylesApi<O>;
 }
 
 function registerComponentFromOptions(
   registry: ComponentRegistry,
   namespace: string,
   handle: unknown,
-  options?: ComponentCreateOptions<string>,
+  options?: RecipeRuntimeOptions,
 ): void {
   registry.register(namespace, handle as object, options?.themeable !== false);
 }
@@ -882,34 +363,99 @@ function createMediaHelpers(classNaming: ClassNamingConfig) {
   return { breakpoint, media };
 }
 
-function buildStylesRuntimeApi(
-  classNaming: ClassNamingConfig,
-  registry: ComponentRegistry,
-): StylesApi | StylesApiWithLayers<string> {
-  const layered = Boolean(classNaming.cascadeLayers);
+type StylesHashClass =
+  | ((properties: CSSProperties, label?: string) => string)
+  | ((
+      properties: CSSProperties,
+      options?: { readonly layer?: string; readonly label?: string },
+    ) => string);
 
-  const componentImpl = (
+/** Fields shared by every `createStyles` result. `satisfies` on the builder keeps this list honest. */
+type StylesCore = {
+  classNaming: ClassNamingConfig;
+  container: typeof containerQuery;
+  containerRef: (label: string) => ContainerNameRef;
+  supports: typeof supportsQuery;
+  atRuleBlock: typeof atRuleBlockFn;
+  when: typeof whenStyleFn;
+  breakpoint: BreakpointMediaFn;
+  media: MediaFn;
+  has: typeof hasNested;
+  is: typeof isNested;
+  where: typeof whereNested;
+  class: (name: string, properties: CSSProperties, options?: { readonly layer?: string }) => string;
+  hashClass: StylesHashClass;
+  component: (
     namespace: string,
     configOrDefinition: unknown,
     callbackOrOptions?: unknown,
-    maybeOptions?: ComponentCreateOptions<string>,
+    maybeOptions?: RecipeRuntimeOptions,
+  ) => unknown;
+  compose: typeof compose;
+  scope: (opts: ScopeOptions, className: string, overrides: CSSProperties) => void;
+  override: (componentHandle: object, config: unknown, options?: OverrideOptions<string>) => void;
+};
+
+type StylesBuilderResult = StylesCore &
+  ComponentRegistryApi & {
+    property?: StylesPropertyFn;
+    withUtils?: (utils: StyleUtils) => StylesBuilderResult;
+  };
+
+function buildStylesApi(
+  classNaming: ClassNamingConfig,
+  registry: ComponentRegistry,
+  utils?: StyleUtils,
+): StylesBuilderResult {
+  const layered = Boolean(classNaming.cascadeLayers);
+  const apply = utils
+    ? (properties: CSSPropertiesWithUtils<StyleUtils>): CSSProperties =>
+        expandStyleWithUtils(properties, utils)
+    : undefined;
+  const transform = apply ? makeTransformComponentConfigWithUtils(apply) : undefined;
+
+  const component = (
+    namespace: string,
+    configOrDefinition: unknown,
+    callbackOrOptions?: unknown,
+    maybeOptions?: RecipeRuntimeOptions,
   ) => {
     if (isSchemaRecipeDefinition(configOrDefinition)) {
+      const definition = configOrDefinition;
+      const userConfig = callbackOrOptions as (
+        ctx: ComponentConfigContext,
+      ) => Record<string, unknown>;
       const handle = createSchemaComponent(
         classNaming,
         namespace,
-        configOrDefinition,
-        callbackOrOptions as (ctx: ComponentConfigContext) => RecipeStyles<RecipeDefinition>,
+        definition,
+        transform
+          ? (ctx) =>
+              transform({
+                ...userConfig(ctx),
+                ...(definition.slots ? { slots: definition.slots } : {}),
+              }) as unknown as RecipeStyles<RecipeDefinition>
+          : (userConfig as (ctx: ComponentConfigContext) => RecipeStyles<RecipeDefinition>),
         maybeOptions,
       );
       registerComponentFromOptions(registry, namespace, handle, maybeOptions);
       return handle;
     }
+
     const config = configOrDefinition as
       | Record<string, unknown>
       | ((ctx: ComponentConfigContext) => Record<string, unknown>);
-    const options = callbackOrOptions as ComponentCreateOptions<string> | undefined;
-    const handle = createComponent(classNaming, namespace, config, options);
+    const options = callbackOrOptions as RecipeRuntimeOptions | undefined;
+    let resolved: typeof config;
+    if (!transform) {
+      resolved = config;
+    } else if (typeof config === 'function') {
+      const configFn = config;
+      resolved = (ctx) => transform(configFn(ctx));
+    } else {
+      resolved = transform(config);
+    }
+    const handle = createComponent(classNaming, namespace, resolved as never, options);
     registerComponentFromOptions(registry, namespace, handle, options);
     return handle;
   };
@@ -920,520 +466,74 @@ function buildStylesRuntimeApi(
       prefix: classNaming.prefix,
     });
   const { breakpoint, media } = createMediaHelpers(classNaming);
+  const normalize = (properties: CSSProperties): CSSProperties =>
+    apply ? apply(properties as CSSPropertiesWithUtils<StyleUtils>) : properties;
 
-  const property = createStylesPropertyFn(classNaming);
   const scope = (opts: ScopeOptions, className: string, overrides: CSSProperties) =>
-    createScope(classNaming, opts, className, overrides);
-  const override = ((component: object, config: unknown, options?: OverrideOptions<string>) =>
-    createOverride(
+    createScope(classNaming, opts, className, normalize(overrides));
+
+  const override = (
+    componentHandle: object,
+    config: unknown,
+    options?: OverrideOptions<string>,
+  ) => {
+    if (!apply) {
+      return createOverride(
+        classNaming,
+        componentHandle,
+        config as Record<string, unknown>,
+        options,
+      );
+    }
+    const meta = getComponentMeta(componentHandle);
+    const hasSlots = meta?.kind === 'slot' || meta?.kind === 'multi-slot';
+    return createOverride(
       classNaming,
-      component,
-      config as Record<string, unknown>,
+      componentHandle,
+      transformOverrideConfigWithUtils(config as Record<string, unknown>, apply, hasSlots),
       options,
-    )) as OverrideFn;
-
-  if (layered) {
-    return attachComponentRegistryMethods(
-      {
-        classNaming,
-        container: containerQuery,
-        containerRef,
-        supports: supportsQuery,
-        atRuleBlock: atRuleBlockFn,
-        when: whenStyleFn,
-        breakpoint,
-        media,
-        has: hasNested,
-        is: isNested,
-        where: whereNested,
-        property,
-        class: (name: string, properties: CSSProperties, options?: { layer?: string }) => {
-          return createClass(classNaming, name, properties, options?.layer);
-        },
-        hashClass: (properties: CSSProperties, options?: { layer?: string; label?: string }) => {
-          return createHashClass(classNaming, properties, options?.label, options?.layer);
-        },
-        component: componentImpl as unknown as LayeredComponentFn<string>,
-        withUtils: <U extends StyleUtils>(utils: U) =>
-          attachComponentRegistryMethods(
-            createStylesWithUtilsLayered(utils, classNaming, registry),
-            registry,
-          ) as unknown as StylesWithUtilsApiLayered<U, string>,
-        compose,
-        scope,
-        override,
-        // `as` (not `satisfies`): checking `typeof container` overloads with conditional literal returns hits TS2589.
-      },
-      registry,
-    ) as unknown as StylesApiWithLayers<string>;
-  }
-
-  return attachComponentRegistryMethods(
-    {
-      classNaming,
-      container: containerQuery,
-      containerRef,
-      supports: supportsQuery,
-      atRuleBlock: atRuleBlockFn,
-      when: whenStyleFn,
-      breakpoint,
-      media,
-      has: hasNested,
-      is: isNested,
-      where: whereNested,
-      property,
-      class: (name: string, properties: CSSProperties) =>
-        createClass(classNaming, name, properties),
-      hashClass: (properties: CSSProperties, label?: string) =>
-        createHashClass(classNaming, properties, label),
-      component: componentImpl as StylesApi['component'],
-      withUtils: <U extends StyleUtils>(utils: U) =>
-        attachComponentRegistryMethods(
-          createStylesWithUtils(utils, classNaming, registry),
-          registry,
-        ) as unknown as StylesWithUtilsApi<U>,
-      compose,
-      scope,
-      override,
-      // `as` (not `satisfies`): checking `typeof container` overloads with conditional literal returns hits TS2589.
-    },
-    registry,
-  ) as unknown as StylesApi;
-}
-
-export type StylesWithUtilsApi<U extends StyleUtils> = ComponentRegistryApi & {
-  readonly classNaming: Readonly<ClassNamingConfig>;
-  readonly container: typeof containerQuery;
-  readonly containerRef: (label: string) => ContainerNameRef;
-  readonly supports: typeof supportsQuery;
-  readonly atRuleBlock: typeof atRuleBlockFn;
-  readonly when: typeof whenStyleFn;
-  readonly breakpoint: BreakpointMediaFn;
-  readonly media: MediaFn;
-  readonly has: typeof hasNested;
-  readonly is: typeof isNested;
-  readonly where: typeof whereNested;
-  class: (name: string, properties: CSSPropertiesWithUtils<U>) => string;
-  hashClass: (properties: CSSPropertiesWithUtils<U>, label?: string) => string;
-  component: {
-    <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
-      namespace: string,
-      definition: Def,
-      config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
-    ): RecipeHandle<Def, string, RecipeVarsOf<R>>;
-    <
-      const Slots extends readonly string[],
-      V extends SlotVariantDefinitions<Slots[number]>,
-      const Vars extends ComponentVarDefinitions,
-    >(
-      namespace: string,
-      config: SlotComponentConfig<Slots, V> & { vars: Vars },
-    ): ComponentWithVarDefinitions<SlotComponentFunction<Slots, V>, Vars>;
-    <
-      const Slots extends readonly string[],
-      V extends SlotVariantDefinitions<Slots[number]>,
-      const Vars extends ComponentVarDefinitions,
-    >(
-      namespace: string,
-      config: CallbackConfigWithVars<SlotComponentConfig<Slots, V>, Vars>,
-    ): ComponentWithVarDefinitions<SlotComponentFunction<Slots, V>, Vars>;
-    <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
-      namespace: string,
-      config: SlotComponentConfigInput<Slots, V>,
-    ): SlotComponentFunction<Slots, V>;
-    <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: MultiSlotConfig<Slots> & { vars: Vars },
-    ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-    <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: CallbackConfigWithVars<MultiSlotConfig<Slots>, Vars>,
-    ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-    <const Slots extends readonly string[]>(
-      namespace: string,
-      config: MultiSlotConfigInput<Slots>,
-    ): MultiSlotReturn<Slots>;
-    <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: ComponentConfig<V> & { vars: Vars },
-    ): ComponentWithVarDefinitions<ComponentReturn<V>, Vars>;
-    <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: CallbackConfigWithVars<ComponentConfig<V>, Vars>,
-    ): ComponentWithVarDefinitions<ComponentReturn<V>, Vars>;
-    <const V extends VariantDefinitions>(
-      namespace: string,
-      config: ComponentConfigInput<V>,
-    ): ComponentReturn<V>;
-    <const K extends string, const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: FlatComponentConfig<K> & { vars: Vars },
-    ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-    <const K extends string, const Vars extends ComponentVarDefinitions>(
-      namespace: string,
-      config: CallbackConfigWithVars<FlatComponentConfig<K>, Vars>,
-    ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-    <const K extends string>(
-      namespace: string,
-      config: FlatComponentConfigInput<K>,
-    ): FlatComponentReturn<K>;
+    );
   };
-  compose: typeof compose;
-  scope: (opts: ScopeOptions, className: string, overrides: CSSPropertiesWithUtils<U>) => void;
-  override: OverrideFn;
-};
 
-// ---------------------------------------------------------------------------
-// mode: 'attribute' — dimensioned components return { className, attrs, props }; slot recipes
-// return that result for every declared slot. See specs/semantic-and-attribute-mode.md.
-// ---------------------------------------------------------------------------
+  const hashClass: StylesHashClass = layered
+    ? (properties: CSSProperties, options?: { layer?: string; label?: string }) =>
+        createHashClass(classNaming, normalize(properties), options?.label, options?.layer)
+    : (properties: CSSProperties, label?: string) =>
+        createHashClass(classNaming, normalize(properties), label);
 
-export type AttributeComponentFn = {
-  <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
-    namespace: string,
-    definition: Def,
-    config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
-  ): RecipeHandle<Def, ComponentAttrsResult, RecipeVarsOf<R>>;
-  <
-    const Slots extends readonly string[],
-    V extends SlotVariantDefinitions<Slots[number]>,
-    const Vars extends ComponentVarDefinitions,
-  >(
-    namespace: string,
-    config: CallbackConfigWithVars<SlotComponentConfig<Slots, V>, Vars>,
-  ): ComponentWithVarDefinitions<SlotAttrsReturn<Slots, V>, Vars>;
-  <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
-    namespace: string,
-    config: SlotComponentConfigInput<Slots, V>,
-  ): SlotAttrsReturn<Slots, V>;
-  <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: CallbackConfigWithVars<MultiSlotConfig<Slots>, Vars>,
-  ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-  <const Slots extends readonly string[]>(
-    namespace: string,
-    config: MultiSlotConfigInput<Slots>,
-  ): MultiSlotReturn<Slots>;
-  <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: CallbackConfigWithVars<ComponentConfig<V>, Vars>,
-  ): ComponentWithVarDefinitions<ComponentAttrsReturn<V>, Vars>;
-  <const V extends VariantDefinitions>(
-    namespace: string,
-    config: ComponentConfigInput<V>,
-  ): ComponentAttrsReturn<V>;
-  <const K extends string, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: CallbackConfigWithVars<FlatComponentConfig<K>, Vars>,
-  ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-  <const K extends string>(
-    namespace: string,
-    config: FlatComponentConfigInput<K>,
-  ): FlatComponentReturn<K>;
-};
+  const api = {
+    classNaming,
+    container: containerQuery,
+    containerRef,
+    supports: supportsQuery,
+    atRuleBlock: atRuleBlockFn,
+    when: whenStyleFn,
+    breakpoint,
+    media,
+    has: hasNested,
+    is: isNested,
+    where: whereNested,
+    class: (name: string, properties: CSSProperties, options?: { layer?: string }) =>
+      createClass(classNaming, name, normalize(properties), layered ? options?.layer : undefined),
+    hashClass,
+    component,
+    compose,
+    scope,
+    override,
+  };
 
-export type LayeredAttributeComponentFn<L extends string> = {
-  <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
-    namespace: string,
-    definition: Def,
-    config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
-    options: SchemaRecipeOptions<L>,
-  ): RecipeHandle<Def, ComponentAttrsResult, RecipeVarsOf<R>>;
-  <
-    const Slots extends readonly string[],
-    V extends SlotVariantDefinitions<Slots[number]>,
-    const Vars extends ComponentVarDefinitions,
-  >(
-    namespace: string,
-    config: CallbackConfigWithVars<SlotComponentConfig<Slots, V>, Vars>,
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<SlotAttrsReturn<Slots, V>, Vars>;
-  <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
-    namespace: string,
-    config: SlotComponentConfigInput<Slots, V>,
-    options: LayerOption<L>,
-  ): SlotAttrsReturn<Slots, V>;
-  <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: CallbackConfigWithVars<MultiSlotConfig<Slots>, Vars>,
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<MultiSlotReturn<Slots>, Vars>;
-  <const Slots extends readonly string[]>(
-    namespace: string,
-    config: MultiSlotConfigInput<Slots>,
-    options: LayerOption<L>,
-  ): MultiSlotReturn<Slots>;
-  <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: CallbackConfigWithVars<ComponentConfig<V>, Vars>,
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<ComponentAttrsReturn<V>, Vars>;
-  <const V extends VariantDefinitions>(
-    namespace: string,
-    config: ComponentConfigInput<V>,
-    options: LayerOption<L>,
-  ): ComponentAttrsReturn<V>;
-  <const K extends string, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: CallbackConfigWithVars<FlatComponentConfig<K>, Vars>,
-    options: LayerOption<L>,
-  ): ComponentWithVarDefinitions<FlatComponentReturn<K>, Vars>;
-  <const K extends string>(
-    namespace: string,
-    config: FlatComponentConfigInput<K>,
-    options: LayerOption<L>,
-  ): FlatComponentReturn<K>;
-};
-
-export type AttributeStylesApi = Omit<StylesApi, 'component' | 'withUtils'> & {
-  component: AttributeComponentFn;
-  withUtils: <U extends StyleUtils>(utils: U) => AttributeStylesWithUtilsApi<U>;
-};
-
-export type AttributeStylesApiWithLayers<L extends string> = Omit<
-  StylesApiWithLayers<L>,
-  'component' | 'withUtils'
-> & {
-  component: LayeredAttributeComponentFn<L>;
-  withUtils: <U extends StyleUtils>(utils: U) => AttributeStylesWithUtilsApiLayered<U, L>;
-};
-
-export type AttributeStylesWithUtilsApi<U extends StyleUtils> = Omit<
-  StylesWithUtilsApi<U>,
-  'component'
-> & {
-  component: AttributeComponentFn;
-};
-
-export type AttributeStylesWithUtilsApiLayered<U extends StyleUtils, L extends string> = Omit<
-  StylesWithUtilsApiLayered<U, L>,
-  'component'
-> & {
-  component: LayeredAttributeComponentFn<L>;
-};
-
-/**
- * Create a utility-aware styles API, similar to Stitches' `utils`.
- *
- * @example
- * ```ts
- * const u = styles.withUtils({
- *   marginX: (value: string | number) => ({ marginLeft: value, marginRight: value }),
- *   size: (value: string | number) => ({ width: value, height: value }),
- * });
- *
- * const card = u.component('card', {
- *   base: { size: 40, marginX: 16 },
- * });
- * ```
- */
-export function createStylesWithUtils<U extends StyleUtils>(
-  utils: U,
-  classNaming: ClassNamingConfig = defaultClassNamingConfig,
-  registry: ComponentRegistry = createComponentRegistry(),
-): StylesWithUtilsApi<U> {
-  const containerRef = (label: string): ContainerNameRef =>
-    createContainerRef(label, {
-      scopeId: classNaming.scopeId,
-      prefix: classNaming.prefix,
-    });
-  const { breakpoint, media } = createMediaHelpers(classNaming);
-
-  const apply = (properties: CSSPropertiesWithUtils<U>): CSSProperties =>
-    expandStyleWithUtils(properties, utils);
-
-  const transformComponentConfigWithUtils = makeTransformComponentConfigWithUtils(apply);
-
-  function component(
-    namespace: string,
-    configOrDefinition: unknown,
-    callbackOrOptions?: unknown,
-    maybeOptions?: ComponentCreateOptions<string>,
-  ): unknown {
-    let handle: unknown;
-    if (isSchemaRecipeDefinition(configOrDefinition)) {
-      const definition = configOrDefinition;
-      const userConfig = callbackOrOptions as (
-        ctx: ComponentConfigContext,
-      ) => Record<string, unknown>;
-      handle = createSchemaComponent(
-        classNaming,
-        namespace,
-        definition,
-        (ctx) =>
-          transformComponentConfigWithUtils({
-            ...userConfig(ctx),
-            ...(definition.slots ? { slots: definition.slots } : {}),
-          }) as unknown as RecipeStyles<RecipeDefinition>,
-        maybeOptions,
-      );
-      registerComponentFromOptions(registry, namespace, handle, maybeOptions);
-      return handle;
-    }
-    const config = configOrDefinition as
-      | Record<string, unknown>
-      | ((ctx: ComponentConfigContext) => Record<string, unknown>);
-    const options = callbackOrOptions as ComponentCreateOptions<string> | undefined;
-    if (typeof config === 'function') {
-      handle = createComponent(
-        classNaming,
-        namespace,
-        (ctx) => transformComponentConfigWithUtils(config(ctx) as Record<string, unknown>),
-        options,
-      );
-    } else {
-      handle = createComponent(
-        classNaming,
-        namespace,
-        transformComponentConfigWithUtils(config) as ComponentConfig<VariantDefinitions>,
-        options,
-      );
-    }
-    registerComponentFromOptions(registry, namespace, handle, options);
-    return handle;
+  if (utils) {
+    return attachComponentRegistryMethods(api, registry);
   }
 
   return attachComponentRegistryMethods(
     {
-      classNaming,
-      container: containerQuery,
-      containerRef,
-      supports: supportsQuery,
-      atRuleBlock: atRuleBlockFn,
-      when: whenStyleFn,
-      breakpoint,
-      media,
-      has: hasNested,
-      is: isNested,
-      where: whereNested,
-      class: (name: string, properties: CSSPropertiesWithUtils<U>) =>
-        createClass(classNaming, name, apply(properties)),
-      hashClass: (properties: CSSPropertiesWithUtils<U>, label?: string) =>
-        createHashClass(classNaming, apply(properties), label),
-      component: component as StylesWithUtilsApi<U>['component'],
-      compose,
-      scope: (opts: ScopeOptions, className: string, overrides: CSSPropertiesWithUtils<U>) =>
-        createScope(classNaming, opts, className, apply(overrides)),
-      override: ((component: object, config: unknown, options?: OverrideOptions<string>) => {
-        const meta = getComponentMeta(component);
-        const hasSlots = meta?.kind === 'slot' || meta?.kind === 'multi-slot';
-        return createOverride(
-          classNaming,
-          component,
-          transformOverrideConfigWithUtils(config as Record<string, unknown>, apply, hasSlots),
-          options,
-        );
-      }) as OverrideFn,
+      ...api,
+      property: createStylesPropertyFn(classNaming),
+      withUtils: (next: StyleUtils) => buildStylesApi(classNaming, registry, next),
     },
     registry,
-  ) as unknown as StylesWithUtilsApi<U>;
-}
-
-function createStylesWithUtilsLayered<U extends StyleUtils>(
-  utils: U,
-  classNaming: ClassNamingConfig,
-  registry: ComponentRegistry = createComponentRegistry(),
-): StylesWithUtilsApiLayered<U, string> {
-  const containerRef = (label: string): ContainerNameRef =>
-    createContainerRef(label, {
-      scopeId: classNaming.scopeId,
-      prefix: classNaming.prefix,
-    });
-  const { breakpoint, media } = createMediaHelpers(classNaming);
-
-  const apply = (properties: CSSPropertiesWithUtils<U>): CSSProperties =>
-    expandStyleWithUtils(properties, utils);
-
-  const transformComponentConfigWithUtils = makeTransformComponentConfigWithUtils(apply);
-
-  function component(
-    namespace: string,
-    configOrDefinition: unknown,
-    callbackOrOptions?: unknown,
-    maybeOptions?: ComponentCreateOptions<string>,
-  ): unknown {
-    let handle: unknown;
-    if (isSchemaRecipeDefinition(configOrDefinition)) {
-      const definition = configOrDefinition;
-      const userConfig = callbackOrOptions as (
-        ctx: ComponentConfigContext,
-      ) => Record<string, unknown>;
-      handle = createSchemaComponent(
-        classNaming,
-        namespace,
-        definition,
-        (ctx) =>
-          transformComponentConfigWithUtils({
-            ...userConfig(ctx),
-            ...(definition.slots ? { slots: definition.slots } : {}),
-          }) as unknown as RecipeStyles<RecipeDefinition>,
-        maybeOptions,
-      );
-      registerComponentFromOptions(registry, namespace, handle, maybeOptions);
-      return handle;
-    }
-    const config = configOrDefinition as
-      | Record<string, unknown>
-      | ((ctx: ComponentConfigContext) => Record<string, unknown>);
-    const options = callbackOrOptions as ComponentCreateOptions<string> | undefined;
-    if (typeof config === 'function') {
-      handle = createComponent(
-        classNaming,
-        namespace,
-        (ctx) => transformComponentConfigWithUtils(config(ctx) as Record<string, unknown>),
-        options,
-      );
-    } else {
-      handle = createComponent(
-        classNaming,
-        namespace,
-        transformComponentConfigWithUtils(config) as ComponentConfig<VariantDefinitions>,
-        options,
-      );
-    }
-    registerComponentFromOptions(registry, namespace, handle, options);
-    return handle;
-  }
-
-  return attachComponentRegistryMethods(
-    {
-      classNaming,
-      container: containerQuery,
-      containerRef,
-      supports: supportsQuery,
-      atRuleBlock: atRuleBlockFn,
-      when: whenStyleFn,
-      breakpoint,
-      media,
-      has: hasNested,
-      is: isNested,
-      where: whereNested,
-      class: (name: string, properties: CSSPropertiesWithUtils<U>, options?: LayerOption<string>) =>
-        createClass(classNaming, name, apply(properties), options?.layer),
-      hashClass: (
-        properties: CSSPropertiesWithUtils<U>,
-        options?: LayerOption<string> & { label?: string },
-      ) => createHashClass(classNaming, apply(properties), options?.label, options?.layer),
-      component: component as unknown as LayeredComponentFnWithUtils<string>,
-      compose,
-      scope: (
-        opts: ScopeOptions & { layer?: string },
-        className: string,
-        overrides: CSSPropertiesWithUtils<U>,
-      ) => createScope(classNaming, opts, className, apply(overrides)),
-      override: ((componentObj: object, config: unknown, options?: OverrideOptions<string>) => {
-        const meta = getComponentMeta(componentObj);
-        const hasSlots = meta?.kind === 'slot' || meta?.kind === 'multi-slot';
-        return createOverride(
-          classNaming,
-          componentObj,
-          transformOverrideConfigWithUtils(config as Record<string, unknown>, apply, hasSlots),
-          options,
-        );
-      }) as OverrideFn,
-    },
-    registry,
-  ) as unknown as StylesWithUtilsApiLayered<U, string>;
+  );
 }
 
 function makeTransformComponentConfigWithUtils<U extends StyleUtils>(
