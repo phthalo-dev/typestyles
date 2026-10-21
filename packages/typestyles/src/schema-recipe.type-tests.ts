@@ -84,6 +84,7 @@ const _wrongSlot = attribute.component({
 });
 void _wrongSlot;
 
+// @ts-expect-error — "nope" is not a declared axis
 const _unknownAxis = attribute.component({
   name: 'unknown-axis',
   slots: ['root'],
@@ -91,7 +92,6 @@ const _unknownAxis = attribute.component({
   styles: () => ({
     variants: {
       tone: { a: {}, b: {} },
-      // @ts-expect-error — "nope" is not a declared axis
       nope: { a: {}, b: {} },
     },
   }),
