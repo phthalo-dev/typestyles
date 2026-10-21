@@ -7,6 +7,7 @@ import { conditional } from './override';
 import { when } from './theme';
 import { variant } from './variant';
 import type { OverrideConfigFor } from './override';
+import type { ThemeComponentsOverrideMap } from './theme-component-types';
 import type { VariantOptionStyle } from './types';
 
 const styles = createStyles();
@@ -248,3 +249,25 @@ styles.override({
 const widenedLeaf = { flexWrap: 'wrap' as const, columnGap: '8px' as string };
 const widenedOk: VariantOptionStyle = widenedLeaf;
 void widenedOk;
+
+const _themePatches: ThemeComponentsOverrideMap<{ button: typeof button }> = {
+  button: {
+    styles: ({ tokens }) => ({
+      base: { color: tokens.color.border.default.var },
+      variants: { intent: { primary: { fontWeight: 700 } } },
+    }),
+  },
+};
+void _themePatches;
+
+const _themeBadAxis: ThemeComponentsOverrideMap<{ button: typeof button }> = {
+  button: {
+    styles: {
+      variants: {
+        // @ts-expect-error — unknown variant dimension
+        missing: { primary: { color: 'red' } },
+      },
+    },
+  },
+};
+void _themeBadAxis;

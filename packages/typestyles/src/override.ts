@@ -855,7 +855,7 @@ export interface OverrideTokenNode {
   readonly [key: string]: any;
 }
 
-type OverrideStyleContext<C> = {
+export type OverrideStyleContext<C> = {
   readonly vars: C extends { readonly vars: infer V } ? V : Record<never, never>;
   readonly tokens: OverrideTokenNode;
 };

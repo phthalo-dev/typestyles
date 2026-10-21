@@ -44,8 +44,9 @@ function extractVarName(varRef: string): string | undefined {
  * ```ts
  * const cardBg = createVar('cardBg');
  *
- * const card = recipe('card', {
- *   base: { background: cardBg, padding: '16px' },
+ * const card = recipe({
+ *   name: 'card',
+ *   styles: { base: { background: cardBg, padding: '16px' } },
  * });
  *
  * // Consumer sets the variable per instance:

@@ -71,19 +71,23 @@ export const typestyles = createTypeStyles({ scopeId: 'ds', mode: 'attribute' })
         path.join(rootDir, 'alert.ts'),
         `
 import { typestyles } from './runtime';
-export const alert = typestyles.recipe('alert', (c) => ({
+export const alert = typestyles.recipe({
+  name: 'alert',
   slots: ['root', 'body', 'title'],
-  base: {
-    root: { display: 'flex' },
-    body: { flex: 1 },
-    title: { fontWeight: 600 },
-  },
-  variants: {
-    tone: {
-      accent: { root: { color: 'blue' } },
+  variants: { tone: variant.enum(['accent'], { default: 'accent' }) },
+  styles: () => ({
+    base: {
+      root: { display: 'flex' },
+      body: { flex: 1 },
+      title: { fontWeight: 600 },
     },
-  },
-}));
+    variants: {
+      tone: {
+        accent: { root: { color: 'blue' } },
+      },
+    },
+  }),
+});
 export const badge = typestyles.style('badge', { display: 'inline-flex' });
 `,
       );
@@ -99,6 +103,7 @@ export const badge = typestyles.style('badge', { display: 'inline-flex' });
         expect.arrayContaining(['ds-alert', 'ds-alert__body', 'ds-alert__title', 'ds-badge']),
       );
       expect(snapshot.classNames).not.toContain('ds-alert--tone-accent');
+      expect(snapshot.classNames).not.toContain('ds-alert__base');
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }
@@ -112,10 +117,13 @@ export const badge = typestyles.style('badge', { display: 'inline-flex' });
         `
 import { createTypeStyles } from 'typestyles';
 const { recipe } = createTypeStyles({ mode: 'semantic' });
-export const card = recipe('card', () => ({
+export const card = recipe({
+  name: 'card',
   slots: ['root', 'body'],
-  base: { root: { padding: '8px' }, body: { margin: 0 } },
-}));
+  styles: () => ({
+    base: { root: { padding: '8px' }, body: { margin: 0 } },
+  }),
+});
 `,
       );
 
@@ -127,6 +135,7 @@ export const card = recipe('card', () => ({
       );
 
       expect(snapshot.classNames).toEqual(expect.arrayContaining(['card', 'card__body']));
+      expect(snapshot.classNames).not.toContain('card__base');
     } finally {
       fs.rmSync(rootDir, { recursive: true, force: true });
     }

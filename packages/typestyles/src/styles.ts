@@ -229,8 +229,8 @@ export function createHashClass(
  *
  * @example
  * ```ts
- * const base = recipe('base', { base: { padding: '8px' } });
- * const primary = recipe('primary', { base: { color: 'blue' } });
+ * const base = recipe({ name: 'base', styles: { base: { padding: '8px' } } });
+ * const primary = recipe({ name: 'primary', styles: { base: { color: 'blue' } } });
  * const button = compose(base, primary);
  *
  * button(); // "base primary"
@@ -567,13 +567,13 @@ function buildStylesApi(
       );
     }
     const handle = input.recipe;
-    const styleValue =
-      typeof input.styles === 'function'
-        ? ((input.styles as (ctx: { vars: object; tokens: object }) => Record<string, unknown>)({
-            vars: (handle as { vars?: object }).vars ?? {},
-            tokens: {},
-          }) ?? {})
-        : ((input.styles as Record<string, unknown> | undefined) ?? {});
+    if (typeof input.styles === 'function') {
+      throw new Error(
+        '[typestyles] override({ styles: ({ vars, tokens }) => … }) needs the token registry from createTypeStyles(). ' +
+          'Call override on that instance, or pass a styles object to createStyles().override().',
+      );
+    }
+    const styleValue = (input.styles as Record<string, unknown> | undefined) ?? {};
     const config: Record<string, unknown> = { ...styleValue };
     if (input.vars) config.vars = input.vars;
     const options: OverrideOptions<string> = {

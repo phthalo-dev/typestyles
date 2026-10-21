@@ -23,7 +23,7 @@ export type { TypestylesExtractOptions };
  * Regex patterns to extract namespace strings from typestyles API calls.
  *
  * Matches:
- *   recipe('button', ...)   → prefix ".button-"
+ *   recipe({ name: 'button', ... })   → prefix ".button-"
  *   style('card', ...)         → prefix ".card-"
  *   tokens.create('color', ...)       → key "tokens:color"
  *   tokens.createTheme({ name: 'dark', … })   → key "theme:dark"

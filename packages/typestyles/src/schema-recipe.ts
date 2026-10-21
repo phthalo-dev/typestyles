@@ -258,7 +258,7 @@ type StripNullProps<T> = { [K in keyof T]: NonNullable<T[K]> };
  *
  * @example
  * ```ts
- * const alert = typestyles.recipe('alert', { variants: { … } }, (c) => { … });
+ * const alert = typestyles.recipe({ name: 'alert', variants: { … }, styles: { … } });
  * type AlertProps = RecipeVariants<typeof alert>;
  * ```
  */

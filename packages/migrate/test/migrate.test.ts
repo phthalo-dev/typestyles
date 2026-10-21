@@ -80,10 +80,12 @@ function App() {
 
     expect(result.changed).toBe(true);
     expect(result.warnings).toHaveLength(0);
-    expect(result.code).toContain('recipe("button"');
-    expect(result.code).toContain('variants');
-    expect(result.code).toContain('defaultVariants');
+    expect(result.code).toContain('name: "button"');
+    expect(result.code).toContain('variant.boolean');
+    expect(result.code).toContain('styles:');
+    expect(result.code).not.toContain('defaultVariants');
     expect(result.code).toContain('primary: true');
+    expect(result.code).toContain('.className');
     expect(result.code).not.toContain('<Button');
   });
 

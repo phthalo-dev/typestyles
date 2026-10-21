@@ -23,7 +23,9 @@ function buildVariantStyles(properties: Record<string, string>): t.ObjectExpress
   );
 }
 
-export function buildVariantComponentConfig(
+/** `recipe({ name, variants, styles })` argument. Axes are `variant.boolean`; option styles live under `styles`. */
+export function buildVariantRecipeInput(
+  name: string,
   baseObject: t.ObjectExpression,
   booleanInterpolations: BooleanTernaryInterpolation[],
 ): t.ObjectExpression {
@@ -49,13 +51,24 @@ export function buildVariantComponentConfig(
     ),
   );
 
-  const defaultVariantProperties = [...variantGroups.keys()].map((propName) =>
-    t.objectProperty(t.identifier(propName), t.booleanLiteral(false)),
+  const axisProperties = [...variantGroups.keys()].map((propName) =>
+    t.objectProperty(
+      t.identifier(propName),
+      t.callExpression(t.memberExpression(t.identifier('variant'), t.identifier('boolean')), [
+        t.objectExpression([t.objectProperty(t.identifier('default'), t.booleanLiteral(false))]),
+      ]),
+    ),
   );
 
   return t.objectExpression([
-    t.objectProperty(t.identifier('base'), baseObject),
-    t.objectProperty(t.identifier('variants'), t.objectExpression(variantsProperties)),
-    t.objectProperty(t.identifier('defaultVariants'), t.objectExpression(defaultVariantProperties)),
+    t.objectProperty(t.identifier('name'), t.stringLiteral(name)),
+    t.objectProperty(t.identifier('variants'), t.objectExpression(axisProperties)),
+    t.objectProperty(
+      t.identifier('styles'),
+      t.objectExpression([
+        t.objectProperty(t.identifier('base'), baseObject),
+        t.objectProperty(t.identifier('variants'), t.objectExpression(variantsProperties)),
+      ]),
+    ),
   ]);
 }

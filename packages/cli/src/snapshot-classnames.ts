@@ -309,18 +309,14 @@ function collectClassNamePartsFromConfig(
   }
 
   if (hasSlots && !hasVariants && !hasCompound && !hasDefaults) {
+    // Slot class names come from the declared `slots` list. `styles.base` is the
+    // slot style map, not a slot named "base".
     if (slotsNode) {
       for (const element of slotsNode.elements) {
         if (element && ts.isStringLiteral(element)) {
           parts.push({ element: element.text === 'root' ? undefined : element.text });
         }
       }
-    }
-    for (const prop of obj.properties) {
-      if (!ts.isPropertyAssignment(prop)) continue;
-      const key = getStaticObjectKey(prop.name);
-      if (!key || key === 'slots') continue;
-      parts.push({ element: key === 'root' ? undefined : key });
     }
     return parts;
   }

@@ -83,7 +83,7 @@
   "peerDependencies": {
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0",
-    "typestyles": ">=0.4.0"
+    "typestyles": ">=0.32.0"
   },
   "peerDependenciesMeta": {
     "react": {

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 import { createStyles } from './styles';
+import { createTypeStyles } from './create-type-styles';
 import { createComponent } from './component';
 import { variant } from './variant';
 import { getComponentMeta } from './component-meta';
@@ -1184,6 +1185,41 @@ describe('styles.override() + __tsMeta', () => {
         },
       });
       expect(button.base).toBe('ov-types-btn');
+    });
+  });
+
+  describe('style callbacks', () => {
+    it('rejects a styles callback on createStyles().override', () => {
+      const styles = createStyles();
+      const button = styles.component({
+        name: 'ov-cb-raw',
+        styles: { base: { color: 'black' } },
+      });
+      expect(() =>
+        styles.override({
+          recipe: button,
+          styles: () => ({ base: { color: 'red' } }),
+        }),
+      ).toThrow(/createTypeStyles/);
+    });
+
+    it('resolves tokens inside a createTypeStyles override callback', () => {
+      const { recipe, tokens, override } = createTypeStyles({ scopeId: 'ov-tok' });
+      tokens.create('color', { border: { default: 'red' } });
+      const button = recipe({
+        name: 'ov-tok-btn',
+        styles: { base: { color: 'black' } },
+      });
+
+      override({
+        recipe: button,
+        styles: ({ tokens: themeTokens }) => ({
+          base: { borderColor: themeTokens.color.border.default },
+        }),
+      });
+      flushSync();
+
+      expect(getRegisteredCss()).toContain('border-color: var(--ov-tok-color-border-default)');
     });
   });
 });

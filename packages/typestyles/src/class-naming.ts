@@ -139,7 +139,7 @@ export function hashString(input: string): string {
  * @example
  * ```ts
  * const styles = createStyles({ scopeId: fileScopeId(import.meta) });
- * recipe('button', { base: { padding: '8px' } });
+ * recipe({ name: 'button', styles: { base: { padding: '8px' } } });
  * ```
  */
 export function fileScopeId(meta: { url: string }): string {
@@ -185,7 +185,7 @@ function ownerKey(cfg: ClassNamingConfig, namespace: string, kind: 'class' | 'co
 }
 
 /**
- * The emitted class-name prefix shared by every class a `recipe(namespace, …)`
+ * The emitted class-name prefix shared by every class a `recipe({ name })`
  * call produces under this naming config (no leading dot). `null` in `compact`/`atomic`/
  * `template` mode — hash-only names have no per-namespace prefix, and an arbitrary
  * `classNameTemplate` function's output prefix isn't predictable without calling it; atomic

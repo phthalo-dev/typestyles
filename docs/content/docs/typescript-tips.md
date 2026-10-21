@@ -435,31 +435,35 @@ function Button({ variant }: { variant?: string }) {
 
 ```ts
 // styles/config.ts
-import { createTypeStyles, type CSSProperties } from 'typestyles';
+import { createTypeStyles, variant, type CSSProperties } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
 interface StyleConfig {
-  namespace: string;
+  name: string;
   base: CSSProperties;
-  variants: Record<string, CSSProperties>;
+  primary: CSSProperties;
 }
 
 function createStrictStyles(config: StyleConfig) {
-  const { namespace, base, variants } = config;
-  return recipe(namespace, { base, ...variants });
+  const { name, base, primary } = config;
+  return recipe({
+    name,
+    variants: { primary: variant.boolean({ default: false }) },
+    styles: {
+      base,
+      variants: { primary: { true: primary, false: {} } },
+    },
+  });
 }
 
-// Usage with full type safety
 const button = createStrictStyles({
-  namespace: 'button',
+  name: 'button',
   base: { padding: '8px' },
-  variants: {
-    primary: { backgroundColor: 'blue' },
-  },
+  primary: { backgroundColor: 'blue' },
 });
 
-button({ primary: true }); // ✓ base + primary classes
+button({ primary: true }).className;
 ```
 
 ## Type narrowing

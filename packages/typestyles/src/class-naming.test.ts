@@ -259,7 +259,7 @@ describe('unscoped collision warning (dev)', () => {
     const b = createStyles();
     a.component({ name: 'card', styles: { base: { color: 'red' } } });
     b.component({ name: 'card', styles: { base: { color: 'blue' } } });
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("recipe('card'"));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("recipe({ name: 'card'"));
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('without a scopeId'));
   });
 
@@ -283,7 +283,7 @@ describe('unscoped collision warning (dev)', () => {
     b.component({ name: 'tag', styles: { base: { color: 'blue' } } });
     c.component({ name: 'tag', styles: { base: { color: 'green' } } });
     const unscopedCalls = warnSpy.mock.calls.filter(
-      (args) => typeof args[0] === 'string' && args[0].includes("recipe('tag'"),
+      (args) => typeof args[0] === 'string' && args[0].includes("recipe({ name: 'tag'"),
     );
     expect(unscopedCalls).toHaveLength(1);
   });

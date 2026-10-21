@@ -20,6 +20,59 @@ If you are adopting the variant API, start with [Components](/docs/components). 
 
 **Mental model shared across all four:** TypeStyles themes are **CSS custom properties on a stable class** (`.theme-{name}`), not a closed compiler vocabulary. Consumers can override with TypeStyles **or** plain CSS (`--*` / class selectors). Readable recipe classes (`button--intent-primary`) stay targetable outside the framework.
 
+## Upgrading to the object `recipe()`
+
+`recipe()` and `override()` take one object. These positional calls throw:
+
+- `recipe(name, config, options?)`
+- `recipe(name, definition, callback, options?)`
+- `override(component, config, options?)`
+
+```ts
+const button = recipe({
+  name: 'button',
+  layer: 'components',
+  variants: { intent: variant.enum(['primary', 'ghost'], { default: 'primary' }) },
+  styles: {
+    base: { padding: '8px' },
+    variants: {
+      intent: {
+        primary: { backgroundColor: 'blue' },
+        ghost: { backgroundColor: 'transparent' },
+      },
+    },
+  },
+});
+
+button({ intent: 'primary' }).className;
+
+override({
+  recipe: button,
+  layer: 'overrides',
+  selectorPrefix: '.theme-classic',
+  styles: { base: { color: 'rebeccapurple' } },
+});
+```
+
+Every call returns `{ className, attrs, props }`. `String(result)` is the class name. A slotted recipe returns one of those objects per slot, and the static slot class stays on the function (`layout.stack`).
+
+Theme component patches use the same object. The component key replaces `recipe`:
+
+```ts
+tokens.createTheme({
+  name: 'brand',
+  components: {
+    button: {
+      styles: ({ tokens }) => ({
+        base: { color: tokens.color.text.primary.var },
+      }),
+    },
+  },
+});
+```
+
+A bare `button: (ctx) => ({ base })` is not a patch. `styles` holds the partial style object or the callback.
+
 ## Upgrading to 0.10 (semantic + attribute naming)
 
 `0.10` changes the default `mode: 'semantic'` class grammar and finishes `mode: 'attribute'`.

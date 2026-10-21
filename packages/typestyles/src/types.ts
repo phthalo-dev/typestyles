@@ -2,6 +2,7 @@ import type * as CSS from 'csstype';
 import type { ColorModeMap, LightDarkColorModes } from './color-modes';
 import type { CreateValueForSyntax, CssSyntax, CSSPropertyValue, SyntaxRef } from './types-syntax';
 import type { ThemeTokenContext } from './theme-token-context';
+import type { ThemeComponentPatch } from './theme-types';
 
 export type {
   CompatibleSourceSyntax,
@@ -489,13 +490,6 @@ export type ThemeModeDefinition = {
   readonly when: ThemeCondition;
 };
 
-/**
- * Configuration for `tokens.createTheme()`.
- * Light/dark values belong on mode-aware token leaves (`{ light, dark }` → CSS `light-dark()`).
- * `modes` adds conditional override layers (presets, shadow fallbacks, etc.).
- */
-export type ThemeComponentOverrideEntry = Record<string, unknown>;
-
 /** Passed to theme `components` factory functions (#216). */
 export type ThemeOverrideContext<
   E extends Record<string, CreateTokenValues> = Record<string, never>,
@@ -504,8 +498,6 @@ export type ThemeOverrideContext<
   readonly theme: Theme<E>;
 };
 
-export type ThemeComponentOverrideFn = (ctx: ThemeOverrideContext) => ThemeComponentOverrideEntry;
-
 /** Mergeable token config snapshot stored on {@link Theme.source}. */
 export type ThemeSource = {
   /** Per-namespace token values (same shape as `tokens.create` trees). */
@@ -513,6 +505,11 @@ export type ThemeSource = {
   modes?: ThemeModeDefinition[];
 };
 
+/**
+ * Configuration for `tokens.createTheme()`.
+ * Light/dark values belong on mode-aware token leaves (`{ light, dark }` → CSS `light-dark()`).
+ * `modes` adds conditional override layers (presets, shadow fallbacks, etc.).
+ */
 export type ThemeConfig = {
   /**
    * Per-namespace token overrides for `.theme-{name}` — registers each namespace via
@@ -522,7 +519,8 @@ export type ThemeConfig = {
   tokens?: Record<string, CreateTokenValues>;
   /** Conditional mode layers with explicit `when` conditions. */
   modes?: ThemeModeDefinition[];
-  components?: Record<string, ThemeComponentOverrideEntry | ThemeComponentOverrideFn>;
+  /** `{ vars?, styles? }` per recipe. `styles` may be `({ vars, tokens }) => partial`. A bare function is not a patch. */
+  components?: Record<string, ThemeComponentPatch>;
 };
 
 /** Theme config after `tokens` namespaces are folded for the CSS compiler. */
@@ -561,7 +559,8 @@ export type ThemeOverrideInput<
     readonly overrides: DeepPartialThemeTokens<E>;
     readonly when: ThemeCondition;
   }>;
-  components?: Record<string, ThemeComponentOverrideEntry | ThemeComponentOverrideFn>;
+  /** `{ vars?, styles? }` per recipe. `styles` may be `({ vars, tokens }) => partial`. A bare function is not a patch. */
+  components?: Record<string, ThemeComponentPatch>;
 };
 
 /**
@@ -763,7 +762,8 @@ export type InferComponentVarRefTreeDefinitions<T> = T extends {
   : never;
 
 /**
- * Context passed to `recipe(namespace, (ctx) => { ... })` to declare internal custom properties.
+ * Context the recipe runtime uses while resolving `styles`. Internal vars are declared
+ * on the recipe object (`vars`), not by calling `ctx.vars()` from user code.
  */
 /** Proxy tree returned by `ctx.vars({ … })` — leaves are `{ name, var }`, nested objects are sub-trees. */
 export type ComponentVarRefTree<T> = (T extends ComponentVarDefinitions
@@ -1019,11 +1019,13 @@ export type MultiSlotConfigInput<Slots extends readonly string[]> =
  *
  * @example
  * ```ts
- * const button = recipe('button', {
+ * const button = recipe({
+ *   name: 'button',
  *   variants: {
- *     intent: { primary: {...}, ghost: {...} },
- *     size:   { sm: {...}, lg: {...} },
+ *     intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+ *     size: variant.enum(['sm', 'lg'], { default: 'sm' }),
  *   },
+ *   styles: { variants: { intent: { primary: {}, ghost: {} }, size: { sm: {}, lg: {} } } },
  * });
  *
  * type ButtonProps = ComponentVariants<typeof button>;

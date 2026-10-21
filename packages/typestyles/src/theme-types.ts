@@ -46,12 +46,18 @@ export type ThemeComponentPatch = {
       }) => ThemeComponentStylePatch);
 };
 
-/** Typed `components` map for `createTheme`. The component key replaces `recipe`. */
-export type ThemeComponentsFor<T extends Pick<ThemeConfig, 'tokens'>> = [
-  InferThemeTokensFromConfig<T>,
-] extends [never]
-  ? { components?: Record<string, ThemeComponentPatch> }
-  : { components?: Record<string, ThemeComponentPatch> };
+/**
+ * `components` on `createTheme` / `Theme.override`.
+ *
+ * The token map does not carry recipe handles, so this stays a namespace → patch
+ * record. Check slots and axes with {@link ThemeComponentsOverrideMap} when you
+ * have the recipe values.
+ */
+export type ThemeComponentsFor<
+  _T extends Pick<ThemeConfig, 'tokens'> = Pick<ThemeConfig, 'tokens'>,
+> = {
+  components?: Record<string, ThemeComponentPatch>;
+};
 
 type CreateThemeConfigFields = Omit<ThemeConfig, 'components'>;
 
