@@ -26,11 +26,12 @@ import {
 } from './condition-compile';
 import type {
   RecipeDefinition,
-  RecipeHandle,
+  RecipeDefinitionOf,
   RecipeHasSlots,
   RecipeOptionsFor,
   RecipeSlots,
 } from './schema-recipe';
+import type { VariantAxis } from './variant';
 import type {
   ComponentAttrsReturn,
   ComponentReturn,
@@ -42,6 +43,7 @@ import type {
   CSSProperties,
   CSSVarRef,
   FlatComponentReturn,
+  InferComponentVarRefTreeDefinitions,
   MultiSlotReturn,
   SlotAttrsReturn,
   SlotComponentFunction,
@@ -739,16 +741,32 @@ export type InferVarDefinitions<C> = C extends {
  * Axis → option → style map, derived from a schema definition.
  * Option keys are the style-map keys (`'true' | 'false'` for boolean axes).
  */
+type SchemaAxes<Def extends RecipeDefinition> =
+  Def['variants'] extends Record<string, VariantAxis>
+    ? {
+        [K in keyof Def['variants'] as string extends K
+          ? never
+          : number extends K
+            ? never
+            : K]: Def['variants'][K];
+      }
+    : Record<never, VariantAxis>;
+
+type SchemaAxisAt<Def extends RecipeDefinition, K extends keyof SchemaAxes<Def>> = Extract<
+  SchemaAxes<Def>[K],
+  VariantAxis
+>;
+
 type SchemaVariantStyleMap<Def extends RecipeDefinition> = {
-  [K in keyof Def['variants']]: {
-    [O in RecipeOptionsFor<Def['variants'][K]>]: VariantOptionStyle;
+  [K in keyof SchemaAxes<Def>]: {
+    [O in RecipeOptionsFor<SchemaAxisAt<Def, K>>]: VariantOptionStyle;
   };
 };
 
 /** Axis → option → per-slot style map, for slotted schema definitions. */
 type SchemaSlotVariantStyleMap<Def extends RecipeDefinition, S extends string> = {
-  [K in keyof Def['variants']]: {
-    [O in RecipeOptionsFor<Def['variants'][K]>]: Partial<Record<S, VariantOptionStyle>>;
+  [K in keyof SchemaAxes<Def>]: {
+    [O in RecipeOptionsFor<SchemaAxisAt<Def, K>>]: Partial<Record<S, VariantOptionStyle>>;
   };
 };
 
@@ -771,15 +789,32 @@ type SchemaOverrideVars<Vars extends ComponentVarDefinitions> = string extends k
  * stay narrow. The `Vars` parameter of {@link OverrideConfigFor} is ignored here —
  * schema vars are read off the handle.
  */
+type HandleVars<C> = C extends { readonly vars: infer V }
+  ? InferComponentVarRefTreeDefinitions<V>
+  : never;
+
 export type SchemaOverrideConfigFor<C> =
-  C extends RecipeHandle<infer Def, infer _Element, infer Vars>
-    ? RecipeHasSlots<Def> extends true
-      ? SlotOverrideConfig<
-          readonly RecipeSlots<Def>[],
-          SchemaSlotVariantStyleMap<Def, RecipeSlots<Def>>,
-          SchemaOverrideVars<Vars>
-        >
-      : OverrideConfig<SchemaVariantStyleMap<Def>, SchemaOverrideVars<Vars>>
+  RecipeDefinitionOf<C> extends infer Def extends RecipeDefinition
+    ? [Def] extends [never]
+      ? never
+      : RecipeHasSlots<Def> extends true
+        ? keyof SchemaAxes<Def> extends never
+          ? MultiSlotOverrideConfig<readonly RecipeSlots<Def>[], SchemaOverrideVars<HandleVars<C>>>
+          : SlotOverrideConfig<
+              readonly RecipeSlots<Def>[],
+              SchemaSlotVariantStyleMap<Def, RecipeSlots<Def>>,
+              SchemaOverrideVars<HandleVars<C>>
+            >
+        : keyof SchemaAxes<Def> extends never
+          ? {
+              base?: StylableOverride;
+              variants?: never;
+              compoundVariants?: never;
+              vars?: SchemaOverrideVars<HandleVars<C>> extends never
+                ? never
+                : Partial<ComponentVarValues<SchemaOverrideVars<HandleVars<C>>>>;
+            }
+          : OverrideConfig<SchemaVariantStyleMap<Def>, SchemaOverrideVars<HandleVars<C>>>
     : never;
 
 /**
@@ -807,46 +842,36 @@ export type OverrideConfigFor<
           ? SlotOverrideConfig<Slots, V, Vars>
           : never;
 
-/** Overload surface mirrored on `override`. */
-export type OverrideFn<L extends string = string> = {
-  /**
-   * Schema-first recipes. First so a handle (a function with `defaults`) is not matched
-   * structurally by a later slot overload. `defaults` is the discriminator — every schema
-   * handle has it, no legacy return does.
-   */
-  <C extends { readonly defaults: Record<string, unknown> }>(
-    component: C,
-    config: SchemaOverrideConfigFor<C>,
-    options?: OverrideOptions<L>,
-  ): void;
-  /** Recipes with stamped `__varDefinitions` (`config.vars` or `c.vars()`). */
-  <C extends { readonly __varDefinitions: ComponentVarDefinitions }>(
-    component: C,
-    config: OverrideConfigFor<C>,
-    options?: OverrideOptions<L>,
-  ): void;
-  <const V extends VariantDefinitions>(
-    component: ComponentReturn<V> | ComponentAttrsReturn<V>,
-    config: OverrideConfig<NoInfer<V>>,
-    options?: OverrideOptions<L>,
-  ): void;
-  <const K extends string>(
-    component: FlatComponentReturn<K>,
-    config: FlatOverrideConfig<NoInfer<K>>,
-    options?: OverrideOptions<L>,
-  ): void;
-  /** Multi-slot before slot-with-variants so branded multi returns do not widen `V`. */
-  <const Slots extends readonly string[]>(
-    component: MultiSlotReturn<Slots>,
-    config: MultiSlotOverrideConfig<Slots>,
-    options?: OverrideOptions<L>,
-  ): void;
-  <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
-    component: (SlotComponentFunction<Slots, V> | SlotAttrsReturn<Slots, V>) & {
-      /** Reject branded multi-slot returns so invalid configs do not fall through here. */
-      __tsMultiSlot?: never;
-    },
-    config: SlotOverrideConfig<NoInfer<Slots>, NoInfer<V>>,
-    options?: OverrideOptions<L>,
-  ): void;
+/**
+ * Token bag passed to an override / theme style callback.
+ * Every segment is both a nested bag and a `{ name, var }` ref, so
+ * `tokens.color.border.default.var` typechecks without a registry generic.
+ */
+export interface OverrideTokenNode {
+  readonly name: string;
+  readonly var: string;
+  /** Nested token bags. `any` keeps `tokens.color.border.default.var` reachable. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly [key: string]: any;
+}
+
+type OverrideStyleContext<C> = {
+  readonly vars: C extends { readonly vars: infer V } ? V : Record<never, never>;
+  readonly tokens: OverrideTokenNode;
 };
+
+type OverrideStyleMap<C> = Omit<OverrideConfigFor<C>, 'vars'>;
+
+type OverrideVarAssign<C> = OverrideConfigFor<C> extends { vars?: infer V } ? V : never;
+
+/**
+ * One `override({ recipe, styles, ... })` call. `layer` and `selectorPrefix` sit on the
+ * object. `styles` is partial against the recipe's slots and axes.
+ */
+export type OverrideFn<L extends string = string> = <C extends object>(input: {
+  readonly recipe: C;
+  readonly selectorPrefix?: string;
+  readonly layer?: L;
+  readonly vars?: OverrideVarAssign<C>;
+  readonly styles?: OverrideStyleMap<C> | ((ctx: OverrideStyleContext<C>) => OverrideStyleMap<C>);
+}) => void;

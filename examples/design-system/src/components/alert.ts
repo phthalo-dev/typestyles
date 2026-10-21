@@ -1,3 +1,4 @@
+import { variant } from 'typestyles';
 import { recipe } from '../runtime';
 import { designTokens as t } from '../tokens';
 import {
@@ -20,8 +21,15 @@ import {
  *
  * **Shared:** `semanticTone.ts` — one table for tone channels; subtle mixes match badge.
  */
-export const alert = recipe('alert', (c) => {
-  const v = c.vars({
+export const alert = recipe({
+  name: 'alert',
+  slots: ['root', 'icon', 'body', 'title', 'content', 'action', 'actionLink'] as const,
+  variants: {
+    tone: variant.enum(['info', 'success', 'warning', 'danger', 'tip'], { default: 'info' }),
+    appearance: variant.enum(['subtle', 'solid'], { default: 'subtle' }),
+    contentGap: variant.enum(['spaced', 'flush'], { default: 'spaced' }),
+  },
+  vars: {
     semantic: {
       value: t.color.accent.default,
       syntax: '<color>',
@@ -37,10 +45,8 @@ export const alert = recipe('alert', (c) => {
       syntax: '<color>',
       inherits: false,
     },
-  });
-
-  return {
-    slots: ['root', 'icon', 'body', 'title', 'content', 'action', 'actionLink'],
+  },
+  styles: ({ vars: v }) => ({
     base: {
       root: {
         display: 'flex',
@@ -121,10 +127,5 @@ export const alert = recipe('alert', (c) => {
         flush: { content: { marginTop: 0 } },
       },
     },
-    defaultVariants: {
-      tone: 'info',
-      appearance: 'subtle',
-      contentGap: 'spaced',
-    },
-  };
+  }),
 });

@@ -110,11 +110,14 @@ describe('createStyles breakpoint helpers', () => {
 
   it('emits min-width media rules from styles.media in components', () => {
     const styles = createStyles({ scopeId: 'media-test', breakpoints });
-    styles.component('card', {
-      base: {
-        display: 'grid',
-        gridTemplateColumns: '1fr',
-        ...styles.media('md', { gridTemplateColumns: 'repeat(2, 1fr)' }),
+    styles.component({
+      name: 'card',
+      styles: {
+        base: {
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          ...styles.media('md', { gridTemplateColumns: 'repeat(2, 1fr)' }),
+        },
       },
     });
 

@@ -1,8 +1,8 @@
 /**
- * Runtime tests for schema-first recipes (Issue #259).
+ * Runtime tests for object recipes (Issue #275).
  *
- * Covers the attribute-mode slot/boolean behavior, `.defaults`, `meta.schema`, shared
- * axes, and interop with the legacy config call shapes.
+ * Covers attribute-mode slot/boolean behavior, `.defaults`, `meta.schema`, shared
+ * axes, and the rejection of style maps passed as `variants`.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createStyles } from './styles';
@@ -13,7 +13,7 @@ import { variant } from './variant';
 import { reset, getRegisteredCss } from './sheet';
 import { registeredNamespaces } from './registry';
 
-describe('schema-first recipe (variant axes)', () => {
+describe('object recipe (variant axes)', () => {
   beforeEach(() => {
     reset();
     registeredNamespaces.clear();
@@ -21,16 +21,14 @@ describe('schema-first recipe (variant axes)', () => {
 
   it('returns attrs for every slot in attribute mode and applies axis defaults', () => {
     const styles = createStyles({ mode: 'attribute' });
-    const alert = styles.component(
-      'alert',
-      {
-        slots: ['root', 'title'] as const,
-        variants: {
-          tone: variant.enum(['info', 'danger'], { default: 'info' }),
-          elevated: variant.boolean({ default: false }),
-        },
+    const alert = styles.component({
+      name: 'alert',
+      slots: ['root', 'title'],
+      variants: {
+        tone: variant.enum(['info', 'danger'], { default: 'info' }),
+        elevated: variant.boolean({ default: false }),
       },
-      () => ({
+      styles: () => ({
         base: { root: { display: 'flex' } },
         variants: {
           tone: {
@@ -43,7 +41,7 @@ describe('schema-first recipe (variant axes)', () => {
           },
         },
       }),
-    );
+    });
 
     const result = alert();
     expect(result.root.className).toBe('alert');
@@ -55,10 +53,10 @@ describe('schema-first recipe (variant axes)', () => {
 
   it('sets the presence attribute for a true boolean axis and omits it for false', () => {
     const styles = createStyles({ mode: 'attribute' });
-    const button = styles.component(
-      'schema-button',
-      { variants: { elevated: variant.boolean({ default: false }) } },
-      () => ({
+    const button = styles.component({
+      name: 'schema-button',
+      variants: { elevated: variant.boolean({ default: false }) },
+      styles: () => ({
         base: { padding: '8px' },
         variants: {
           elevated: {
@@ -67,7 +65,7 @@ describe('schema-first recipe (variant axes)', () => {
           },
         },
       }),
-    );
+    });
 
     expect(button({ elevated: true }).attrs).toEqual({ 'data-elevated': '' });
     expect(button({ elevated: false }).attrs).toEqual({});
@@ -75,45 +73,41 @@ describe('schema-first recipe (variant axes)', () => {
 
   it('exposes resolved defaults on `.defaults`', () => {
     const styles = createStyles({ mode: 'attribute' });
-    const alert = styles.component(
-      'defaults-alert',
-      {
-        variants: {
-          tone: variant.enum(['info', 'success', 'danger'], { default: 'info' }),
-          gap: variant.enum(['spaced', 'flush'], { default: 'spaced' }),
-          elevated: variant.boolean({ default: false }),
-        },
+    const alert = styles.component({
+      name: 'defaults-alert',
+      variants: {
+        tone: variant.enum(['info', 'success', 'danger'], { default: 'info' }),
+        gap: variant.enum(['spaced', 'flush'], { default: 'spaced' }),
+        elevated: variant.boolean({ default: false }),
       },
-      () => ({
+      styles: () => ({
         variants: {
           tone: { info: {}, success: {}, danger: {} },
           gap: { spaced: {}, flush: {} },
           elevated: { true: {}, false: {} },
         },
       }),
-    );
+    });
 
     expect(alert.defaults).toEqual({ tone: 'info', gap: 'spaced', elevated: false });
   });
 
   it('records slots, axis kind, options, and defaults in meta.schema', () => {
     const styles = createStyles({ mode: 'attribute' });
-    const alert = styles.component(
-      'meta-alert',
-      {
-        slots: ['root', 'icon'] as const,
-        variants: {
-          tone: variant.enum(['info', 'danger'], { default: 'info' }),
-          elevated: variant.boolean({ default: false }),
-        },
+    const alert = styles.component({
+      name: 'meta-alert',
+      slots: ['root', 'icon'],
+      variants: {
+        tone: variant.enum(['info', 'danger'], { default: 'info' }),
+        elevated: variant.boolean({ default: false }),
       },
-      () => ({
+      styles: () => ({
         variants: {
           tone: { info: {}, danger: {} },
           elevated: { true: {}, false: {} },
         },
       }),
-    );
+    });
 
     expect(getComponentMeta(alert)?.schema).toEqual({
       slots: ['root', 'icon'],
@@ -124,47 +118,52 @@ describe('schema-first recipe (variant axes)', () => {
     });
   });
 
-  it('leaves meta.schema undefined for legacy config shapes', () => {
+  it('rejects style maps passed as variants', () => {
     const styles = createStyles({ mode: 'attribute' });
-    const legacy = styles.component('legacy-alert', {
-      base: { padding: '8px' },
-      variants: { tone: { info: { color: 'blue' } } },
-      defaultVariants: { tone: 'info' },
-    });
-
-    expect(getComponentMeta(legacy)?.schema).toBeUndefined();
-    expect(legacy({ tone: 'info' }).attrs).toEqual({ 'data-tone': 'info' });
+    expect(() =>
+      styles.component({
+        name: 'legacy-alert',
+        // @ts-expect-error — variants are axes, not option styles
+        variants: { tone: { info: { color: 'blue' } } },
+        styles: { base: { padding: '8px' } },
+      }),
+    ).toThrow(/variant\.enum/);
   });
 
   it('reuses a shared axis across recipes', () => {
     const styles = createStyles({ mode: 'attribute' });
     const appearance = variant.enum(['subtle', 'solid'], { default: 'subtle' });
 
-    const first = styles.component('shared-a', { variants: { appearance } }, () => ({
-      variants: { appearance: { subtle: {}, solid: {} } },
-    }));
-    const second = styles.component('shared-b', { variants: { appearance } }, () => ({
-      variants: { appearance: { subtle: {}, solid: {} } },
-    }));
+    const first = styles.component({
+      name: 'shared-a',
+      variants: { appearance },
+      styles: () => ({
+        variants: { appearance: { subtle: {}, solid: {} } },
+      }),
+    });
+    const second = styles.component({
+      name: 'shared-b',
+      variants: { appearance },
+      styles: () => ({
+        variants: { appearance: { subtle: {}, solid: {} } },
+      }),
+    });
 
     expect(first({ appearance: 'solid' }).attrs).toEqual({ 'data-appearance': 'solid' });
     expect(second().attrs).toEqual({ 'data-appearance': 'subtle' });
   });
 
-  it('registers and exposes internal vars declared via c.vars()', () => {
+  it('registers and exposes internal vars declared on the recipe', () => {
     const styles = createStyles({ mode: 'attribute' });
-    const chip = styles.component(
-      'schema-chip',
-      { variants: { tone: variant.enum(['info'], { default: 'info' }) } },
-      (c) => {
-        const v = c.vars({ surface: '#fff' });
-        return {
-          vars: v,
-          base: { backgroundColor: v.surface.var },
-          variants: { tone: { info: { color: v.surface.var } } },
-        };
-      },
-    );
+    const chip = styles.component({
+      name: 'schema-chip',
+      variants: { tone: variant.enum(['info'], { default: 'info' }) },
+      vars: { surface: '#fff' },
+      styles: ({ vars }) => ({
+        base: { backgroundColor: vars.surface.var },
+        variants: { tone: { info: { color: vars.surface.var } } },
+      }),
+    });
 
     expect(chip.vars.surface.var).toBe('var(--schema-chip-surface)');
     expect(getComponentMeta(chip)?.varRegistry?.vars.map((entry) => entry.path)).toContain(
@@ -174,14 +173,14 @@ describe('schema-first recipe (variant axes)', () => {
 
   it('emits variant CSS as attribute selectors on the base class', () => {
     const styles = createStyles({ mode: 'attribute' });
-    styles.component(
-      'css-alert',
-      { variants: { tone: variant.enum(['info', 'danger'], { default: 'info' }) } },
-      () => ({
+    styles.component({
+      name: 'css-alert',
+      variants: { tone: variant.enum(['info', 'danger'], { default: 'info' }) },
+      styles: () => ({
         base: { padding: '8px' },
         variants: { tone: { info: { color: 'blue' }, danger: { color: 'red' } } },
       }),
-    );
+    });
 
     const css = getRegisteredCss();
     expect(css).toContain('[data-tone="danger"]');
@@ -189,16 +188,14 @@ describe('schema-first recipe (variant axes)', () => {
 
   it('emits combined compound-variant selectors from schema axes', () => {
     const styles = createStyles({ mode: 'attribute' });
-    styles.component(
-      'compound-alert',
-      {
-        variants: {
-          tone: variant.enum(['info', 'danger'], { default: 'info' }),
-          size: variant.enum(['sm', 'lg'], { default: 'sm' }),
-          elevated: variant.boolean({ default: false }),
-        },
+    styles.component({
+      name: 'compound-alert',
+      variants: {
+        tone: variant.enum(['info', 'danger'], { default: 'info' }),
+        size: variant.enum(['sm', 'lg'], { default: 'sm' }),
+        elevated: variant.boolean({ default: false }),
       },
-      () => ({
+      styles: () => ({
         base: { padding: '8px' },
         variants: {
           tone: { info: {}, danger: {} },
@@ -210,7 +207,7 @@ describe('schema-first recipe (variant axes)', () => {
           { variants: { elevated: true }, style: { boxShadow: 'none' } },
         ],
       }),
-    );
+    });
 
     const css = getRegisteredCss();
     expect(css).toContain('font-weight: 700');
@@ -220,13 +217,11 @@ describe('schema-first recipe (variant axes)', () => {
 
   it('works in semantic mode (class modifiers for slot recipes)', () => {
     const styles = createStyles();
-    const card = styles.component(
-      'schema-card',
-      {
-        slots: ['root', 'body'] as const,
-        variants: { size: variant.enum(['sm', 'lg'], { default: 'sm' }) },
-      },
-      () => ({
+    const card = styles.component({
+      name: 'schema-card',
+      slots: ['root', 'body'],
+      variants: { size: variant.enum(['sm', 'lg'], { default: 'sm' }) },
+      styles: () => ({
         variants: {
           size: {
             sm: { body: { fontSize: '12px' } },
@@ -234,33 +229,33 @@ describe('schema-first recipe (variant axes)', () => {
           },
         },
       }),
-    );
+    });
 
     const c = card({ size: 'lg' });
-    expect(c.root).toBe('schema-card');
-    expect(c.body).toContain('schema-card__body');
+    expect(c.root.className).toBe('schema-card');
+    expect(c.body.className).toContain('schema-card__body');
     expect(card.defaults).toEqual({ size: 'sm' });
     expect(getComponentMeta(card)?.schema?.slots).toEqual(['root', 'body']);
   });
 
-  it('supports createTypeStyles layered attribute recipes with and without { layer }', () => {
+  it('supports createTypeStyles layered attribute recipes with and without layer', () => {
     const { recipe } = createTypeStyles({
       scopeId: 'schema-app',
       mode: 'attribute',
       layers: { order: ['tokens', 'components'] as const, token: 'tokens', style: 'components' },
     });
 
-    const badge = recipe(
-      'schema-badge',
-      { variants: { tone: variant.enum(['info', 'danger'], { default: 'info' }) } },
-      () => ({ variants: { tone: { info: {}, danger: {} } } }),
-    );
-    const tag = recipe(
-      'schema-tag',
-      { variants: { tone: variant.enum(['info', 'danger'], { default: 'danger' }) } },
-      () => ({ variants: { tone: { info: {}, danger: {} } } }),
-      { layer: 'components' },
-    );
+    const badge = recipe({
+      name: 'schema-badge',
+      variants: { tone: variant.enum(['info', 'danger'], { default: 'info' }) },
+      styles: () => ({ variants: { tone: { info: {}, danger: {} } } }),
+    });
+    const tag = recipe({
+      name: 'schema-tag',
+      layer: 'components',
+      variants: { tone: variant.enum(['info', 'danger'], { default: 'danger' }) },
+      styles: () => ({ variants: { tone: { info: {}, danger: {} } } }),
+    });
 
     expect(badge().attrs).toEqual({ 'data-tone': 'info' });
     expect(tag().attrs).toEqual({ 'data-tone': 'danger' });
@@ -271,25 +266,10 @@ describe('schema-first recipe (variant axes)', () => {
     });
   });
 
-  it('does not confuse a legacy dimensioned config for a schema definition', () => {
-    const styles = createStyles({ mode: 'attribute' });
-    // `variants` values are style objects, not branded axes.
-    const legacy = styles.component('not-schema', {
-      variants: { size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } } },
-      defaultVariants: { size: 'sm' },
-    });
-
-    expect(getComponentMeta(legacy)?.schema).toBeUndefined();
-    expect('defaults' in legacy).toBe(false);
-  });
-
   it('requires every axis to be branded, not just one', () => {
     const axis = variant.enum(['a', 'b'], { default: 'a' });
-    // A fully-branded definition is recognized.
     expect(isSchemaRecipeDefinition({ variants: { tone: axis } })).toBe(true);
-    // A single branded axis among style objects is a hand-built object, not a definition.
     expect(isSchemaRecipeDefinition({ variants: { tone: axis, size: { sm: {} } } })).toBe(false);
-    // Empty or non-definition shapes are rejected.
     expect(isSchemaRecipeDefinition({ variants: {} })).toBe(false);
     expect(isSchemaRecipeDefinition({ base: {} })).toBe(false);
   });
@@ -299,11 +279,11 @@ describe('schema-first recipe (variant axes)', () => {
     const withUtils = styles.withUtils({
       insetX: (value: number) => ({ paddingLeft: value, paddingRight: value }),
     });
-    const chip = withUtils.component(
-      'util-chip',
-      { variants: { tone: variant.enum(['info', 'danger'], { default: 'info' }) } },
-      () => ({ variants: { tone: { info: {}, danger: {} } } }),
-    );
+    const chip = withUtils.component({
+      name: 'util-chip',
+      variants: { tone: variant.enum(['info', 'danger'], { default: 'info' }) },
+      styles: () => ({ variants: { tone: { info: {}, danger: {} } } }),
+    });
 
     expect(chip().attrs).toEqual({ 'data-tone': 'info' });
     expect(getComponentMeta(chip)?.schema?.variants.tone).toEqual({

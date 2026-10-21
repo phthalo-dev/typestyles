@@ -39,9 +39,7 @@ describe('runTypestylesBuild (tree-shaking of imported barrel exports)', () => {
 import { createStyles } from 'typestyles';
 const styles = createStyles();
 
-export const FixtureButton = styles.component('fixture-tree-shake-button', {
-  base: { padding: '8px' },
-});
+export const FixtureButton = styles.component({ name: 'fixture-tree-shake-button', styles: { base: { padding: '8px' } } });
 `,
       'utf8',
     );
@@ -106,9 +104,7 @@ export { lib };
 import { createStyles } from 'typestyles';
 const styles = createStyles();
 
-export const FixtureBareButton = styles.component('fixture-tree-shake-bare-button', {
-  base: { padding: '8px' },
-});
+export const FixtureBareButton = styles.component({ name: 'fixture-tree-shake-bare-button', styles: { base: { padding: '8px' } } });
 `,
       'utf8',
     );

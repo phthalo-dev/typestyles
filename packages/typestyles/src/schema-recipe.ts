@@ -31,8 +31,30 @@ import type { VariantAxis, VariantAxisStyleKeys, VariantOptions } from './varian
  */
 export type RecipeDefinition = {
   readonly slots?: readonly string[];
-  readonly variants: Record<string, VariantAxis>;
+  /**
+   * Variant axes (`variant.enum` / `variant.boolean`). Omitted when the recipe has no axes.
+   * Option styles live in the style object, not here.
+   */
+  readonly variants?: Record<string, VariantAxis>;
 };
+
+/** Axes declared on a definition, or an empty map when `variants` was omitted. */
+type DefinitionAxes<Def extends RecipeDefinition> =
+  Def['variants'] extends Record<string, VariantAxis>
+    ? {
+        [K in keyof Def['variants'] as string extends K
+          ? never
+          : number extends K
+            ? never
+            : K]: Def['variants'][K];
+      }
+    : Record<never, VariantAxis>;
+
+/** One axis, pulled out of an indexed access that TypeScript otherwise widens. */
+type AxisAt<Def extends RecipeDefinition, K extends keyof DefinitionAxes<Def>> = Extract<
+  DefinitionAxes<Def>[K],
+  VariantAxis
+>;
 
 /** Whether a definition declares slots (multi-part recipe). */
 export type RecipeHasSlots<Def extends RecipeDefinition> = Def extends {
@@ -49,7 +71,7 @@ export type RecipeSlots<Def extends RecipeDefinition> = Def extends {
   : never;
 
 /** The variant keys declared by a definition. */
-export type RecipeVariantKeys<Def extends RecipeDefinition> = keyof Def['variants'] & string;
+export type RecipeVariantKeys<Def extends RecipeDefinition> = keyof DefinitionAxes<Def> & string;
 
 /** The value accepted on the callable for one axis (`boolean` for boolean axes). */
 export type RecipeAxisSelectionValue<A extends VariantAxis> = VariantOptions<A>;
@@ -60,7 +82,7 @@ export type RecipeAxisSelectionValue<A extends VariantAxis> = VariantOptions<A>;
  * the React/Astro props shape, which strips `null`.
  */
 export type RecipeVariantSelections<Def extends RecipeDefinition> = {
-  [K in keyof Def['variants']]?: RecipeAxisSelectionValue<Def['variants'][K]> | null | undefined;
+  [K in keyof DefinitionAxes<Def>]?: RecipeAxisSelectionValue<AxisAt<Def, K>> | null | undefined;
 };
 
 /** `true` / `false` style-map key for a boolean axis, or the option union for an enum axis. */
@@ -79,7 +101,7 @@ export type RecipeDefaultValue<A extends VariantAxis> = A['default'];
 
 /** Resolved defaults for a definition — the shape of `recipe.defaults`. */
 export type RecipeDefaults<Def extends RecipeDefinition> = {
-  [K in keyof Def['variants']]: RecipeDefaultValue<Def['variants'][K]>;
+  [K in keyof DefinitionAxes<Def>]: RecipeDefaultValue<AxisAt<Def, K>>;
 };
 
 /**
@@ -103,15 +125,15 @@ export type RecipeStyleValue<Def extends RecipeDefinition> = Def extends {
 export type RecipeStyles<Def extends RecipeDefinition> = {
   base?: RecipeStyleValue<Def>;
   variants: {
-    [K in keyof Def['variants']]: {
-      [O in RecipeOptionsFor<Def['variants'][K]>]: RecipeStyleValue<Def>;
+    [K in keyof DefinitionAxes<Def>]: {
+      [O in RecipeOptionsFor<AxisAt<Def, K>>]: RecipeStyleValue<Def>;
     };
   };
   compoundVariants?: ReadonlyArray<{
     variants: {
-      [K in keyof Def['variants']]?:
-        | RecipeCompoundSelectionValue<Def['variants'][K]>
-        | ReadonlyArray<RecipeCompoundSelectionValue<Def['variants'][K]>>;
+      [K in keyof DefinitionAxes<Def>]?:
+        | RecipeCompoundSelectionValue<AxisAt<Def, K>>
+        | ReadonlyArray<RecipeCompoundSelectionValue<AxisAt<Def, K>>>;
     };
     style: RecipeStyleValue<Def>;
   }>;
@@ -137,12 +159,24 @@ export type RecipeReturnValue<Def extends RecipeDefinition, Element> = Def exten
  * with `Record<extraKey, never>` reinstates the check — an unexpected key resolves to
  * `never`, which the literal cannot satisfy.
  */
-type ExactAxisStyleMap<RAxis, A extends VariantAxis> = RAxis &
-  Record<Exclude<keyof RAxis, RecipeOptionsFor<A>>, never>;
+/** Slot maps may only use declared slot names. Flat style blocks are left alone. */
+type ExactSlotValue<Def extends RecipeDefinition, RStyle> =
+  RecipeHasSlots<Def> extends true
+    ? RStyle & Record<Exclude<keyof RStyle, RecipeSlots<Def>>, never>
+    : RStyle;
 
-type ExactVariantsMap<RVariants, Axes extends Record<string, VariantAxis>> = RVariants &
+type ExactAxisStyleMap<Def extends RecipeDefinition, RAxis, A extends VariantAxis> = RAxis &
+  Record<Exclude<keyof RAxis, RecipeOptionsFor<A>>, never> & {
+    [O in keyof RAxis]: ExactSlotValue<Def, RAxis[O]>;
+  };
+
+type ExactVariantsMap<
+  Def extends RecipeDefinition,
+  RVariants,
+  Axes extends Record<string, VariantAxis>,
+> = RVariants &
   Record<Exclude<keyof RVariants, keyof Axes>, never> & {
-    [K in keyof RVariants & keyof Axes]: ExactAxisStyleMap<RVariants[K], Axes[K]>;
+    [K in keyof RVariants & keyof Axes]: ExactAxisStyleMap<Def, RVariants[K], Axes[K]>;
   };
 
 /**
@@ -152,7 +186,11 @@ type ExactVariantsMap<RVariants, Axes extends Record<string, VariantAxis>> = RVa
  */
 export type ExactRecipeStyles<Def extends RecipeDefinition, R> = R &
   Record<Exclude<keyof R, keyof RecipeStyles<Def>>, never> & {
-    variants: ExactVariantsMap<R extends { variants: infer V } ? V : never, Def['variants']>;
+    variants: ExactVariantsMap<
+      Def,
+      R extends { variants: infer V } ? V : never,
+      DefinitionAxes<Def>
+    >;
   };
 
 /**
@@ -175,15 +213,26 @@ export type RecipeVarsOf<R> = R extends { vars: infer V }
  */
 declare const recipeDefinitionBrand: unique symbol;
 
+/** The definition carried on a recipe handle, or `never` when `C` is not a recipe. */
+export type RecipeDefinitionOf<C> = C extends {
+  readonly [recipeDefinitionBrand]: infer Def extends RecipeDefinition;
+}
+  ? Def
+  : never;
+
 /**
  * The value returned by a schema `recipe(...)` call: callable with the schema's
  * selections, plus `.defaults` (and `.vars` when `c.vars()` was used).
+ * Slot class-name strings (`layout.stack`) are intersected by the recipe result type,
+ * not here, so this brand stays the only source `override()` uses to recover `Def`.
  */
 export type RecipeHandle<
   Def extends RecipeDefinition,
   Element = string,
   Vars extends ComponentVarDefinitions = ComponentVarDefinitions,
-> = ((selections?: RecipeVariantSelections<Def>) => RecipeReturnValue<Def, Element>) & {
+> = (<const S extends RecipeVariantSelections<Def> = RecipeVariantSelections<Def>>(
+  selections?: S & Record<Exclude<keyof S, keyof RecipeVariantSelections<Def>>, never>,
+) => RecipeReturnValue<Def, Element>) & {
   /** Resolved axis defaults — one entry per axis. */
   readonly defaults: RecipeDefaults<Def>;
   /**

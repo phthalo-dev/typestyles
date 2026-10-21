@@ -136,13 +136,13 @@ const markdownUrl = docMarkdownUrl(slug);
 
           <h2>Link button (CTA)</h2>
           <p>
-            <a class:list={[linkButton.base, linkButton.primary]} href="/docs/getting-started">
+            <a class={linkButton({ intent: 'primary' }).className} href="/docs/getting-started">
               Primary CTA
             </a>{' '}
-            <a class:list={[linkButton.base, linkButton.secondary]} href="/docs/components">
+            <a class={linkButton({ intent: 'secondary' }).className} href="/docs/components">
               Secondary
             </a>{' '}
-            <a class:list={[linkButton.base, linkButton.ghost]} href="/docs/tokens">
+            <a class={linkButton({ intent: 'ghost' }).className} href="/docs/tokens">
               Ghost
             </a>
           </p>

@@ -1,5 +1,5 @@
-/** `recipe('…')` (new) and `styles.component('…')` (createStyles / legacy). */
-const STYLES_COMPONENT_RE = /(?:styles\.component|(?<![\w.])recipe)\(\s*['"]([^'"]+)['"]/g;
+/** `recipe({ name })` and `styles.component({ name })`, plus the removed positional form. */
+const STYLES_COMPONENT_CALL_RE = /(?:styles\.component|(?<![\w.])recipe)\s*\(/g;
 /** `style('…')` (new) and `styles.class('…')` (createStyles / legacy). */
 const STYLES_CLASS_RE = /(?:styles\.class|(?<![\w.])style)\(\s*['"]([^'"]+)['"]/g;
 const TOKENS_CREATE_RE = /tokens\.create\(\s*['"]([^'"]+)['"]/g;
@@ -9,8 +9,29 @@ const KEYFRAMES_CREATE_RE = /keyframes\.create\(\s*['"]([^'"]+)['"]/g;
 const GLOBAL_STYLE_RE = /global\.(?:rule|style)\(\s*['"]([^'"]+)['"]/g;
 const GLOBAL_FONT_FACE_RE = /global\.fontFace\(\s*['"]([^'"]+)['"]/g;
 
-/** Max chars to scan inside a `createTheme(…)` call for a `name` string literal. */
+/** Max chars to scan inside a `createTheme(…)` / `recipe({…})` call for a `name` literal. */
 const CREATE_THEME_ARG_SCAN = 4000;
+
+/**
+ * Recipe namespaces from `recipe({ name: 'x' })` / `styles.component({ name: 'x' })`
+ * and the removed positional `recipe('x', …)`.
+ */
+function extractRecipeNames(code: string): string[] {
+  const names: string[] = [];
+  for (const match of code.matchAll(STYLES_COMPONENT_CALL_RE)) {
+    const start = (match.index ?? 0) + match[0].length;
+    const args = code.slice(start, start + CREATE_THEME_ARG_SCAN);
+    const positional = args.match(/^\s*['"]([^'"]+)['"]/);
+    if (positional) {
+      names.push(positional[1]);
+      continue;
+    }
+    if (!/^\s*\{/.test(args)) continue;
+    const named = args.match(/\bname\s*:\s*['"]([^'"]+)['"]/);
+    if (named) names.push(named[1]);
+  }
+  return names;
+}
 
 /**
  * Theme names from positional `createTheme('x', …)` and object
@@ -117,8 +138,8 @@ export function extractNamespaces(code: string): {
   const keys: string[] = [];
   const prefixes: string[] = [];
 
-  for (const match of code.matchAll(STYLES_COMPONENT_RE)) {
-    prefixes.push(`.${match[1]}-`);
+  for (const name of extractRecipeNames(code)) {
+    prefixes.push(`.${name}-`);
   }
   for (const match of code.matchAll(STYLES_CLASS_RE)) {
     prefixes.push(`.${match[1]}-`);

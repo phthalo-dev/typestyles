@@ -1,37 +1,22 @@
 import type {
   ComponentAttrsResult,
-  ComponentAttrsReturn,
-  ComponentConfig,
-  ComponentConfigContext,
-  ComponentConfigInput,
-  ComponentReturn,
   ComponentVarDefinitions,
   ComponentVarRefTree,
-  FlatComponentConfig,
-  FlatComponentConfigInput,
-  FlatComponentReturn,
-  MultiSlotConfig,
-  MultiSlotConfigInput,
-  MultiSlotReturn,
-  SlotAttrsReturn,
-  SlotComponentConfig,
-  SlotComponentConfigInput,
-  SlotComponentFunction,
-  SlotVariantDefinitions,
-  VariantDefinitions,
-  componentVarDefinitionsKey,
+  VariantOptionStyle,
 } from './types';
 import type {
   ExactRecipeStyles,
+  RecipeDefaults,
   RecipeDefinition,
   RecipeHandle,
   RecipeStyles,
-  RecipeVarsOf,
+  RecipeVariantSelections,
 } from './schema-recipe';
+import type { VariantAxis } from './variant';
 
 /**
- * Third argument to a layered `recipe()` / `component()` call.
- * `layer` is one name from the factory's cascade-layer stack.
+ * Third argument used to be a layered `recipe()` options bag. `layer` and `themeable`
+ * now sit on the recipe object. The name stays so existing imports keep compiling.
  */
 export type ComponentCreateOptions<L extends string = string> = {
   readonly layer: L;
@@ -43,144 +28,152 @@ export type ComponentCreateOptions<L extends string = string> = {
 };
 
 /**
- * How `{ layer }` is accepted.
+ * How `{ layer }` is accepted on the recipe object.
  *
- * - `none` — no options argument (unlayered factories).
- * - `required` — `{ layer }` is required (`createStyles({ layers })` without a style default).
- * - `optional` — a bare call uses the factory default, and `{ layer }` overrides it
- *   (`createTypeStyles({ layers })`). This is an intersection of the `none` and `required`
- *   lists so schema's `(name, definition, callback)` stays contextually typed.
+ * - `none` — unlayered factories. `layer` is rejected.
+ * - `required` — `createStyles({ layers })` without a style default.
+ * - `optional` — bare calls use the factory `layers.style` default (`createTypeStyles`).
  */
 export type RecipeLayerArg = 'none' | 'required' | 'optional';
 
 /**
- * `recipe` / `component` call signatures, written once.
+ * One `recipe({ name, styles, ... })` call.
  *
- * `L` is the cascade-layer name union (`undefined` when the factory has no layers).
- * `Attrs` selects attribute-mode returns for dimensioned and slot recipes.
- * `Layer` is {@link RecipeLayerArg}. Utils do not change these signatures.
- *
- * Kinds stay ordered overloads: their config objects overlap, and excess-property
- * checks only fire when the parameter type is concrete. `vars` is stamped by the
- * overloads that infer it from the config object or from a `c.vars()` ref tree.
+ * `slots`, `variants`, and `vars` are inferred from those fields. `styles` is checked
+ * against that schema — it is not inferred from the callback return. The call always
+ * returns `{ className, attrs, props }` (one per slot when `slots` is set). Attribute
+ * mode still decides whether variant selections become data attributes or classes.
+ */
+type RecipeFields<
+  Slots extends readonly string[],
+  Axes extends Record<string, VariantAxis>,
+  Vars extends ComponentVarDefinitions,
+  Layer extends RecipeLayerArg,
+  L extends string | undefined,
+> = {
+  readonly name: string;
+  /** When `false`, theme `components` overrides skip this recipe. @default true */
+  readonly themeable?: boolean;
+  readonly slots?: Slots;
+  /** Axes (`variant.enum` / `variant.boolean`), not option styles. */
+  readonly variants?: Axes;
+  /** Declarations (`syntax`, initial `value`). The callback receives the ref tree. */
+  readonly vars?: Vars;
+} & LayerFields<Layer, L>;
+
+type RecipeChecked<Slots, Axes, R> = [Axes] extends [never]
+  ? NoAxisStyle<Slots, R>
+  : AxisStyle<Slots, Axes, R>;
+
+/**
+ * One call. `slots`, `variants`, and `vars` are inferred from those fields.
+ * `NoInfer` keeps `styles` from widening them, then the object or callback is
+ * checked against that schema. `R` stays an inference site so extra keys in the
+ * style literal resolve to `never`.
  */
 export type RecipeFn<
   L extends string | undefined = undefined,
-  Attrs extends boolean = false,
   Layer extends RecipeLayerArg = [L] extends [undefined] ? 'none' : 'required',
-> = [Layer] extends ['optional']
-  ? RecipeCalls<undefined, Attrs> & RecipeCalls<L & string, Attrs>
-  : RecipeCalls<[Layer] extends ['none'] ? undefined : L, Attrs>;
-
-type SchemaElement<Attrs extends boolean> = Attrs extends true ? ComponentAttrsResult : string;
-
-type WithVars<R, Vars extends ComponentVarDefinitions> = R & {
-  readonly __varDefinitions: Vars;
-  readonly vars: ComponentVarRefTree<Vars>;
+> = {
+  <
+    const Slots extends readonly string[] = never,
+    const Axes extends Record<string, VariantAxis> = never,
+    const Vars extends ComponentVarDefinitions = never,
+    const R extends RecipeStyleBody<Slots, Axes> = RecipeStyleBody<Slots, Axes>,
+  >(
+    input: RecipeFields<Slots, Axes, Vars, Layer, L> & {
+      readonly styles: (
+        ctx: RecipeStyleArg<NoInfer<Vars>>,
+      ) => RecipeChecked<NoInfer<Slots>, Axes, R>;
+    },
+  ): RecipeCallResult<Slots, Axes, Vars>;
+  <
+    const Slots extends readonly string[] = never,
+    const Axes extends Record<string, VariantAxis> = never,
+    const Vars extends ComponentVarDefinitions = never,
+    const R extends RecipeStyleBody<Slots, Axes> = RecipeStyleBody<Slots, Axes>,
+  >(
+    input: RecipeFields<Slots, Axes, Vars, Layer, L> & {
+      readonly styles: RecipeChecked<NoInfer<Slots>, Axes, R>;
+    },
+  ): RecipeCallResult<Slots, Axes, Vars>;
 };
 
-type VarsCallback<Config, Vars extends ComponentVarDefinitions> = (
-  ctx: ComponentConfigContext,
-) => Omit<Config, 'vars'> & {
-  vars: ComponentVarRefTree<Vars> & { readonly [componentVarDefinitionsKey]: Vars };
+/** Callback argument. `vars` is `{}` when the recipe did not declare any. */
+export type RecipeStyleArg<Vars> = [Vars] extends [never]
+  ? { readonly vars: Record<never, never> }
+  : { readonly vars: ComponentVarRefTree<Vars> };
+
+type SlotKey<Slots> = [Slots] extends [readonly (infer S extends string)[]] ? S : never;
+
+type RecipeDef<Slots, Axes> = ([Slots] extends [never]
+  ? { readonly slots?: undefined }
+  : { readonly slots: Slots }) &
+  ([Axes] extends [never] ? { readonly variants?: undefined } : { readonly variants: Axes });
+
+type ExactSlotRecord<R, Slots> = [Slots] extends [never]
+  ? R
+  : R & Record<Exclude<keyof R, SlotKey<Slots>>, never>;
+
+type NoAxisStyle<Slots, R> = R &
+  Record<Exclude<keyof R, 'base'>, never> & {
+    base?: [Slots] extends [never]
+      ? VariantOptionStyle
+      : ExactSlotRecord<R extends { base: infer B } ? B : Record<never, never>, Slots>;
+  };
+
+type ExactVariantSlots<Slots, V> = {
+  [K in keyof V]: {
+    [O in keyof V[K]]: ExactSlotRecord<V[K][O], Slots>;
+  };
 };
+
+type AxisStyle<Slots, Axes, R> = ExactRecipeStyles<RecipeDef<Slots, Axes> & RecipeDefinition, R> & {
+  base?: [Slots] extends [never]
+    ? VariantOptionStyle
+    : ExactSlotRecord<R extends { base: infer B } ? B : Record<never, never>, Slots>;
+} & ([Slots] extends [never]
+    ? unknown
+    : R extends { variants: infer V }
+      ? { variants: ExactVariantSlots<Slots, V> }
+      : unknown);
+
+type RecipeStyleBody<Slots, Axes> = [Axes] extends [never]
+  ? {
+      base?: [Slots] extends [never]
+        ? VariantOptionStyle
+        : Partial<Record<SlotKey<Slots>, VariantOptionStyle>>;
+    }
+  : RecipeStyles<RecipeDef<Slots, Axes> & RecipeDefinition>;
+
+type LayerFields<Layer extends RecipeLayerArg, L extends string | undefined> = [Layer] extends [
+  'none',
+]
+  ? { readonly layer?: never }
+  : [Layer] extends ['required']
+    ? { readonly layer: L & string }
+    : { readonly layer?: L & string };
+
+type HideVars<H> = H extends (...args: infer P) => infer R
+  ? ((...args: P) => R) & Omit<H, 'vars'>
+  : H;
 
 /**
- * No extra arguments when unlayered, so schema's `(name, definition, callback)` stays the
- * only 3-arg match. An optional third parameter would also match that form and drop
- * contextual typing inside the callback.
+ * Class-name strings hung on a slotted recipe (`layout.stack`, `alert.root`).
+ * Built from the `slots` tuple, not from `RecipeDefinition`, so a widened `string[]`
+ * cannot become an index signature on the branded handle.
  */
-type Tail<L extends string | undefined> = [L] extends [undefined]
-  ? []
-  : [options: ComponentCreateOptions<L & string>];
+type SlotClassNames<Slots> = [SlotKey<Slots>] extends [never]
+  ? unknown
+  : [string] extends [SlotKey<Slots>]
+    ? unknown
+    : { readonly [K in SlotKey<Slots>]: string };
 
-type SlotReturn<
-  Slots extends readonly string[],
-  V extends SlotVariantDefinitions<Slots[number]>,
-  Attrs extends boolean,
-> = Attrs extends true ? SlotAttrsReturn<Slots, V> : SlotComponentFunction<Slots, V>;
+type RecipeCallResult<Slots, Axes, Vars extends ComponentVarDefinitions> = ([Vars] extends [never]
+  ? HideVars<RecipeHandle<RecipeDef<Slots, Axes> & RecipeDefinition, ComponentAttrsResult>>
+  : RecipeHandle<RecipeDef<Slots, Axes> & RecipeDefinition, ComponentAttrsResult, Vars> & {
+      readonly vars: ComponentVarRefTree<Vars>;
+    }) &
+  SlotClassNames<Slots>;
 
-type DimensionedReturn<V extends VariantDefinitions, Attrs extends boolean> = Attrs extends true
-  ? ComponentAttrsReturn<V>
-  : ComponentReturn<V>;
-
-type RecipeCalls<L extends string | undefined, Attrs extends boolean> = {
-  <const Def extends RecipeDefinition, const R extends RecipeStyles<Def>>(
-    namespace: string,
-    definition: Def,
-    config: (ctx: ComponentConfigContext) => ExactRecipeStyles<Def, R>,
-    ...schemaOptions: Tail<L>
-  ): RecipeHandle<Def, SchemaElement<Attrs>, RecipeVarsOf<R>>;
-
-  <
-    const Slots extends readonly string[],
-    V extends SlotVariantDefinitions<Slots[number]>,
-    const Vars extends ComponentVarDefinitions,
-  >(
-    namespace: string,
-    config: SlotComponentConfig<Slots, V> & { vars: Vars },
-    ...options: Tail<L>
-  ): WithVars<SlotReturn<Slots, V, Attrs>, Vars>;
-  <
-    const Slots extends readonly string[],
-    V extends SlotVariantDefinitions<Slots[number]>,
-    const Vars extends ComponentVarDefinitions,
-  >(
-    namespace: string,
-    config: VarsCallback<SlotComponentConfig<Slots, V>, Vars>,
-    ...options: Tail<L>
-  ): WithVars<SlotReturn<Slots, V, Attrs>, Vars>;
-  <const Slots extends readonly string[], V extends SlotVariantDefinitions<Slots[number]>>(
-    namespace: string,
-    config: SlotComponentConfigInput<Slots, V>,
-    ...options: Tail<L>
-  ): SlotReturn<Slots, V, Attrs>;
-
-  <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: MultiSlotConfig<Slots> & { vars: Vars },
-    ...options: Tail<L>
-  ): WithVars<MultiSlotReturn<Slots>, Vars>;
-  <const Slots extends readonly string[], const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: VarsCallback<MultiSlotConfig<Slots>, Vars>,
-    ...options: Tail<L>
-  ): WithVars<MultiSlotReturn<Slots>, Vars>;
-  <const Slots extends readonly string[]>(
-    namespace: string,
-    config: MultiSlotConfigInput<Slots>,
-    ...options: Tail<L>
-  ): MultiSlotReturn<Slots>;
-
-  <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: ComponentConfig<V> & { vars: Vars },
-    ...options: Tail<L>
-  ): WithVars<DimensionedReturn<V, Attrs>, Vars>;
-  <const V extends VariantDefinitions, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: VarsCallback<ComponentConfig<V>, Vars>,
-    ...options: Tail<L>
-  ): WithVars<DimensionedReturn<V, Attrs>, Vars>;
-  <const V extends VariantDefinitions>(
-    namespace: string,
-    config: ComponentConfigInput<V>,
-    ...options: Tail<L>
-  ): DimensionedReturn<V, Attrs>;
-
-  <const K extends string, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: FlatComponentConfig<K> & { vars: Vars },
-    ...options: Tail<L>
-  ): WithVars<FlatComponentReturn<K>, Vars>;
-  <const K extends string, const Vars extends ComponentVarDefinitions>(
-    namespace: string,
-    config: VarsCallback<FlatComponentConfig<K>, Vars>,
-    ...options: Tail<L>
-  ): WithVars<FlatComponentReturn<K>, Vars>;
-  <const K extends string>(
-    namespace: string,
-    config: FlatComponentConfigInput<K>,
-    ...options: Tail<L>
-  ): FlatComponentReturn<K>;
-};
+export type { RecipeDefaults, RecipeVariantSelections };

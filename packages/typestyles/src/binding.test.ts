@@ -1,3 +1,4 @@
+import { variant } from './variant';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createStyles } from './styles';
 import { mergeProps, combine } from './binding';
@@ -18,11 +19,10 @@ describe('mergeProps', () => {
   });
 
   it('spreads attrs and merges className for ComponentAttrsResult', () => {
-    const button = attributeStyles.component('merge-btn', {
-      base: { padding: '8px' },
-      variants: {
-        tone: { accent: { color: 'blue' } },
-      },
+    const button = attributeStyles.component({
+      name: 'merge-btn',
+      variants: { tone: variant.enum(['accent'], { default: 'accent' }) },
+      styles: { base: { padding: '8px' }, variants: { tone: { accent: { color: 'blue' } } } },
     });
 
     const result = button({ tone: 'accent' });
@@ -33,9 +33,10 @@ describe('mergeProps', () => {
   });
 
   it('ignores falsy className parts', () => {
-    const button = attributeStyles.component('falsy-btn', {
-      base: { padding: '8px' },
-      variants: { tone: { accent: {} } },
+    const button = attributeStyles.component({
+      name: 'falsy-btn',
+      variants: { tone: variant.enum(['accent'], { default: 'accent' }) },
+      styles: { base: { padding: '8px' }, variants: { tone: { accent: {} } } },
     });
 
     expect(mergeProps(button({ tone: 'accent' }), false, null, undefined, 'x')).toEqual({
@@ -57,10 +58,15 @@ describe('combine', () => {
   });
 
   it('joins class-only slots with empty attrs', () => {
-    const card = attributeStyles.component('combine-card', {
+    const card = attributeStyles.component({
+      name: 'combine-card',
       slots: ['root', 'linkRoot'] as const,
-      root: { display: 'block' },
-      linkRoot: { textDecoration: 'none' },
+      styles: {
+        base: {
+          root: { display: 'block' },
+          linkRoot: { textDecoration: 'none' },
+        },
+      },
     });
 
     const c = card();
@@ -99,13 +105,16 @@ describe('combine', () => {
   it('warns when merging attrs from multiple recipe slots', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const button = attributeStyles.component('multi-attr-btn', {
+    const button = attributeStyles.component({
+      name: 'multi-attr-btn',
       slots: ['root', 'icon'] as const,
-      root: { display: 'flex' },
-      icon: { width: '16px' },
-      variants: {
-        tone: {
-          accent: { root: { color: 'blue' }, icon: { color: 'blue' } },
+      variants: { tone: variant.enum(['accent'], { default: 'accent' }) },
+      styles: {
+        base: { root: { display: 'flex' }, icon: { width: '16px' } },
+        variants: {
+          tone: {
+            accent: { root: { color: 'blue' }, icon: { color: 'blue' } },
+          },
         },
       },
     });

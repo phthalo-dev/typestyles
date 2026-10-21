@@ -11,7 +11,7 @@ const ghost = ref(false);
     <p>Typed component styles with ordinary <code>class</code> bindings.</p>
     <button
       type="button"
-      :class="button({ ghost: ghost })"
+      :class="button({ ghost: ghost }).className"
       @click="ghost = !ghost"
     >
       {{ ghost ? 'Ghost' : 'Primary' }}

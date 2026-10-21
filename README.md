@@ -20,7 +20,7 @@ npm install typestyles
 ```
 
 ```tsx
-import { createTypeStyles, cx } from 'typestyles';
+import { createTypeStyles, variant } from 'typestyles';
 
 const { style, recipe, tokens } = createTypeStyles({ scopeId: 'app' });
 
@@ -32,56 +32,55 @@ const color = tokens.create('color', {
   text: '#111827',
 });
 
-// Create component styles — callable AND destructurable
-const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: 500,
-    cursor: 'pointer',
-    border: 'none',
-    color: color.surface,
-    backgroundColor: color.primary,
-    transition: 'background-color 150ms ease',
-
-    '&:hover': {
-      backgroundColor: '#0052cc',
-    },
-
-    '&:disabled': {
-      opacity: 0.5,
-      cursor: 'not-allowed',
-    },
-  },
-
+// One object: axes on the input, option styles in `styles`.
+const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: { backgroundColor: color.primary, color: color.surface },
-      outlined: {
-        backgroundColor: 'transparent',
-        border: `1px solid ${color.primary}`,
-        color: color.primary,
+    intent: variant.enum(['primary', 'outlined'], { default: 'primary' }),
+    size: variant.enum(['sm', 'lg'], { default: 'sm' }),
+  },
+  styles: {
+    base: {
+      padding: '8px 16px',
+      borderRadius: '6px',
+      fontSize: '14px',
+      fontWeight: 500,
+      cursor: 'pointer',
+      border: 'none',
+      color: color.surface,
+      backgroundColor: color.primary,
+      transition: 'background-color 150ms ease',
+
+      '&:hover': {
+        backgroundColor: '#0052cc',
+      },
+
+      '&:disabled': {
+        opacity: 0.5,
+        cursor: 'not-allowed',
       },
     },
-    size: {
-      sm: { padding: '4px 12px', fontSize: '12px' },
-      lg: { padding: '12px 24px', fontSize: '16px' },
+    variants: {
+      intent: {
+        primary: { backgroundColor: color.primary, color: color.surface },
+        outlined: {
+          backgroundColor: 'transparent',
+          border: `1px solid ${color.primary}`,
+          color: color.primary,
+        },
+      },
+      size: {
+        sm: { padding: '4px 12px', fontSize: '12px' },
+        lg: { padding: '12px 24px', fontSize: '16px' },
+      },
     },
   },
-
-  defaultVariants: { intent: 'primary', size: 'sm' },
 });
 
-// Use in JSX — base always included, variants are typed
+// The call returns `{ className, attrs, props }`. Base is always included.
 function Button({ intent, size, children }) {
-  return <button className={button({ intent, size })}>{children}</button>;
+  return <button className={button({ intent, size }).className}>{children}</button>;
 }
-
-// Or destructure individual class strings
-const { base } = button;
-
-// Renders: <button class="button-base button-intent-primary button-size-sm">
 ```
 
 ## Core Concepts
@@ -91,17 +90,19 @@ const { base } = button;
 TypeStyles generates class names that mirror your authored style names. If you write a variant called `intent: { primary: {...} }`, you get a class name `button-intent-primary` in the DOM. What you see in your code is what you see in DevTools.
 
 ```tsx
-const card = recipe('card', {
-  base: { padding: '16px', borderRadius: '8px' },
-  elevated: { boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
+const card = recipe({
+  name: 'card',
+  variants: { elevated: variant.boolean({ default: false }) },
+  styles: {
+    base: { padding: '16px', borderRadius: '8px' },
+    variants: {
+      elevated: { true: { boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }, false: {} },
+    },
+  },
 });
 
-<div className={card()}>               {/* class="card-base" */}
-<div className={card({ elevated: true })}> {/* class="card-base card-elevated" */}
-
-// Or destructure
-const { base, elevated } = card;
-<div className={cx(base, isElevated && elevated)}>
+<div className={card().className} />
+<div className={card({ elevated: true }).className} />
 ```
 
 ### Design Tokens via CSS Custom Properties
@@ -123,10 +124,13 @@ const spacing = tokens.create('spacing', {
 });
 
 // Use in TypeStyles — fully typed, autocomplete works
-const layout = recipe('layout', {
-  base: {
-    padding: spacing.md, // var(--spacing-md)
-    gap: spacing.lg, // var(--spacing-lg)
+const layout = recipe({
+  name: 'layout',
+  styles: {
+    base: {
+      padding: spacing.md, // var(--spacing-md)
+      gap: spacing.lg, // var(--spacing-lg)
+    },
   },
 });
 
@@ -165,8 +169,9 @@ import { createTypeStyles, cx } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const newComponent = recipe('new-component', {
-  base: { padding: '16px', borderRadius: '8px' },
+const newComponent = recipe({
+  name: 'new-component',
+  styles: { base: { padding: '16px', borderRadius: '8px' } },
 });
 
 function MyComponent() {
@@ -189,11 +194,17 @@ import { createTypeStyles, cx } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const text = recipe('text', {
-  base: { fontFamily: 'system-ui' },
-  bold: { fontWeight: 700 },
-  muted: { color: color.secondary },
-  heading: { fontSize: '24px', lineHeight: 1.2 },
+const text = recipe({
+  name: 'text',
+  slots: ['base', 'bold', 'muted', 'heading'] as const,
+  styles: {
+    base: {
+      base: { fontFamily: 'system-ui' },
+      bold: { fontWeight: 700 },
+      muted: { color: color.secondary },
+      heading: { fontSize: '24px', lineHeight: 1.2 },
+    },
+  },
 });
 
 // Destructure and compose with cx()
@@ -210,9 +221,15 @@ import { createTypeStyles, cx } from 'typestyles';
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
 const card = style('card', { padding: '16px' });
-const text = recipe('text', {
-  base: { fontSize: '14px' },
-  muted: { color: '#6b7280' },
+const text = recipe({
+  name: 'text',
+  slots: ['base', 'muted'] as const,
+  styles: {
+    base: {
+      base: { fontSize: '14px' },
+      muted: { color: '#6b7280' },
+    },
+  },
 });
 
 // Combine TypeStyles classes with external classes, conditionally
@@ -228,30 +245,33 @@ Write CSS selectors naturally. Media queries, pseudo-classes, combinators — it
 ```tsx
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const nav = recipe('nav', {
-  base: {
-    display: 'flex',
-    gap: spacing.md,
+const nav = recipe({
+  name: 'nav',
+  styles: {
+    base: {
+      display: 'flex',
+      gap: spacing.md,
 
-    // Pseudo-classes
-    '&:hover': {
-      backgroundColor: color.surface,
-    },
+      // Pseudo-classes
+      '&:hover': {
+        backgroundColor: color.surface,
+      },
 
-    // Media queries
-    '@media (max-width: 768px)': {
-      flexDirection: 'column',
-    },
+      // Media queries
+      '@media (max-width: 768px)': {
+        flexDirection: 'column',
+      },
 
-    // Descendant selectors
-    '& a': {
-      textDecoration: 'none',
-      color: color.primary,
-    },
+      // Descendant selectors
+      '& a': {
+        textDecoration: 'none',
+        color: color.primary,
+      },
 
-    // Container queries
-    '@container (min-width: 400px)': {
-      gridTemplateColumns: '1fr 1fr',
+      // Container queries
+      '@container (min-width: 400px)': {
+        gridTemplateColumns: '1fr 1fr',
+      },
     },
   },
 });
@@ -263,27 +283,30 @@ You can colocate styles with components, but you're never forced to.
 
 ```tsx
 // Button.tsx — styles and component together
-import { createTypeStyles } from 'typestyles';
+import { createTypeStyles, variant } from 'typestyles';
 
 const { recipe, tokens } = createTypeStyles({ scopeId: 'app' });
 const color = tokens.use('color'); // Reference tokens defined elsewhere
 
-const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
-    backgroundColor: color.primary,
-  },
-  variants: {
-    intent: {
-      primary: { backgroundColor: color.primary },
-      ghost: { backgroundColor: 'transparent' },
+const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary', 'ghost'], { default: 'primary' }) },
+  styles: {
+    base: {
+      padding: '8px 16px',
+      backgroundColor: color.primary,
+    },
+    variants: {
+      intent: {
+        primary: { backgroundColor: color.primary },
+        ghost: { backgroundColor: 'transparent' },
+      },
     },
   },
-  defaultVariants: { intent: 'primary' },
 });
 
 export function Button({ intent, children }) {
-  return <button className={button({ intent })}>{children}</button>;
+  return <button className={button({ intent }).className}>{children}</button>;
 }
 ```
 
@@ -291,20 +314,22 @@ Or keep styles separate:
 
 ```tsx
 // button.styles.ts
-import { createTypeStyles } from 'typestyles';
+import { createTypeStyles, variant } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
-export const button = recipe('button', {
-  base: { padding: '8px 16px' },
-  variants: {
-    intent: { primary: { backgroundColor: '#0066ff' } },
+export const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+  styles: {
+    base: { padding: '8px 16px' },
+    variants: { intent: { primary: { backgroundColor: '#0066ff' } } },
   },
 });
 
 // Button.tsx
 import { button } from './button.styles';
 export function Button({ intent, children }) {
-  return <button className={button({ intent })}>{children}</button>;
+  return <button className={button({ intent }).className}>{children}</button>;
 }
 ```
 
@@ -336,35 +361,42 @@ Sync and async render functions are supported — `collectStyles` returns a `Pro
 
 ## API Reference
 
-### `recipe(namespace, config)`
+### `recipe({ name, styles, slots?, variants?, vars? })`
 
-Creates a component style and returns a callable + destructurable object.
+Creates a component style. Declare variant axes with `variant.enum` / `variant.boolean` and put option styles in `styles`. Calling it returns `{ className, attrs, props }`.
 
 ```tsx
-// Dimensioned variants
-const button = recipe('button', {
-  base: { padding: '8px 16px' },
+const button = recipe({
+  name: 'button',
   variants: {
-    intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
-    size: { sm: { fontSize: '14px' }, lg: { fontSize: '18px' } },
+    intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+    size: variant.enum(['sm', 'lg'], { default: 'sm' }),
   },
-  defaultVariants: { intent: 'primary', size: 'sm' },
+  styles: {
+    base: { padding: '8px 16px' },
+    variants: {
+      intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
+      size: { sm: { fontSize: '14px' }, lg: { fontSize: '18px' } },
+    },
+  },
 });
 
-button(); // "button-base button-intent-primary button-size-sm"
-button({ intent: 'ghost' }); // "button-base button-intent-ghost button-size-sm"
-button.base; // "button-base"
-button['intent-primary']; // "button-intent-primary"
+button().className;
+button({ intent: 'ghost' }).className;
+button.base;
+button['intent-primary'];
 
-// Flat variants (simple boolean toggles)
-const card = recipe('card', {
-  base: { padding: '16px' },
-  elevated: { boxShadow: '...' },
+const card = recipe({
+  name: 'card',
+  variants: { elevated: variant.boolean({ default: false }) },
+  styles: {
+    base: { padding: '16px' },
+    variants: { elevated: { true: { boxShadow: '...' }, false: {} } },
+  },
 });
 
-card(); // "card-base"
-card({ elevated: true }); // "card-base card-elevated"
-card.elevated; // "card-elevated"
+card().className;
+card({ elevated: true }).className;
 ```
 
 ### `style(name, properties)`

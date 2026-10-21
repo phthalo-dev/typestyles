@@ -15,13 +15,13 @@ describe('typestylesEsbuildPlugin', () => {
       join(dir, 'src/typestyles-entry.ts'),
       `import { createTypeStyles } from 'typestyles';
 const { recipe } = createTypeStyles();
-recipe('esbuild-convention', { base: { color: 'green' } });`,
+recipe({ name: 'esbuild-convention', styles: { base: { color: 'green' } } });`,
     );
     writeFileSync(
       join(dir, 'src/main.ts'),
       `import { createStyles } from 'typestyles';
 const styles = createStyles();
-export const label = styles.component('esbuild-label', { base: { fontSize: '14px' } });`,
+export const label = styles.component({ name: 'esbuild-label', styles: { base: { fontSize: '14px' } } });`,
     );
 
     await build({

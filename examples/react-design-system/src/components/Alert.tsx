@@ -32,24 +32,24 @@ export function Alert({
 
   return (
     <div
-      className={cx(a.root, className)}
+      className={cx(a.root.className, className)}
       data-alert
       data-alert-variant={variant}
       data-alert-appearance={appearance}
     >
       {icon ? (
-        <div className={a.icon} data-alert-icon>
+        <div className={a.icon.className} data-alert-icon>
           {icon}
         </div>
       ) : null}
-      <div className={a.body}>
-        {title ? <p className={a.title}>{title}</p> : null}
-        <div className={a.content} data-alert-content>
+      <div className={a.body.className}>
+        {title ? <p className={a.title.className}>{title}</p> : null}
+        <div className={a.content.className} data-alert-content>
           {children}
         </div>
         {action ? (
-          <div className={a.action}>
-            <a className={a.actionLink} href={action.href} data-alert-action>
+          <div className={a.action.className}>
+            <a className={a.actionLink.className} href={action.href} data-alert-action>
               {action.label}
             </a>
           </div>

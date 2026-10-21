@@ -58,7 +58,7 @@ export function cx(
 ): string {
   if (process.env.NODE_ENV !== 'production') {
     for (const part of parts) {
-      if (isComponentAttrsResult(part)) {
+      if (isComponentAttrsResult(part) && Object.keys(part.attrs).length > 0) {
         devWarnOnce(
           `cx() dropped attrs on "${part.className || 'recipe'}" — use mergeProps() or combine() instead.`,
         );

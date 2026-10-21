@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 import { createStyles } from './styles';
+import { createComponent } from './component';
+import { variant } from './variant';
 import { getComponentMeta } from './component-meta';
 import { registeredNamespaces } from './registry';
 import { colorModes } from './color-modes';
@@ -14,11 +16,18 @@ describe('styles.override() + __tsMeta', () => {
   describe('getComponentMeta', () => {
     it('attaches non-enumerable dimensioned meta for semantic mode', () => {
       const styles = createStyles();
-      const button = styles.component('ov-meta-btn', {
-        base: { display: 'inline-flex' },
+      const button = styles.component({
+        name: 'ov-meta-btn',
         variants: {
-          intent: { primary: { color: 'blue' }, ghost: { color: 'transparent' } },
-          size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } },
+          intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+          size: variant.enum(['sm', 'lg'], { default: 'sm' }),
+        },
+        styles: {
+          base: { display: 'inline-flex' },
+          variants: {
+            intent: { primary: { color: 'blue' }, ghost: { color: 'transparent' } },
+            size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } },
+          },
         },
       });
 
@@ -37,11 +46,18 @@ describe('styles.override() + __tsMeta', () => {
 
     it('records attribute selector fragments', () => {
       const styles = createStyles({ mode: 'attribute' });
-      const button = styles.component('ov-attr-btn', {
-        base: { display: 'inline-flex' },
+      const button = styles.component({
+        name: 'ov-attr-btn',
         variants: {
-          intent: { primary: { color: 'blue' } },
-          disabled: { true: { opacity: 0.5 }, false: { opacity: 1 } },
+          intent: variant.enum(['primary'], { default: 'primary' }),
+          disabled: variant.boolean({ default: false }),
+        },
+        styles: {
+          base: { display: 'inline-flex' },
+          variants: {
+            intent: { primary: { color: 'blue' } },
+            disabled: { true: { opacity: 0.5 }, false: { opacity: 1 } },
+          },
         },
       });
 
@@ -58,24 +74,37 @@ describe('styles.override() + __tsMeta', () => {
 
     it('attaches flat and slot meta', () => {
       const styles = createStyles();
-      const card = styles.component('ov-flat-card', {
-        base: { padding: '8px' },
-        elevated: { boxShadow: '0 2px 4px black' },
+      const card = styles.component({
+        name: 'ov-flat-card',
+        variants: { elevated: variant.boolean({ default: false }) },
+        styles: {
+          base: { padding: '8px' },
+          variants: { elevated: { true: { boxShadow: '0 2px 4px black' }, false: {} } },
+        },
       });
-      const alert = styles.component('ov-slot-alert', {
+      const alert = styles.component({
+        name: 'ov-slot-alert',
         slots: ['root', 'icon'] as const,
-        base: { root: { display: 'flex' }, icon: { width: '16px' } },
-        variants: {
-          tone: {
-            danger: { root: { color: 'red' }, icon: { scale: '1.2' } },
+        variants: { tone: variant.enum(['danger'], { default: 'danger' }) },
+        styles: {
+          base: { root: { display: 'flex' }, icon: { width: '16px' } },
+          variants: {
+            tone: {
+              danger: { root: { color: 'red' }, icon: { scale: '1.2' } },
+            },
           },
         },
       });
 
       expect(getComponentMeta(card)).toMatchObject({
-        kind: 'flat',
+        kind: 'dimensioned',
         base: 'ov-flat-card',
-        variants: { elevated: 'ov-flat-card--elevated' },
+        variants: {
+          elevated: {
+            true: 'ov-flat-card--elevated-true',
+            false: 'ov-flat-card--elevated-false',
+          },
+        },
       });
       const slotMeta = getComponentMeta(alert);
       expect(slotMeta?.kind).toBe('slot');
@@ -90,28 +119,38 @@ describe('styles.override() + __tsMeta', () => {
   describe('emission', () => {
     it('emits base, variant, and compound overrides for semantic mode', () => {
       const styles = createStyles();
-      const button = styles.component('ov-sem-btn', {
-        base: { borderRadius: '6px' },
+      const button = styles.component({
+        name: 'ov-sem-btn',
         variants: {
-          intent: {
-            primary: { backgroundColor: 'blue' },
-            ghost: { backgroundColor: 'transparent' },
+          intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+          size: variant.enum(['sm', 'lg'], { default: 'sm' }),
+        },
+        styles: {
+          base: { borderRadius: '6px' },
+          variants: {
+            intent: {
+              primary: { backgroundColor: 'blue' },
+              ghost: { backgroundColor: 'transparent' },
+            },
+            size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } },
           },
-          size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } },
         },
       });
 
-      styles.override(button, {
-        base: { borderRadius: '999px' },
-        variants: {
-          intent: { primary: { textTransform: 'uppercase' } },
-        },
-        compoundVariants: [
-          {
-            variants: { intent: 'primary', size: 'lg' },
-            style: { letterSpacing: '0.05em' },
+      styles.override({
+        recipe: button,
+        styles: {
+          base: { borderRadius: '999px' },
+          variants: {
+            intent: { primary: { textTransform: 'uppercase' } },
           },
-        ],
+          compoundVariants: [
+            {
+              variants: { intent: 'primary', size: 'lg' },
+              style: { letterSpacing: '0.05em' },
+            },
+          ],
+        },
       });
       flushSync();
 
@@ -126,24 +165,34 @@ describe('styles.override() + __tsMeta', () => {
 
     it('emits attribute-mode variant and compound selectors', () => {
       const styles = createStyles({ mode: 'attribute' });
-      const button = styles.component('ov-attr-emit', {
-        base: { display: 'inline-flex' },
+      const button = styles.component({
+        name: 'ov-attr-emit',
         variants: {
-          intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
-          size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } },
+          intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+          size: variant.enum(['sm', 'lg'], { default: 'sm' }),
+        },
+        styles: {
+          base: { display: 'inline-flex' },
+          variants: {
+            intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
+            size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } },
+          },
         },
       });
 
-      styles.override(button, {
-        variants: {
-          intent: { primary: { textTransform: 'uppercase' } },
-        },
-        compoundVariants: [
-          {
-            variants: { intent: 'primary', size: 'lg' },
-            style: { fontWeight: 700 },
+      styles.override({
+        recipe: button,
+        styles: {
+          variants: {
+            intent: { primary: { textTransform: 'uppercase' } },
           },
-        ],
+          compoundVariants: [
+            {
+              variants: { intent: 'primary', size: 'lg' },
+              style: { fontWeight: 700 },
+            },
+          ],
+        },
       });
       flushSync();
 
@@ -156,20 +205,30 @@ describe('styles.override() + __tsMeta', () => {
 
     it('emits :is() for compound array selections (semantic + attribute)', () => {
       const semantic = createStyles();
-      const btn = semantic.component('ov-is-sem', {
-        base: { display: 'flex' },
+      const btn = semantic.component({
+        name: 'ov-is-sem',
         variants: {
-          intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
-          size: { lg: { fontSize: '16px' } },
+          intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+          size: variant.enum(['lg'], { default: 'lg' }),
+        },
+        styles: {
+          base: { display: 'flex' },
+          variants: {
+            intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
+            size: { lg: { fontSize: '16px' } },
+          },
         },
       });
-      semantic.override(btn, {
-        compoundVariants: [
-          {
-            variants: { intent: ['primary', 'ghost'], size: 'lg' },
-            style: { fontWeight: 700 },
-          },
-        ],
+      semantic.override({
+        recipe: btn,
+        styles: {
+          compoundVariants: [
+            {
+              variants: { intent: ['primary', 'ghost'], size: 'lg' },
+              style: { fontWeight: 700 },
+            },
+          ],
+        },
       });
       flushSync();
       expect(getRegisteredCss()).toContain(
@@ -180,20 +239,30 @@ describe('styles.override() + __tsMeta', () => {
       registeredNamespaces.clear();
 
       const attribute = createStyles({ mode: 'attribute' });
-      const abtn = attribute.component('ov-is-attr', {
-        base: { display: 'flex' },
+      const abtn = attribute.component({
+        name: 'ov-is-attr',
         variants: {
-          intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
-          size: { lg: { fontSize: '16px' } },
+          intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+          size: variant.enum(['lg'], { default: 'lg' }),
+        },
+        styles: {
+          base: { display: 'flex' },
+          variants: {
+            intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
+            size: { lg: { fontSize: '16px' } },
+          },
         },
       });
-      attribute.override(abtn, {
-        compoundVariants: [
-          {
-            variants: { intent: ['primary', 'ghost'], size: 'lg' },
-            style: { fontWeight: 700 },
-          },
-        ],
+      attribute.override({
+        recipe: abtn,
+        styles: {
+          compoundVariants: [
+            {
+              variants: { intent: ['primary', 'ghost'], size: 'lg' },
+              style: { fontWeight: 700 },
+            },
+          ],
+        },
       });
       flushSync();
       expect(getRegisteredCss()).toContain(
@@ -203,15 +272,19 @@ describe('styles.override() + __tsMeta', () => {
 
     it('applies selectorPrefix as a descendant combinator', () => {
       const styles = createStyles();
-      const button = styles.component('ov-prefix-btn', {
-        base: { color: 'black' },
-        variants: { intent: { primary: { color: 'blue' } } },
+      const button = styles.component({
+        name: 'ov-prefix-btn',
+        variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+        styles: { base: { color: 'black' }, variants: { intent: { primary: { color: 'blue' } } } },
       });
-      styles.override(
-        button,
-        { base: { boxShadow: 'none' }, variants: { intent: { primary: { color: 'red' } } } },
-        { selectorPrefix: '.theme-acme' },
-      );
+      styles.override({
+        recipe: button,
+        selectorPrefix: '.theme-acme',
+        styles: {
+          base: { boxShadow: 'none' },
+          variants: { intent: { primary: { color: 'red' } } },
+        },
+      });
       flushSync();
 
       const css = getRegisteredCss();
@@ -223,12 +296,12 @@ describe('styles.override() + __tsMeta', () => {
       const styles = createStyles({
         layers: ['components', 'overrides'] as const,
       });
-      const button = styles.component(
-        'ov-layer-btn',
-        { base: { color: 'black' } },
-        { layer: 'components' },
-      );
-      styles.override(button, { base: { color: 'red' } }, { layer: 'overrides' });
+      const button = styles.component({
+        name: 'ov-layer-btn',
+        layer: 'components',
+        styles: { base: { color: 'black' } },
+      });
+      styles.override({ recipe: button, layer: 'overrides', styles: { base: { color: 'red' } } });
       flushSync();
 
       const css = getRegisteredCss();
@@ -239,19 +312,26 @@ describe('styles.override() + __tsMeta', () => {
 
     it('overrides slot recipes per slot', () => {
       const styles = createStyles();
-      const alert = styles.component('ov-slot-emit', {
+      const alert = styles.component({
+        name: 'ov-slot-emit',
         slots: ['root', 'icon'] as const,
-        base: { root: { display: 'flex' }, icon: { width: '16px' } },
-        variants: {
-          tone: {
-            danger: { root: { color: 'red' }, icon: { opacity: 1 } },
+        variants: { tone: variant.enum(['danger'], { default: 'danger' }) },
+        styles: {
+          base: { root: { display: 'flex' }, icon: { width: '16px' } },
+          variants: {
+            tone: {
+              danger: { root: { color: 'red' }, icon: { opacity: 1 } },
+            },
           },
         },
       });
 
-      styles.override(alert, {
-        base: { root: { borderStyle: 'dashed' } },
-        variants: { tone: { danger: { icon: { scale: '1.2' } } } },
+      styles.override({
+        recipe: alert,
+        styles: {
+          base: { root: { borderStyle: 'dashed' } },
+          variants: { tone: { danger: { icon: { scale: '1.2' } } } },
+        },
       });
       flushSync();
 
@@ -267,10 +347,15 @@ describe('styles.override() + __tsMeta', () => {
         mode: 'attribute',
         layers: ['components', 'overrides', 'utilities'] as const,
       });
-      const alert = styles.component(
-        'ov-attr-slot',
-        {
-          slots: ['root', 'icon'] as const,
+      const alert = styles.component({
+        name: 'ov-attr-slot',
+        layer: 'components',
+        slots: ['root', 'icon'] as const,
+        variants: {
+          tone: variant.enum(['danger', 'info'], { default: 'danger' }),
+          size: variant.enum(['lg'], { default: 'lg' }),
+        },
+        styles: {
           base: { root: { display: 'flex' }, icon: { width: '16px' } },
           variants: {
             tone: {
@@ -282,8 +367,7 @@ describe('styles.override() + __tsMeta', () => {
             },
           },
         },
-        { layer: 'components' },
-      );
+      });
 
       const meta = getComponentMeta(alert);
       expect(meta).toMatchObject({
@@ -295,9 +379,11 @@ describe('styles.override() + __tsMeta', () => {
         expect(meta.variants.icon.tone.danger).toBe('[data-tone="danger"]');
       }
 
-      styles.override(
-        alert,
-        {
+      styles.override({
+        recipe: alert,
+        layer: 'overrides',
+        selectorPrefix: '.theme-acme',
+        styles: {
           base: { root: { borderStyle: 'dashed' } },
           variants: { tone: { danger: { icon: { scale: '1.2' } } } },
           compoundVariants: [
@@ -311,8 +397,7 @@ describe('styles.override() + __tsMeta', () => {
             },
           ],
         },
-        { selectorPrefix: '.theme-acme', layer: 'overrides' },
-      );
+      });
       flushSync();
 
       const css = getRegisteredCss();
@@ -331,49 +416,66 @@ describe('styles.override() + __tsMeta', () => {
 
     it('overrides flat variants', () => {
       const styles = createStyles();
-      const card = styles.component('ov-flat-emit', {
-        base: { padding: '8px' },
-        elevated: { boxShadow: '0 1px 2px black' },
+      const card = styles.component({
+        name: 'ov-flat-emit',
+        variants: { elevated: variant.boolean({ default: false }) },
+        styles: {
+          base: { padding: '8px' },
+          variants: { elevated: { true: { boxShadow: '0 1px 2px black' }, false: {} } },
+        },
       });
-      styles.override(card, {
-        base: { padding: '16px' },
-        elevated: { boxShadow: 'none' },
+      styles.override({
+        recipe: card,
+        styles: {
+          base: { padding: '16px' },
+          variants: { elevated: { true: { boxShadow: 'none' } } },
+        },
       });
       flushSync();
 
       const css = getRegisteredCss();
       expect(css).toContain('.ov-flat-emit {');
       expect(css).toContain('padding: 16px');
-      expect(css).toContain('.ov-flat-emit--elevated {');
+      expect(css).toContain('.ov-flat-emit--elevated-true {');
       expect(css).toContain('box-shadow: none');
     });
 
     it('emits bem-mode variant and compound selectors', () => {
       const styles = createStyles({ mode: 'bem' });
-      const button = styles.component('ov-bem-btn', {
-        base: { borderRadius: '6px' },
+      const button = styles.component({
+        name: 'ov-bem-btn',
         variants: {
-          intent: {
-            primary: { backgroundColor: 'blue' },
-            ghost: { backgroundColor: 'transparent' },
+          intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+          size: variant.enum(['sm', 'lg'], { default: 'sm' }),
+        },
+        styles: {
+          base: { borderRadius: '6px' },
+          variants: {
+            intent: {
+              primary: { backgroundColor: 'blue' },
+              ghost: { backgroundColor: 'transparent' },
+            },
+            size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } },
           },
-          size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } },
         },
       });
 
-      styles.override(button, {
-        base: { borderRadius: '999px' },
-        variants: { intent: { primary: { textTransform: 'uppercase' } } },
-        compoundVariants: [
-          {
-            variants: { intent: 'primary', size: 'lg' },
-            style: { letterSpacing: '0.05em' },
-          },
-          {
-            variants: { intent: ['primary', 'ghost'], size: 'lg' },
-            style: { fontWeight: 700 },
-          },
-        ],
+      styles.override({
+        recipe: button,
+        styles: {
+          base: { borderRadius: '999px' },
+          variants: { intent: { primary: { textTransform: 'uppercase' } } },
+          compoundVariants: [
+            {
+              variants: { intent: 'primary', size: 'lg' },
+              style: { letterSpacing: '0.05em' },
+            },
+            {
+              variants: { intent: ['primary', 'ghost'], size: 'lg' },
+              style: { fontWeight: 700 },
+            },
+          ],
+        },
       });
       flushSync();
 
@@ -397,21 +499,31 @@ describe('styles.override() + __tsMeta', () => {
         },
       });
 
-      const button = styles.component('ov-tpl-btn', {
-        base: { display: 'inline-flex' },
+      const button = styles.component({
+        name: 'ov-tpl-btn',
         variants: {
-          intent: { primary: { color: 'blue' } },
-          size: { lg: { fontSize: '16px' } },
+          intent: variant.enum(['primary'], { default: 'primary' }),
+          size: variant.enum(['lg'], { default: 'lg' }),
+        },
+        styles: {
+          base: { display: 'inline-flex' },
+          variants: {
+            intent: { primary: { color: 'blue' } },
+            size: { lg: { fontSize: '16px' } },
+          },
         },
       });
-      styles.override(button, {
-        variants: { intent: { primary: { textTransform: 'uppercase' } } },
-        compoundVariants: [
-          {
-            variants: { intent: 'primary', size: 'lg' },
-            style: { fontWeight: 700 },
-          },
-        ],
+      styles.override({
+        recipe: button,
+        styles: {
+          variants: { intent: { primary: { textTransform: 'uppercase' } } },
+          compoundVariants: [
+            {
+              variants: { intent: 'primary', size: 'lg' },
+              style: { fontWeight: 700 },
+            },
+          ],
+        },
       });
       flushSync();
       let css = getRegisteredCss();
@@ -423,43 +535,56 @@ describe('styles.override() + __tsMeta', () => {
       reset();
       registeredNamespaces.clear();
 
-      const card = styles.component('ov-tpl-flat', {
-        base: { padding: '8px' },
-        elevated: { boxShadow: '0 1px 2px black' },
+      const card = styles.component({
+        name: 'ov-tpl-flat',
+        variants: { elevated: variant.boolean({ default: false }) },
+        styles: {
+          base: { padding: '8px' },
+          variants: { elevated: { true: { boxShadow: '0 1px 2px black' }, false: {} } },
+        },
       });
-      styles.override(card, {
-        base: { padding: '16px' },
-        elevated: { boxShadow: 'none' },
+      styles.override({
+        recipe: card,
+        styles: {
+          base: { padding: '16px' },
+          variants: { elevated: { true: { boxShadow: 'none' } } },
+        },
       });
       flushSync();
       css = getRegisteredCss();
-      // Flat recipes under template mode follow semantic class naming.
-      expect(css).toContain('.ov-tpl-flat-base {');
+      expect(css).toContain('.ov-tpl-flat {');
       expect(css).toContain('padding: 16px');
-      expect(css).toContain('.ov-tpl-flat-elevated {');
+      expect(css).toContain('.ov-tpl-flat--true {');
       expect(css).toContain('box-shadow: none');
 
       reset();
       registeredNamespaces.clear();
 
-      const alert = styles.component('ov-tpl-slot', {
+      const alert = styles.component({
+        name: 'ov-tpl-slot',
         slots: ['root', 'icon'] as const,
-        base: { root: { display: 'flex' }, icon: { width: '16px' } },
-        variants: {
-          tone: {
-            danger: { root: { color: 'red' }, icon: { opacity: 1 } },
+        variants: { tone: variant.enum(['danger'], { default: 'danger' }) },
+        styles: {
+          base: { root: { display: 'flex' }, icon: { width: '16px' } },
+          variants: {
+            tone: {
+              danger: { root: { color: 'red' }, icon: { opacity: 1 } },
+            },
           },
         },
       });
-      styles.override(alert, {
-        base: { root: { gap: '8px' } },
-        variants: { tone: { danger: { icon: { scale: '1.2' } } } },
-        compoundVariants: [
-          {
-            variants: { tone: 'danger' },
-            style: { root: { outline: '1px solid red' } },
-          },
-        ],
+      styles.override({
+        recipe: alert,
+        styles: {
+          base: { root: { gap: '8px' } },
+          variants: { tone: { danger: { icon: { scale: '1.2' } } } },
+          compoundVariants: [
+            {
+              variants: { tone: 'danger' },
+              style: { root: { outline: '1px solid red' } },
+            },
+          ],
+        },
       });
       flushSync();
       css = getRegisteredCss();
@@ -477,25 +602,32 @@ describe('styles.override() + __tsMeta', () => {
           marginX: (value: string | number) => ({ marginLeft: value, marginRight: value }),
         },
       });
-      const alert = styles.component('ov-util-slot', {
+      const alert = styles.component({
+        name: 'ov-util-slot',
         slots: ['root', 'icon'] as const,
-        base: { root: { display: 'flex' }, icon: { width: '16px' } },
-        variants: {
-          tone: {
-            danger: { root: { color: 'red' }, icon: { opacity: 1 } },
+        variants: { tone: variant.enum(['danger'], { default: 'danger' }) },
+        styles: {
+          base: { root: { display: 'flex' }, icon: { width: '16px' } },
+          variants: {
+            tone: {
+              danger: { root: { color: 'red' }, icon: { opacity: 1 } },
+            },
           },
         },
       });
 
-      styles.override(alert, {
-        base: { root: { marginX: 12 }, icon: { gap: '4px' } },
-        variants: { tone: { danger: { icon: { marginX: 4 } } } },
-        compoundVariants: [
-          {
-            variants: { tone: 'danger' },
-            style: { root: { marginX: 8 } },
-          },
-        ],
+      styles.override({
+        recipe: alert,
+        styles: {
+          base: { root: { marginX: 12 }, icon: { gap: '4px' } },
+          variants: { tone: { danger: { icon: { marginX: 4 } } } },
+          compoundVariants: [
+            {
+              variants: { tone: 'danger' },
+              style: { root: { marginX: 8 } },
+            },
+          ],
+        },
       });
       flushSync();
 
@@ -515,19 +647,23 @@ describe('styles.override() + __tsMeta', () => {
 
     it('overrides multi-slot recipes per slot', () => {
       const styles = createStyles();
-      const card = styles.component('ov-multi-emit', {
+      const card = styles.component({
+        name: 'ov-multi-emit',
         slots: ['root', 'title', 'body'] as const,
-        root: { display: 'grid' },
-        title: { fontWeight: 600 },
-        body: { color: 'gray' },
+        styles: {
+          base: { root: { display: 'grid' }, title: { fontWeight: 600 }, body: { color: 'gray' } },
+        },
       });
 
       expect(getComponentMeta(card)?.kind).toBe('multi-slot');
 
-      styles.override(card, {
-        base: {
-          root: { gap: '12px' },
-          title: { fontSize: '18px' },
+      styles.override({
+        recipe: card,
+        styles: {
+          base: {
+            root: { gap: '12px' },
+            title: { fontSize: '18px' },
+          },
         },
       });
       flushSync();
@@ -541,23 +677,33 @@ describe('styles.override() + __tsMeta', () => {
 
     it('emits boolean attribute compounds and nested selectors', () => {
       const styles = createStyles({ mode: 'attribute' });
-      const button = styles.component('ov-bool-attr', {
-        base: { display: 'inline-flex' },
+      const button = styles.component({
+        name: 'ov-bool-attr',
         variants: {
-          intent: { primary: { color: 'blue' } },
-          disabled: { true: { opacity: 0.5 }, false: { opacity: 1 } },
+          intent: variant.enum(['primary'], { default: 'primary' }),
+          disabled: variant.boolean({ default: false }),
+        },
+        styles: {
+          base: { display: 'inline-flex' },
+          variants: {
+            intent: { primary: { color: 'blue' } },
+            disabled: { true: { opacity: 0.5 }, false: { opacity: 1 } },
+          },
         },
       });
 
-      styles.override(button, {
-        base: { '&:hover': { textDecoration: 'underline' } },
-        variants: { disabled: { true: { cursor: 'not-allowed' } } },
-        compoundVariants: [
-          {
-            variants: { intent: 'primary', disabled: true },
-            style: { outline: 'none' },
-          },
-        ],
+      styles.override({
+        recipe: button,
+        styles: {
+          base: { '&:hover': { textDecoration: 'underline' } },
+          variants: { disabled: { true: { cursor: 'not-allowed' } } },
+          compoundVariants: [
+            {
+              variants: { intent: 'primary', disabled: true },
+              style: { outline: 'none' },
+            },
+          ],
+        },
       });
       flushSync();
 
@@ -572,22 +718,32 @@ describe('styles.override() + __tsMeta', () => {
 
     it('emits semantic boolean compounds and nested &:hover', () => {
       const styles = createStyles();
-      const button = styles.component('ov-bool-sem', {
-        base: { display: 'inline-flex' },
+      const button = styles.component({
+        name: 'ov-bool-sem',
         variants: {
-          intent: { primary: { color: 'blue' } },
-          disabled: { true: { opacity: 0.5 }, false: { opacity: 1 } },
+          intent: variant.enum(['primary'], { default: 'primary' }),
+          disabled: variant.boolean({ default: false }),
+        },
+        styles: {
+          base: { display: 'inline-flex' },
+          variants: {
+            intent: { primary: { color: 'blue' } },
+            disabled: { true: { opacity: 0.5 }, false: { opacity: 1 } },
+          },
         },
       });
 
-      styles.override(button, {
-        base: { '&:focus-visible': { outline: '2px solid blue' } },
-        compoundVariants: [
-          {
-            variants: { intent: 'primary', disabled: true },
-            style: { pointerEvents: 'none' },
-          },
-        ],
+      styles.override({
+        recipe: button,
+        styles: {
+          base: { '&:focus-visible': { outline: '2px solid blue' } },
+          compoundVariants: [
+            {
+              variants: { intent: 'primary', disabled: true },
+              style: { pointerEvents: 'none' },
+            },
+          ],
+        },
       });
       flushSync();
 
@@ -604,25 +760,29 @@ describe('styles.override() + __tsMeta', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const styles = createStyles();
-      const button = styles.component('ov-warn-btn', {
-        base: { color: 'black' },
-        variants: { intent: { primary: { color: 'blue' } } },
+      const button = styles.component({
+        name: 'ov-warn-btn',
+        variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+        styles: { base: { color: 'black' }, variants: { intent: { primary: { color: 'blue' } } } },
       });
 
-      styles.override(button, {
-        // Intentional unknown dimension — runtime warn path (compile-time covered in override.type-tests.ts)
-        variants: { nope: { primary: { color: 'red' } } } as never,
+      styles.override({
+        recipe: button,
+        styles: { variants: { nope: { primary: { color: 'red' } } } as never },
       });
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining('Unknown variant dimension "nope"'),
       );
 
-      styles.override({} as typeof button, { base: { color: 'red' } });
+      styles.override({ recipe: {} as typeof button, styles: { base: { color: 'red' } } });
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('requires a recipe() return'));
 
       const hashed = createStyles({ mode: 'hashed' });
-      const hashedBtn = hashed.component('ov-hashed-btn', { base: { color: 'black' } });
-      hashed.override(hashedBtn, { base: { color: 'red' } });
+      const hashedBtn = hashed.component({
+        name: 'ov-hashed-btn',
+        styles: { base: { color: 'black' } },
+      });
+      hashed.override({ recipe: hashedBtn, styles: { base: { color: 'red' } } });
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining('does not support naming mode "hashed"'),
       );
@@ -633,22 +793,32 @@ describe('styles.override() + __tsMeta', () => {
     it('skips compound overrides with unknown selections instead of emitting partial selectors', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const styles = createStyles();
-      const button = styles.component('ov-compound-warn', {
-        base: { display: 'flex' },
+      const button = styles.component({
+        name: 'ov-compound-warn',
         variants: {
-          intent: { primary: { color: 'blue' } },
-          size: { lg: { fontSize: '16px' } },
+          intent: variant.enum(['primary'], { default: 'primary' }),
+          size: variant.enum(['lg'], { default: 'lg' }),
+        },
+        styles: {
+          base: { display: 'flex' },
+          variants: {
+            intent: { primary: { color: 'blue' } },
+            size: { lg: { fontSize: '16px' } },
+          },
         },
       });
 
-      styles.override(button, {
-        compoundVariants: [
-          {
-            // Intentional unknown option — runtime warn path (compile-time covered in override.type-tests.ts)
-            variants: { intent: 'primary', size: 'xl' as 'lg' },
-            style: { fontWeight: 700 },
-          },
-        ],
+      styles.override({
+        recipe: button,
+        styles: {
+          compoundVariants: [
+            {
+              // Intentional unknown option — runtime warn path (compile-time covered in override.type-tests.ts)
+              variants: { intent: 'primary', size: 'xl' as 'lg' },
+              style: { fontWeight: 700 },
+            },
+          ],
+        },
       });
       flushSync();
 
@@ -662,18 +832,22 @@ describe('styles.override() + __tsMeta', () => {
 
     it('skips empty compound selections instead of emitting a bare attribute base selector', () => {
       const styles = createStyles({ mode: 'attribute' });
-      const button = styles.component('ov-empty-compound', {
-        base: { display: 'flex' },
-        variants: { intent: { primary: { color: 'blue' } } },
+      const button = styles.component({
+        name: 'ov-empty-compound',
+        variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+        styles: { base: { display: 'flex' }, variants: { intent: { primary: { color: 'blue' } } } },
       });
 
-      styles.override(button, {
-        compoundVariants: [
-          {
-            variants: {} as { intent: 'primary' },
-            style: { outline: '2px solid red' },
-          },
-        ],
+      styles.override({
+        recipe: button,
+        styles: {
+          compoundVariants: [
+            {
+              variants: {} as { intent: 'primary' },
+              style: { outline: '2px solid red' },
+            },
+          ],
+        },
       });
       flushSync();
 
@@ -686,12 +860,12 @@ describe('styles.override() + __tsMeta', () => {
       const styles = createStyles({
         layers: ['components', 'overrides', 'utilities'] as const,
       });
-      const button = styles.component(
-        'ov-default-layer',
-        { base: { color: 'black' } },
-        { layer: 'components' },
-      );
-      styles.override(button, { base: { color: 'red' } });
+      const button = styles.component({
+        name: 'ov-default-layer',
+        layer: 'components',
+        styles: { base: { color: 'black' } },
+      });
+      styles.override({ recipe: button, styles: { base: { color: 'red' } } });
       flushSync();
 
       const css = getRegisteredCss();
@@ -703,12 +877,12 @@ describe('styles.override() + __tsMeta', () => {
       const styles = createStyles({
         layers: ['components', 'theme'] as const,
       });
-      const button = styles.component(
-        'ov-require-layer',
-        { base: { color: 'black' } },
-        { layer: 'components' },
-      );
-      expect(() => styles.override(button, { base: { color: 'red' } })).toThrow(
+      const button = styles.component({
+        name: 'ov-require-layer',
+        layer: 'components',
+        styles: { base: { color: 'black' } },
+      });
+      expect(() => styles.override({ recipe: button, styles: { base: { color: 'red' } } })).toThrow(
         /requires `\{ layer:/,
       );
     });
@@ -716,15 +890,16 @@ describe('styles.override() + __tsMeta', () => {
     it('warns and skips base override when meta.base is empty', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const styles = createStyles();
-      // Flat recipes may omit `base`; meta.base is then "".
-      const card = styles.component('ov-nobase-flat', {
+      // The engine still builds flat recipes with an empty base class. The public
+      // recipe object has no flat-key form, so this goes through createComponent.
+      const card = createComponent(styles.classNaming, 'ov-nobase-flat', {
         elevated: { boxShadow: '0 1px 2px black' },
       });
       expect(getComponentMeta(card)?.kind === 'flat' && getComponentMeta(card)?.base).toBe('');
 
-      styles.override(card, {
-        base: { color: 'red' },
-        elevated: { boxShadow: 'none' },
+      styles.override({
+        recipe: card,
+        styles: { base: { color: 'red' }, elevated: { boxShadow: 'none' } },
       });
       flushSync();
 
@@ -739,9 +914,12 @@ describe('styles.override() + __tsMeta', () => {
 
     it('throws when layer is set without createStyles({ layers })', () => {
       const styles = createStyles();
-      const button = styles.component('ov-throw-btn', { base: { color: 'black' } });
+      const button = styles.component({
+        name: 'ov-throw-btn',
+        styles: { base: { color: 'black' } },
+      });
       expect(() =>
-        styles.override(button, { base: { color: 'red' } }, { layer: 'overrides' }),
+        styles.override({ recipe: button, layer: 'overrides', styles: { base: { color: 'red' } } }),
       ).toThrow(/requires `createStyles\(\{ layers:/);
     });
   });
@@ -749,22 +927,24 @@ describe('styles.override() + __tsMeta', () => {
   describe('vars overrides', () => {
     it('emits typed vars on the var host class for dimensioned recipes', () => {
       const styles = createStyles();
-      const button = styles.component('ov-vars-btn', (c) => {
-        const v = c.vars({
+      const button = styles.component({
+        name: 'ov-vars-btn',
+        vars: {
           background: { value: 'blue', syntax: '<color>' as const },
           foreground: '#fff',
-        });
-        return {
+        },
+        styles: ({ vars: v }) => ({
           base: {
             backgroundColor: v.background.var,
             color: v.foreground.var,
           },
-        };
+        }),
       });
 
-      styles.override(button, {
+      styles.override({
+        recipe: button,
         vars: { background: 'crimson', foreground: 'white' },
-        base: { borderRadius: '999px' },
+        styles: { base: { borderRadius: '999px' } },
       });
       flushSync();
 
@@ -777,23 +957,25 @@ describe('styles.override() + __tsMeta', () => {
 
     it('emits vars on the root slot for slotted recipes', () => {
       const styles = createStyles();
-      const sideNav = styles.component('ov-vars-nav', (c) => {
-        const v = c.vars({
+      const sideNav = styles.component({
+        name: 'ov-vars-nav',
+        slots: ['root', 'heading'] as const,
+        vars: {
           border: { value: '#ccc', syntax: '<color>' as const },
           headingColor: '#111',
-        });
-        return {
-          slots: ['root', 'heading'] as const,
+        },
+        styles: ({ vars: v }) => ({
           base: {
             root: { borderColor: v.border.var },
             heading: { color: v.headingColor.var },
           },
-        };
+        }),
       });
 
-      styles.override(sideNav, {
+      styles.override({
+        recipe: sideNav,
         vars: { border: 'transparent', headingColor: 'var(--brand-heading)' },
-        base: { root: { margin: '8px' } },
+        styles: { base: { root: { margin: '8px' } } },
       });
       flushSync();
 
@@ -806,16 +988,18 @@ describe('styles.override() + __tsMeta', () => {
 
     it('supports nested vars paths and dotted keys', () => {
       const styles = createStyles();
-      const layout = styles.component('ov-vars-layout', (c) => {
-        const v = c.vars({
+      const layout = styles.component({
+        name: 'ov-vars-layout',
+        vars: {
           padding: { outer: { x: '8px', y: '8px' } },
-        });
-        return {
+        },
+        styles: ({ vars: v }) => ({
           base: { paddingInline: v.padding.outer.x.var, paddingBlock: v.padding.outer.y.var },
-        };
+        }),
       });
 
-      styles.override(layout, {
+      styles.override({
+        recipe: layout,
         vars: {
           padding: { outer: { x: '24px', y: '16px' } },
         },
@@ -829,14 +1013,16 @@ describe('styles.override() + __tsMeta', () => {
 
     it('lets base override the same custom property when both set vars', () => {
       const styles = createStyles();
-      const chip = styles.component('ov-vars-collision', (c) => {
-        const v = c.vars({ border: '#ccc' });
-        return { base: { borderColor: v.border.var } };
+      const chip = styles.component({
+        name: 'ov-vars-collision',
+        vars: { border: '#ccc' },
+        styles: ({ vars: v }) => ({ base: { borderColor: v.border.var } }),
       });
 
-      styles.override(chip, {
+      styles.override({
+        recipe: chip,
         vars: { border: 'transparent' },
-        base: { '--ov-vars-collision-border': 'red' },
+        styles: { base: { '--ov-vars-collision-border': 'red' } },
       });
       flushSync();
 
@@ -852,16 +1038,14 @@ describe('styles.override() + __tsMeta', () => {
       const styles = createStyles({
         layers: ['components', 'overrides'] as const,
       });
-      const button = styles.component(
-        'ov-vars-layer',
-        (c) => {
-          const v = c.vars({ accent: 'blue' });
-          return { base: { color: v.accent.var } };
-        },
-        { layer: 'components' },
-      );
+      const button = styles.component({
+        name: 'ov-vars-layer',
+        layer: 'components',
+        vars: { accent: 'blue' },
+        styles: ({ vars: v }) => ({ base: { color: v.accent.var } }),
+      });
 
-      styles.override(button, { vars: { accent: 'green' } }, { selectorPrefix: '.theme-acme' });
+      styles.override({ recipe: button, selectorPrefix: '.theme-acme', vars: { accent: 'green' } });
       flushSync();
 
       const css = getRegisteredCss();
@@ -872,14 +1056,13 @@ describe('styles.override() + __tsMeta', () => {
 
     it('compiles mode-aware var overrides to light-dark() when colorModes is configured', () => {
       const styles = createStyles({ colorModes });
-      const chip = styles.component('ov-vars-mode', (c) => {
-        const v = c.vars({ border: { value: '#ccc', syntax: '<color>' as const } });
-        return { base: { borderColor: v.border.var } };
+      const chip = styles.component({
+        name: 'ov-vars-mode',
+        vars: { border: { value: '#ccc', syntax: '<color>' as const } },
+        styles: ({ vars: v }) => ({ base: { borderColor: v.border.var } }),
       });
 
-      styles.override(chip, {
-        vars: { border: { light: '#fff', dark: '#111' } },
-      });
+      styles.override({ recipe: chip, vars: { border: { light: '#fff', dark: '#111' } } });
       flushSync();
 
       const css = getRegisteredCss();
@@ -888,12 +1071,14 @@ describe('styles.override() + __tsMeta', () => {
 
     it('emits prefers-dark override for incompatible mode-aware var values', () => {
       const styles = createStyles({ colorModes });
-      const card = styles.component('ov-vars-mode-shadow', (c) => {
-        const v = c.vars({ glow: '0 0 0 3px blue' });
-        return { base: { boxShadow: v.glow.var } };
+      const card = styles.component({
+        name: 'ov-vars-mode-shadow',
+        vars: { glow: '0 0 0 3px blue' },
+        styles: ({ vars: v }) => ({ base: { boxShadow: v.glow.var } }),
       });
 
-      styles.override(card, {
+      styles.override({
+        recipe: card,
         vars: { glow: { light: '0 0 0 3px blue', dark: '0 0 16px navy' } },
       });
       flushSync();
@@ -907,9 +1092,9 @@ describe('styles.override() + __tsMeta', () => {
     it('warns when vars is set on a component with no registry', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const styles = createStyles();
-      const plain = styles.component('ov-no-vars', { base: { color: 'black' } });
+      const plain = styles.component({ name: 'ov-no-vars', styles: { base: { color: 'black' } } });
 
-      styles.override(plain, { vars: { border: 'red' } });
+      styles.override({ recipe: plain, vars: { border: 'red' } });
       flushSync();
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('no registered internal vars'));
@@ -918,9 +1103,11 @@ describe('styles.override() + __tsMeta', () => {
 
     it('attaches varRegistry to component meta from c.vars()', () => {
       const styles = createStyles();
-      const nav = styles.component('ov-meta-vars', (c) => {
-        c.vars({ border: '#ccc' });
-        return { slots: ['root'] as const, base: { root: { display: 'flex' } } };
+      const nav = styles.component({
+        name: 'ov-meta-vars',
+        slots: ['root'] as const,
+        vars: { border: '#ccc' },
+        styles: () => ({ base: { root: { display: 'flex' } } }),
       });
 
       const meta = getComponentMeta(nav);
@@ -931,12 +1118,13 @@ describe('styles.override() + __tsMeta', () => {
 
     it('resolves c.var() paths with the authoring id (not sanitized registry key)', () => {
       const styles = createStyles();
-      const chip = styles.component('ov-var-path', (c) => {
-        const v = c.var('headingColor', { value: '#111', syntax: '<color>' as const });
-        return { base: { color: v.var } };
+      const chip = styles.component({
+        name: 'ov-var-path',
+        vars: { headingColor: { value: '#111', syntax: '<color>' as const } },
+        styles: ({ vars: v }) => ({ base: { color: v.headingColor.var } }),
       });
 
-      styles.override(chip, { vars: { headingColor: '#222' } });
+      styles.override({ recipe: chip, vars: { headingColor: '#222' } });
       flushSync();
 
       expect(getRegisteredCss()).toContain('--ov-var-path-headingcolor: #222');
@@ -944,21 +1132,20 @@ describe('styles.override() + __tsMeta', () => {
 
     it('overrides split surface-light / surface-dark vars instead of a color-mode pair', () => {
       const styles = createStyles();
-      const card = styles.component('ov-split-surface', (c) => {
-        const v = c.vars({
+      const card = styles.component({
+        name: 'ov-split-surface',
+        vars: {
           surface: { light: '#fff', dark: '#111' },
-        });
-        return {
+        },
+        styles: ({ vars: v }) => ({
           base: {
             backgroundColor: v.surface.light.var,
             color: v.surface.dark.var,
           },
-        };
+        }),
       });
 
-      styles.override(card, {
-        vars: { surface: { light: '#eee', dark: '#222' } },
-      });
+      styles.override({ recipe: card, vars: { surface: { light: '#eee', dark: '#222' } } });
       flushSync();
 
       const css = getRegisteredCss();
@@ -972,22 +1159,29 @@ describe('styles.override() + __tsMeta', () => {
       // Runtime smoke: valid calls still work. Negative cases are enforced by
       // `pnpm typecheck` via src/override.type-tests.ts (@ts-expect-error).
       const styles = createStyles();
-      const button = styles.component('ov-types-btn', {
-        base: { color: 'black' },
-        variants: {
-          intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
+      const button = styles.component({
+        name: 'ov-types-btn',
+        variants: { intent: variant.enum(['primary', 'ghost'], { default: 'primary' }) },
+        styles: {
+          base: { color: 'black' },
+          variants: {
+            intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
+          },
         },
       });
 
-      styles.override(button, {
-        base: { color: 'red' },
-        variants: { intent: { primary: { textTransform: 'uppercase' } } },
-        compoundVariants: [
-          {
-            variants: { intent: 'ghost' },
-            style: { fontWeight: 700 },
-          },
-        ],
+      styles.override({
+        recipe: button,
+        styles: {
+          base: { color: 'red' },
+          variants: { intent: { primary: { textTransform: 'uppercase' } } },
+          compoundVariants: [
+            {
+              variants: { intent: 'ghost' },
+              style: { fontWeight: 700 },
+            },
+          ],
+        },
       });
       expect(button.base).toBe('ov-types-btn');
     });

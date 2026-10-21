@@ -15,13 +15,13 @@ describe('TypestylesWebpackPlugin', () => {
       join(dir, 'src/typestyles-entry.js'),
       `import { createTypeStyles } from 'typestyles';
 const { recipe } = createTypeStyles();
-recipe('webpack-convention', { base: { color: 'purple' } });`,
+recipe({ name: 'webpack-convention', styles: { base: { color: 'purple' } } });`,
     );
     writeFileSync(
       join(dir, 'src/index.js'),
       `import { createStyles } from 'typestyles';
 const styles = createStyles();
-export const badge = styles.component('webpack-badge', { base: { padding: '4px' } });`,
+export const badge = styles.component({ name: 'webpack-badge', styles: { base: { padding: '4px' } } });`,
     );
 
     const errors: Error[] = [];

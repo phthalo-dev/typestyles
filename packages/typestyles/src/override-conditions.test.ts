@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 import { createStyles } from './styles';
+import { variant } from './variant';
 import { conditional } from './override';
 import { when } from './theme';
 import { registeredNamespaces } from './registry';
@@ -14,13 +15,15 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('emits base rule and a conditional ancestor attr rule with selectorPrefix', () => {
     const styles = createStyles({ colorModes });
-    const button = styles.component('cond-btn', {
-      base: { display: 'inline-flex' },
+    const button = styles.component({
+      name: 'cond-btn',
+      styles: { base: { display: 'inline-flex' } },
     });
 
-    styles.override(
-      button,
-      {
+    styles.override({
+      recipe: button,
+      selectorPrefix: '.theme-acme',
+      styles: {
         base: {
           letterSpacing: '0.02em',
           conditions: [
@@ -31,8 +34,7 @@ describe('styles.override() conditions + colorModes', () => {
           ],
         },
       },
-      { selectorPrefix: '.theme-acme' },
-    );
+    });
 
     flushSync();
     const css = getRegisteredCss();
@@ -44,11 +46,14 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('wraps prefersDark in @media', () => {
     const styles = createStyles();
-    const button = styles.component('cond-media-btn', { base: {} });
+    const button = styles.component({ name: 'cond-media-btn', styles: { base: {} } });
 
-    styles.override(button, {
-      base: {
-        conditions: [conditional(when.prefersDark, { color: 'white' })],
+    styles.override({
+      recipe: button,
+      styles: {
+        base: {
+          conditions: [conditional(when.prefersDark, { color: 'white' })],
+        },
       },
     });
 
@@ -60,16 +65,19 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('emits separate rules for when.or branches', () => {
     const styles = createStyles();
-    const button = styles.component('cond-or-btn', { base: {} });
+    const button = styles.component({ name: 'cond-or-btn', styles: { base: {} } });
 
-    styles.override(button, {
-      base: {
-        conditions: [
-          conditional(
-            when.or(when.attr('data-mode', 'dark', { scope: 'ancestor' }), when.prefersDark),
-            { fontWeight: 600 },
-          ),
-        ],
+    styles.override({
+      recipe: button,
+      styles: {
+        base: {
+          conditions: [
+            conditional(
+              when.or(when.attr('data-mode', 'dark', { scope: 'ancestor' }), when.prefersDark),
+              { fontWeight: 600 },
+            ),
+          ],
+        },
       },
     });
 
@@ -81,18 +89,25 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('applies conditions on variant options only', () => {
     const styles = createStyles();
-    const button = styles.component('cond-variant-btn', {
-      base: {},
-      variants: {
-        intent: { primary: { color: 'blue' } },
+    const button = styles.component({
+      name: 'cond-variant-btn',
+      variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+      styles: {
+        base: {},
+        variants: {
+          intent: { primary: { color: 'blue' } },
+        },
       },
     });
 
-    styles.override(button, {
-      variants: {
-        intent: {
-          primary: {
-            conditions: [conditional(when.prefersDark, { color: 'cyan' })],
+    styles.override({
+      recipe: button,
+      styles: {
+        variants: {
+          intent: {
+            primary: {
+              conditions: [conditional(when.prefersDark, { color: 'cyan' })],
+            },
           },
         },
       },
@@ -106,11 +121,14 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('serializes color mode values to light-dark() on color properties', () => {
     const styles = createStyles({ colorModes });
-    const button = styles.component('mode-color-btn', { base: {} });
+    const button = styles.component({ name: 'mode-color-btn', styles: { base: {} } });
 
-    styles.override(button, {
-      base: {
-        color: { light: '#111', dark: '#eee' },
+    styles.override({
+      recipe: button,
+      styles: {
+        base: {
+          color: { light: '#111', dark: '#eee' },
+        },
       },
     });
 
@@ -121,11 +139,14 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('allows conditions-only base blocks', () => {
     const styles = createStyles();
-    const button = styles.component('cond-only-btn', { base: {} });
+    const button = styles.component({ name: 'cond-only-btn', styles: { base: {} } });
 
-    styles.override(button, {
-      base: {
-        conditions: [conditional(when.prefersDark, { opacity: 0.9 })],
+    styles.override({
+      recipe: button,
+      styles: {
+        base: {
+          conditions: [conditional(when.prefersDark, { opacity: 0.9 })],
+        },
       },
     });
 
@@ -139,17 +160,21 @@ describe('styles.override() conditions + colorModes', () => {
     const styles = createStyles({
       layers: ['tokens', 'components', 'overrides'] as const,
     });
-    const button = styles.component('cond-layer-btn', { base: {} }, { layer: 'components' });
+    const button = styles.component({
+      name: 'cond-layer-btn',
+      layer: 'components',
+      styles: { base: {} },
+    });
 
-    styles.override(
-      button,
-      {
+    styles.override({
+      recipe: button,
+      layer: 'overrides',
+      styles: {
         base: {
           conditions: [conditional(when.prefersDark, { color: 'red' })],
         },
       },
-      { layer: 'overrides' },
-    );
+    });
 
     flushSync();
     const css = getRegisteredCss();
@@ -159,11 +184,14 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('supports conditional() with id and emits conditional styles', () => {
     const styles = createStyles();
-    const button = styles.component('cond-id-btn', { base: {} });
+    const button = styles.component({ name: 'cond-id-btn', styles: { base: {} } });
 
-    styles.override(button, {
-      base: {
-        conditions: [conditional(when.prefersDark, { color: 'lime' }, 'reduced-motion-fallback')],
+    styles.override({
+      recipe: button,
+      styles: {
+        base: {
+          conditions: [conditional(when.prefersDark, { color: 'lime' }, 'reduced-motion-fallback')],
+        },
       },
     });
 
@@ -175,23 +203,33 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('applies conditions on compound variant overrides', () => {
     const styles = createStyles();
-    const button = styles.component('cond-compound-btn', {
-      base: {},
+    const button = styles.component({
+      name: 'cond-compound-btn',
       variants: {
-        intent: { primary: { color: 'blue' } },
-        size: { lg: { fontSize: '18px' } },
+        intent: variant.enum(['primary'], { default: 'primary' }),
+        size: variant.enum(['lg'], { default: 'lg' }),
+      },
+      styles: {
+        base: {},
+        variants: {
+          intent: { primary: { color: 'blue' } },
+          size: { lg: { fontSize: '18px' } },
+        },
       },
     });
 
-    styles.override(button, {
-      compoundVariants: [
-        {
-          variants: { intent: 'primary', size: 'lg' },
-          style: {
-            conditions: [conditional(when.prefersDark, { fontWeight: 700 })],
+    styles.override({
+      recipe: button,
+      styles: {
+        compoundVariants: [
+          {
+            variants: { intent: 'primary', size: 'lg' },
+            style: {
+              conditions: [conditional(when.prefersDark, { fontWeight: 700 })],
+            },
           },
-        },
-      ],
+        ],
+      },
     });
 
     flushSync();
@@ -202,22 +240,29 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('applies conditions on slot variant overrides', () => {
     const styles = createStyles();
-    const input = styles.component('cond-slot-input', {
+    const input = styles.component({
+      name: 'cond-slot-input',
       slots: ['root', 'icon'] as const,
-      base: { root: { display: 'flex' }, icon: { width: '16px' } },
-      variants: {
-        tone: {
-          danger: { root: { color: 'red' }, icon: { color: 'red' } },
+      variants: { tone: variant.enum(['danger'], { default: 'danger' }) },
+      styles: {
+        base: { root: { display: 'flex' }, icon: { width: '16px' } },
+        variants: {
+          tone: {
+            danger: { root: { color: 'red' }, icon: { color: 'red' } },
+          },
         },
       },
     });
 
-    styles.override(input, {
-      variants: {
-        tone: {
-          danger: {
-            icon: {
-              conditions: [conditional(when.prefersDark, { width: '20px' })],
+    styles.override({
+      recipe: input,
+      styles: {
+        variants: {
+          tone: {
+            danger: {
+              icon: {
+                conditions: [conditional(when.prefersDark, { width: '20px' })],
+              },
             },
           },
         },
@@ -232,16 +277,19 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('applies conditions on multi-slot overrides', () => {
     const styles = createStyles();
-    const card = styles.component('cond-multi-slot', {
+    const card = styles.component({
+      name: 'cond-multi-slot',
       slots: ['root', 'title'] as const,
-      root: { display: 'grid' },
-      title: { fontWeight: 600 },
+      styles: { base: { root: { display: 'grid' }, title: { fontWeight: 600 } } },
     });
 
-    styles.override(card, {
-      base: {
-        title: {
-          conditions: [conditional(when.prefersDark, { fontSize: '20px' })],
+    styles.override({
+      recipe: card,
+      styles: {
+        base: {
+          title: {
+            conditions: [conditional(when.prefersDark, { fontSize: '20px' })],
+          },
         },
       },
     });
@@ -254,11 +302,14 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('wraps when.not(prefersDark) in @media not', () => {
     const styles = createStyles();
-    const button = styles.component('cond-not-btn', { base: {} });
+    const button = styles.component({ name: 'cond-not-btn', styles: { base: {} } });
 
-    styles.override(button, {
-      base: {
-        conditions: [conditional(when.not(when.prefersDark), { color: 'black' })],
+    styles.override({
+      recipe: button,
+      styles: {
+        base: {
+          conditions: [conditional(when.not(when.prefersDark), { color: 'black' })],
+        },
       },
     });
 
@@ -270,19 +321,19 @@ describe('styles.override() conditions + colorModes', () => {
 
   it('combines selectorPrefix with self-scoped attr conditions', () => {
     const styles = createStyles();
-    const button = styles.component('cond-self-attr-btn', { base: {} });
+    const button = styles.component({ name: 'cond-self-attr-btn', styles: { base: {} } });
 
-    styles.override(
-      button,
-      {
+    styles.override({
+      recipe: button,
+      selectorPrefix: '.theme-acme',
+      styles: {
         base: {
           conditions: [
             conditional(when.attr('data-mode', 'dark', { scope: 'self' }), { opacity: 0.8 }),
           ],
         },
       },
-      { selectorPrefix: '.theme-acme' },
-    );
+    });
 
     flushSync();
     const css = getRegisteredCss();

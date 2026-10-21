@@ -1,3 +1,4 @@
+import { variant } from './variant';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
   fileScopeId,
@@ -30,50 +31,65 @@ describe('class naming modes', () => {
 
   it('semantic mode keeps readable component() class strings', () => {
     const styles = createStyles({ mode: 'semantic' });
-    const button = styles.component('btn', {
-      base: { color: 'red' },
-      primary: { backgroundColor: 'blue' },
+    const button = styles.component({
+      name: 'btn',
+      variants: { primary: variant.boolean({ default: false }) },
+      styles: {
+        base: { color: 'red' },
+        variants: { primary: { true: { backgroundColor: 'blue' }, false: {} } },
+      },
     });
     expect(button.base).toBe('btn');
-    expect(button.primary).toBe('btn--primary');
+    expect(button['primary-true']).toBe('btn--primary-true');
   });
 
   it('hashed mode yields stable prefixed class names for component()', () => {
     const styles = createStyles({ mode: 'hashed', prefix: 'app' });
-    const a = styles.component('card', {
-      root: { padding: '8px' },
+    const a = styles.component({
+      name: 'card',
+      variants: { root: variant.boolean({ default: false }) },
+      styles: { variants: { root: { true: { padding: '8px' }, false: {} } } },
     });
     registeredNamespaces.clear();
-    const b = styles.component('card', {
-      root: { padding: '8px' },
+    const b = styles.component({
+      name: 'card',
+      variants: { root: variant.boolean({ default: false }) },
+      styles: { variants: { root: { true: { padding: '8px' }, false: {} } } },
     });
-    expect(a.root).toMatch(/^app-card-/);
-    expect(a.root).toBe(b.root);
+    expect(a['root-true']).toMatch(/^app-card-/);
+    expect(a['root-true']).toBe(b['root-true']);
   });
 
   it('scopeId changes hashed output for the same logical component styles', () => {
     const sa = createStyles({ mode: 'hashed', scopeId: 'pkg-a' });
-    const x = sa.component('box', { main: { margin: 0 } }).main;
+    const x = sa.component({
+      name: 'box',
+      variants: { main: variant.boolean({ default: false }) },
+      styles: { variants: { main: { true: { margin: 0 }, false: {} } } },
+    })['main-true'];
     reset();
     registeredNamespaces.clear();
     const sb = createStyles({ mode: 'hashed', scopeId: 'pkg-b' });
-    const y = sb.component('box', { main: { margin: 0 } }).main;
+    const y = sb.component({
+      name: 'box',
+      variants: { main: variant.boolean({ default: false }) },
+      styles: { variants: { main: { true: { margin: 0 }, false: {} } } },
+    })['main-true'];
     expect(x).not.toBe(y);
   });
 
   it('compact mode omits the namespace slug in class strings', () => {
     const styles = createStyles({ mode: 'compact', prefix: 'x' });
-    const button = styles.component('btn', {
-      base: { color: 'red' },
-    });
+    const button = styles.component({ name: 'btn', styles: { base: { color: 'red' } } });
     expect(button.base).toMatch(/^x-[a-z0-9]+$/);
     expect(button.base).not.toContain('btn');
   });
 
   it('atomic mode emits one class per declaration', () => {
     const styles = createStyles({ mode: 'atomic', prefix: 'x' });
-    const button = styles.component('btn', {
-      base: { color: 'red', padding: '8px' },
+    const button = styles.component({
+      name: 'btn',
+      styles: { base: { color: 'red', padding: '8px' } },
     });
     const parts = button.base.split(' ');
     expect(parts).toHaveLength(2);
@@ -90,15 +106,19 @@ describe('class naming modes', () => {
 
   it('createComponent resolves variant keys to hashed classes', () => {
     const styles = createStyles({ mode: 'hashed', prefix: 'c' });
-    const btn = styles.component('cb', {
-      base: { padding: '4px' },
-      variants: {
-        intent: {
-          primary: { color: 'blue' },
+    const btn = styles.component({
+      name: 'cb',
+      variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+      styles: {
+        base: { padding: '4px' },
+        variants: {
+          intent: {
+            primary: { color: 'blue' },
+          },
         },
       },
     });
-    const out = btn({ intent: 'primary' });
+    const out = btn({ intent: 'primary' }).className;
     expect(out).toMatch(/c-cb-/);
     expect(out).not.toContain('cb-intent-primary');
     flushSync();
@@ -137,13 +157,16 @@ describe('semantic mode with scopeId', () => {
 
   it('prefixes component class names with the sanitized scope', () => {
     const styles = createStyles({ scopeId: 'my-ui' });
-    const button = styles.component('button', {
-      base: { color: 'red' },
-      variants: { intent: { primary: { color: 'blue' } } },
+    const button = styles.component({
+      name: 'button',
+      variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+      styles: { base: { color: 'red' }, variants: { intent: { primary: { color: 'blue' } } } },
     });
     expect(button.base).toBe('my-ui-button');
     expect(button['intent-primary']).toBe('my-ui-button--intent-primary');
-    expect(button({ intent: 'primary' })).toBe('my-ui-button my-ui-button--intent-primary');
+    expect(button({ intent: 'primary' }).className).toBe(
+      'my-ui-button my-ui-button--intent-primary',
+    );
   });
 
   it('sanitizes package-style scope ids', () => {
@@ -161,8 +184,8 @@ describe('semantic mode with scopeId', () => {
   it('isolates the same logical namespace across scopes', () => {
     const sa = createStyles({ scopeId: 'pkg-a' });
     const sb = createStyles({ scopeId: 'pkg-b' });
-    const a = sa.component('button', { base: { color: 'red' } });
-    const b = sb.component('button', { base: { color: 'blue' } });
+    const a = sa.component({ name: 'button', styles: { base: { color: 'red' } } });
+    const b = sb.component({ name: 'button', styles: { base: { color: 'blue' } } });
     expect(a.base).not.toBe(b.base);
   });
 });
@@ -183,8 +206,8 @@ describe('class name collision detection (dev)', () => {
     // both emit "docs-button"
     const scoped = createStyles({ scopeId: 'docs' });
     const unscoped = createStyles();
-    scoped.component('button', { base: { color: 'red' } });
-    unscoped.component('docs-button', { base: { color: 'blue' } });
+    scoped.component({ name: 'button', styles: { base: { color: 'red' } } });
+    unscoped.component({ name: 'docs-button', styles: { base: { color: 'blue' } } });
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Class name collision'));
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('docs-button'));
   });
@@ -192,9 +215,9 @@ describe('class name collision detection (dev)', () => {
   it('does not error when the same definition re-registers (HMR)', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const styles = createStyles({ scopeId: 'app' });
-    styles.component('button', { base: { color: 'red' } });
+    styles.component({ name: 'button', styles: { base: { color: 'red' } } });
     // Same scope + namespace re-registered with edited styles — dev HMR path
-    styles.component('button', { base: { color: 'blue' } });
+    styles.component({ name: 'button', styles: { base: { color: 'blue' } } });
     const collisionCalls = errorSpy.mock.calls.filter(
       (args) => typeof args[0] === 'string' && args[0].includes('Class name collision'),
     );
@@ -214,7 +237,7 @@ describe('class name collision detection (dev)', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const styles = createStyles();
     styles.class('button', { color: 'red' });
-    styles.component('button', { base: { color: 'blue' } });
+    styles.component({ name: 'button', styles: { base: { color: 'blue' } } });
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Class name collision'));
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('button'));
   });
@@ -234,8 +257,8 @@ describe('unscoped collision warning (dev)', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const a = createStyles();
     const b = createStyles();
-    a.component('card', { base: { color: 'red' } });
-    b.component('card', { base: { color: 'blue' } });
+    a.component({ name: 'card', styles: { base: { color: 'red' } } });
+    b.component({ name: 'card', styles: { base: { color: 'blue' } } });
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("recipe('card'"));
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('without a scopeId'));
   });
@@ -243,8 +266,8 @@ describe('unscoped collision warning (dev)', () => {
   it('does not warn when scoped components re-register (HMR)', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const styles = createStyles({ scopeId: 'app' });
-    styles.component('button', { base: { color: 'red' } });
-    styles.component('button', { base: { color: 'blue' } });
+    styles.component({ name: 'button', styles: { base: { color: 'red' } } });
+    styles.component({ name: 'button', styles: { base: { color: 'blue' } } });
     const unscopedCalls = warnSpy.mock.calls.filter(
       (args) => typeof args[0] === 'string' && args[0].includes('without a scopeId'),
     );
@@ -256,9 +279,9 @@ describe('unscoped collision warning (dev)', () => {
     const a = createStyles();
     const b = createStyles();
     const c = createStyles();
-    a.component('tag', { base: { color: 'red' } });
-    b.component('tag', { base: { color: 'blue' } });
-    c.component('tag', { base: { color: 'green' } });
+    a.component({ name: 'tag', styles: { base: { color: 'red' } } });
+    b.component({ name: 'tag', styles: { base: { color: 'blue' } } });
+    c.component({ name: 'tag', styles: { base: { color: 'green' } } });
     const unscopedCalls = warnSpy.mock.calls.filter(
       (args) => typeof args[0] === 'string' && args[0].includes("recipe('tag'"),
     );

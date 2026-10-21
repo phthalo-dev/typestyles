@@ -7,11 +7,13 @@ describe('extractNamespaces', () => {
       import { createTypeStyles } from 'typestyles';
       const { recipe, tokens } = createTypeStyles();
       tokens.create('color', { primary: '#0066ff' });
-      recipe('button', { base: { color: 'red' } });
+      recipe({ name: 'button', styles: { base: { color: 'red' } } });
+      styles.component({ name: 'card', styles: { base: {} } });
+      recipe({ name: 'legacy', styles: { base: { color: 'red' } } });
     `;
     const result = extractNamespaces(code);
     expect(result.keys).toEqual(['tokens:color']);
-    expect(result.prefixes).toEqual(['.button-']);
+    expect(result.prefixes).toEqual(['.button-', '.card-', '.legacy-']);
   });
 
   it('extracts createTheme names from positional and named-argument forms', () => {
@@ -51,7 +53,7 @@ describe('moduleNeedsOverrideHmr', () => {
       true,
     );
     expect(moduleNeedsOverrideHmr('overrideComponent(button, { base: {} });')).toBe(true);
-    expect(moduleNeedsOverrideHmr("recipe('button', { base: {} });")).toBe(false);
+    expect(moduleNeedsOverrideHmr("recipe({ name: 'button', styles: { base: {} } });")).toBe(false);
   });
 
   it('detects renamed createDesignTheme / overrideComponent imports', () => {
@@ -83,7 +85,7 @@ describe('moduleNeedsOverrideHmr', () => {
         // createDesignTheme({ name: 'docs-only' })
         import { createStyles } from 'typestyles';
 const styles = createStyles();
-        styles.component('button', { base: { color: 'red' } });
+        styles.component({ name: 'button', styles: { base: { color: 'red' } } });
       `),
     ).toBe(false);
   });

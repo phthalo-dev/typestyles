@@ -63,6 +63,28 @@ function firstStringArg(args: TSESTree.CallExpressionArgument[]): TSESTree.Strin
   return null;
 }
 
+/** `name` string on `recipe({ name: '…' })` / `styles.component({ name: '…' })`. */
+function nameFromObjectArg(args: TSESTree.CallExpressionArgument[]): TSESTree.StringLiteral | null {
+  const first = args[0];
+  if (!first || first.type !== 'ObjectExpression') return null;
+  for (const prop of first.properties) {
+    if (prop.type !== 'Property' || prop.computed) continue;
+    const key =
+      prop.key.type === 'Identifier'
+        ? prop.key.name
+        : prop.key.type === 'Literal' && typeof prop.key.value === 'string'
+          ? prop.key.value
+          : null;
+    if (key !== 'name') continue;
+    if (prop.value.type === 'Literal' && typeof prop.value.value === 'string') return prop.value;
+  }
+  return null;
+}
+
+function recipeNameArg(args: TSESTree.CallExpressionArgument[]): TSESTree.StringLiteral | null {
+  return nameFromObjectArg(args) ?? firstStringArg(args);
+}
+
 /**
  * Detect TypeStyles namespace registrations from call expressions.
  * Matches API shape (e.g. `style('card', …)` / `recipe('button', …)`) regardless of import alias.
@@ -77,7 +99,7 @@ export function getNamespaceCall(node: TSESTree.CallExpression): NamespaceCall |
   }
 
   if (callee.type === 'Identifier' && callee.name === 'recipe') {
-    const nameNode = firstStringArg(args);
+    const nameNode = recipeNameArg(args);
     if (!nameNode) return null;
     return { kind: 'recipe', key: `.${nameNode.value}-`, nameNode };
   }
@@ -109,7 +131,7 @@ export function getNamespaceCall(node: TSESTree.CallExpression): NamespaceCall |
   }
 
   if (isMemberCall(callee, 'styles', 'component')) {
-    const nameNode = firstStringArg(args);
+    const nameNode = recipeNameArg(args);
     if (!nameNode) return null;
     return { kind: 'styles.component', key: `.${nameNode.value}-`, nameNode };
   }

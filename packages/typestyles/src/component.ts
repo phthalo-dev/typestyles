@@ -392,7 +392,7 @@ export function createComponent(
           : undefined;
     if (emitLayer == null || emitLayer === '') {
       throw new Error(
-        `[typestyles] \`layer\` is required for recipe('${namespace}', …) when using cascade layers without a factory \`layers.style\` / \`styleLayer\` default.`,
+        `[typestyles] \`layer\` is required for recipe({ name: '${namespace}', … }) when using cascade layers without a factory \`layers.style\` / \`styleLayer\` default.`,
       );
     }
     assertOwnLayer(classNaming.cascadeLayers, emitLayer, `recipe('${namespace}', …)`);
@@ -533,7 +533,7 @@ export function isSchemaRecipeDefinition(value: unknown): value is RecipeDefinit
 /** Build docs metadata (slots, axis kind, options, defaults) from a schema definition. */
 export function buildRecipeSchemaMeta(definition: RecipeDefinition): RecipeSchemaMeta {
   const variants: Record<string, RecipeSchemaAxis> = {};
-  for (const [name, axis] of Object.entries(definition.variants)) {
+  for (const [name, axis] of Object.entries(definition.variants ?? {})) {
     const typed = axis as VariantAxis;
     variants[name] =
       typed.kind === 'boolean'
@@ -559,7 +559,7 @@ export function createSchemaComponent(
   buildOptions?: ComponentBuildOptions | string,
 ): object {
   const defaultVariants: Record<string, unknown> = {};
-  for (const [axis, value] of Object.entries(definition.variants)) {
+  for (const [axis, value] of Object.entries(definition.variants ?? {})) {
     defaultVariants[axis] = (value as VariantAxis).default;
   }
 
@@ -1151,9 +1151,9 @@ function createAttributeDimensionedComponent<V extends VariantDefinitions>(
   return result;
 }
 
-function createComponentAttrsResult(
+export function createComponentAttrsResult(
   className: string,
-  attrs: Record<string, string>,
+  attrs: Record<string, string> = {},
 ): ComponentAttrsResult {
   const props = { className, ...attrs };
   return {

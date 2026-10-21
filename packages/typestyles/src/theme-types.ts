@@ -1,10 +1,10 @@
+import type { OverrideTokenNode } from './override';
 import type {
   CreateTokenValues,
-  ThemeComponentOverrideEntry,
   ThemeCondition,
   ThemeConfig,
-  ThemeOverrideContext,
   ThemeSource,
+  VariantOptionStyle,
 } from './types';
 
 type TokensMap = Record<string, CreateTokenValues>;
@@ -22,14 +22,36 @@ export type InferThemeTokensFromConfig<C extends Pick<ThemeConfig, 'tokens'>> = 
   C['tokens']
 >;
 
-/** Typed `components` map for `createTheme` (factories see `ctx.tokens` from `tokens`). */
-export type ThemeComponentsFor<T extends Pick<ThemeConfig, 'tokens'>> = {
-  components?: Record<
+/** Partial style object inside a theme `components` entry. Slots nest under `base`. */
+export type ThemeComponentStylePatch = {
+  base?: VariantOptionStyle | Record<string, VariantOptionStyle>;
+  variants?: Record<
     string,
-    | ThemeComponentOverrideEntry
-    | ((ctx: ThemeOverrideContext<InferThemeTokensFromConfig<T>>) => ThemeComponentOverrideEntry)
+    Record<string, VariantOptionStyle | Record<string, VariantOptionStyle>>
   >;
+  compoundVariants?: ReadonlyArray<{
+    variants: Record<string, unknown>;
+    style: VariantOptionStyle | Record<string, VariantOptionStyle>;
+  }>;
 };
+
+export type ThemeComponentPatch = {
+  /** New values for vars the recipe already declared. */
+  vars?: Record<string, unknown>;
+  styles?:
+    | ThemeComponentStylePatch
+    | ((ctx: {
+        readonly vars: { readonly [key: string]: { readonly name: string; readonly var: string } };
+        readonly tokens: OverrideTokenNode;
+      }) => ThemeComponentStylePatch);
+};
+
+/** Typed `components` map for `createTheme`. The component key replaces `recipe`. */
+export type ThemeComponentsFor<T extends Pick<ThemeConfig, 'tokens'>> = [
+  InferThemeTokensFromConfig<T>,
+] extends [never]
+  ? { components?: Record<string, ThemeComponentPatch> }
+  : { components?: Record<string, ThemeComponentPatch> };
 
 type CreateThemeConfigFields = Omit<ThemeConfig, 'components'>;
 

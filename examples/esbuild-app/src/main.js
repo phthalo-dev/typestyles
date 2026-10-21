@@ -3,11 +3,14 @@ import { createTypeStyles } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const title = recipe('esbuild-title', {
-  base: {
-    fontSize: '24px',
-    fontWeight: 700,
-    marginBottom: '8px',
+const title = recipe({
+  name: 'esbuild-title',
+  styles: {
+    base: {
+      fontSize: '24px',
+      fontWeight: 700,
+      marginBottom: '8px',
+    },
   },
 });
 

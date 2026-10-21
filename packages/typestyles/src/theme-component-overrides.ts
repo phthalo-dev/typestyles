@@ -1,12 +1,8 @@
-import type {
-  ThemeComponentOverrideEntry,
-  ThemeConfig,
-  ThemeOverrideContext,
-  Theme,
-} from './types';
+import type { ThemeConfig, ThemeOverrideContext, Theme } from './types';
 import type { ComponentRegistryApi } from './component-registry';
 import type { OverrideFn } from './override';
 import type { ThemeTokenContext } from './theme-token-context';
+import type { ThemeComponentPatch } from './theme-types';
 
 export type { ThemeOverrideContext };
 
@@ -25,7 +21,6 @@ export function applyThemeComponentOverrides(
   if (!components) return;
 
   const themeable = styles.getThemeableComponents();
-  const ctx: ThemeOverrideContext = { tokens, theme: surface };
 
   for (const [namespace, entry] of Object.entries(components)) {
     const handle = styles.getComponent(namespace);
@@ -33,7 +28,7 @@ export function applyThemeComponentOverrides(
       if (process.env.NODE_ENV !== 'production') {
         throw new Error(
           `[typestyles] createTheme: unknown component namespace "${namespace}". ` +
-            `Register the recipe with recipe('${namespace}', …) on the same createTypeStyles instance.`,
+            `Register the recipe with recipe({ name: '${namespace}', … }) on the same createTypeStyles instance.`,
         );
       }
       continue;
@@ -42,20 +37,27 @@ export function applyThemeComponentOverrides(
       if (process.env.NODE_ENV !== 'production') {
         throw new Error(
           `[typestyles] createTheme: component "${namespace}" is not themeable ` +
-            `(recipe(..., { themeable: false })).`,
+            `(recipe({ name: '${namespace}', themeable: false })).`,
         );
       }
       continue;
     }
 
-    const config = typeof entry === 'function' ? entry(ctx) : entry;
-    const overrideForTheme = styles.override as (
-      component: object,
-      config: ThemeComponentOverrideEntry,
-      options?: { selectorPrefix?: string },
-    ) => void;
-    overrideForTheme(handle, config, {
+    const patch = entry as ThemeComponentPatch;
+    const styleValue =
+      typeof patch.styles === 'function'
+        ? (patch.styles as unknown as (ctx: { vars: object; tokens: ThemeTokenContext }) => object)(
+            {
+              vars: (handle as { vars?: object }).vars ?? {},
+              tokens,
+            },
+          )
+        : (patch.styles ?? {});
+    styles.override({
+      recipe: handle,
       selectorPrefix: `.${surface.className}`,
-    });
+      vars: patch.vars,
+      styles: styleValue,
+    } as Parameters<OverrideFn>[0]);
   }
 }

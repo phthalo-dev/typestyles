@@ -63,12 +63,14 @@ describe('atomic mode integration', () => {
 
   it('shares declaration classes across components', () => {
     const styles = createStyles({ mode: 'atomic', prefix: 'x' });
-    const a = styles.component('btn-a', {
-      base: { color: 'red', padding: '4px' },
+    const a = styles.component({
+      name: 'btn-a',
+      styles: { base: { color: 'red', padding: '4px' } },
     });
     registeredNamespaces.clear();
-    const b = styles.component('btn-b', {
-      base: { color: 'red', margin: '8px' },
+    const b = styles.component({
+      name: 'btn-b',
+      styles: { base: { color: 'red', margin: '8px' } },
     });
 
     const aClasses = a.base.split(' ');
@@ -83,8 +85,9 @@ describe('atomic mode integration', () => {
 
   it('compact mode keeps whole-object hash-only names', () => {
     const styles = createStyles({ mode: 'compact', prefix: 'c' });
-    const button = styles.component('btn', {
-      base: { color: 'red', padding: '8px' },
+    const button = styles.component({
+      name: 'btn',
+      styles: { base: { color: 'red', padding: '8px' } },
     });
     expect(button.base).toMatch(/^c-[a-z0-9]+$/);
     expect(button.base.split(' ')).toHaveLength(1);

@@ -2,10 +2,13 @@ import { createTypeStyles } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-recipe('esbuild-hero', {
-  base: {
-    padding: '24px',
-    fontFamily: 'system-ui, sans-serif',
-    color: '#111827',
+recipe({
+  name: 'esbuild-hero',
+  styles: {
+    base: {
+      padding: '24px',
+      fontFamily: 'system-ui, sans-serif',
+      color: '#111827',
+    },
   },
 });

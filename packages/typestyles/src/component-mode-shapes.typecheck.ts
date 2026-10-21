@@ -1,46 +1,52 @@
 /**
- * Compile-only fixtures (included in `tsc --noEmit`, not shipped in the bundle entry).
- * Verifies createStyles({ mode: 'attribute' }) narrows styles.component()'s return type and
- * supports per-slot attrs results.
+ * Compile-only fixtures. Every recipe call returns `{ className, attrs, props }`.
+ * Attribute mode still fills `attrs`; other modes leave `attrs` empty and put the
+ * composed class on `className`.
  */
 import { createStyles } from './styles';
+import { variant } from './variant';
 
 const attributeStyles = createStyles({ mode: 'attribute' });
 
 export function _attributeComponentReturnsAttrsResult() {
-  const button = attributeStyles.component('shape-button', {
-    base: { padding: '8px' },
-    variants: { variant: { primary: { color: 'blue' } } },
+  const button = attributeStyles.component({
+    name: 'shape-button',
+    variants: { variant: variant.enum(['primary'], { default: 'primary' }) },
+    styles: {
+      base: { padding: '8px' },
+      variants: { variant: { primary: { color: 'blue' } } },
+    },
   });
   const b = button({ variant: 'primary' });
-  // Only compiles if `b` is ComponentAttrsResult, not a plain string.
   return b.attrs;
 }
 
 export function _attributeComponentAcceptsSlots() {
-  const dialog = attributeStyles.component('shape-dialog', {
-    slots: ['root', 'trigger'] as const,
-    base: { root: { display: 'grid' } },
-    variants: { size: { lg: { trigger: { fontSize: '16px' } } } },
+  const dialog = attributeStyles.component({
+    name: 'shape-dialog',
+    slots: ['root', 'trigger'],
+    variants: { size: variant.enum(['lg'], { default: 'lg' }) },
+    styles: {
+      base: { root: { display: 'grid' } },
+      variants: { size: { lg: { trigger: { fontSize: '16px' } } } },
+    },
   });
   return dialog({ size: 'lg' }).trigger.attrs;
 }
 
 const bemStyles = createStyles({ mode: 'bem' });
 
-export function _bemComponentReturnsPlainString() {
-  const button = bemStyles.component('shape-bem-button', {
-    base: { padding: '8px' },
-    variants: { variant: { primary: { color: 'blue' } } },
+export function _bemComponentReturnsAttrsObject() {
+  const button = bemStyles.component({
+    name: 'shape-bem-button',
+    variants: { variant: variant.enum(['primary'], { default: 'primary' }) },
+    styles: {
+      base: { padding: '8px' },
+      variants: { variant: { primary: { color: 'blue' } } },
+    },
   });
-  // Only compiles if this is a plain string (mode: 'bem' needs no new return type).
-  const cls: string = button({ variant: 'primary' });
-  return cls;
-}
-
-export function _bemComponentAcceptsSlots() {
-  return bemStyles.component('shape-bem-dialog', {
-    slots: ['root', 'trigger'],
-    base: { root: { display: 'grid' } },
-  });
+  const result = button({ variant: 'primary' });
+  const cls: string = result.className;
+  const attrs: Readonly<Record<string, string>> = result.attrs;
+  return { cls, attrs };
 }

@@ -1,3 +1,4 @@
+import { variant } from './variant';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createComponent } from './component';
 import { mergeClassNaming } from './class-naming';
@@ -214,19 +215,23 @@ describe('createComponent — attribute-mode dimensioned variants', () => {
         insetX: (value: string | number) => ({ paddingLeft: value, paddingRight: value }),
       },
     });
-    styles.component('utility-dialog', {
+    styles.component({
+      name: 'utility-dialog',
       slots: ['root', 'content'] as const,
-      base: { content: { insetX: '4px' } },
       variants: {
-        size: { lg: { content: { insetX: '8px' } } },
-        tone: { emphasis: {} },
+        size: variant.enum(['lg'], { default: 'lg' }),
+        tone: variant.enum(['emphasis'], { default: 'emphasis' }),
       },
-      compoundVariants: [
-        {
-          variants: { size: 'lg', tone: 'emphasis' },
-          style: { content: { insetX: '12px' } },
-        },
-      ],
+      styles: {
+        base: { content: { insetX: '4px' } },
+        compoundVariants: [
+          {
+            variants: { size: 'lg', tone: 'emphasis' },
+            style: { content: { insetX: '12px' } },
+          },
+        ],
+        variants: { size: { lg: { content: { insetX: '8px' } } }, tone: { emphasis: {} } },
+      },
     });
 
     flushSync();
@@ -409,9 +414,10 @@ describe('createStyles({ mode: "attribute" })', () => {
 
   it('every dimensioned component from the instance compiles in attribute mode', () => {
     const styles = createStyles({ mode: 'attribute', scopeId: 'ds-a' });
-    const btn = styles.component('gbtn', {
-      base: { padding: '8px' },
-      variants: { variant: { primary: { color: 'blue' } } },
+    const btn = styles.component({
+      name: 'gbtn',
+      variants: { variant: variant.enum(['primary'], { default: 'primary' }) },
+      styles: { base: { padding: '8px' }, variants: { variant: { primary: { color: 'blue' } } } },
     });
 
     const b = btn({ variant: 'primary' });
@@ -420,11 +426,14 @@ describe('createStyles({ mode: "attribute" })', () => {
 
   it('a plain (non-attribute-mode) instance compiles class-based variants as before', () => {
     const styles = createStyles({ scopeId: 'ds-c' });
-    const btn = styles.component('plainbtn', {
-      base: { padding: '8px' },
-      variants: { variant: { primary: { color: 'blue' } } },
+    const btn = styles.component({
+      name: 'plainbtn',
+      variants: { variant: variant.enum(['primary'], { default: 'primary' }) },
+      styles: { base: { padding: '8px' }, variants: { variant: { primary: { color: 'blue' } } } },
     });
 
-    expect(btn({ variant: 'primary' })).toBe('ds-c-plainbtn ds-c-plainbtn--variant-primary');
+    expect(btn({ variant: 'primary' }).className).toBe(
+      'ds-c-plainbtn ds-c-plainbtn--variant-primary',
+    );
   });
 });

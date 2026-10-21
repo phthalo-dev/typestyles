@@ -24,26 +24,18 @@ describe.skipIf(!parityEnabled)('runtime/build parity', () => {
     await writeFile(
       entryFile,
       `
-import { createStyles } from 'typestyles';
+import { createStyles, variant } from 'typestyles';
 const styles = createStyles();
 
-styles.component('parity-button', {
-  base: { padding: '8px', borderWidth: '1px', borderStyle: 'solid' },
-  variants: {
-    intent: {
+styles.component({ name: 'parity-button', variants: { intent: variant.enum(["primary", "ghost"], { default: "primary" }), outlined: variant.boolean({ default: false }) }, styles: { base: { padding: '8px', borderWidth: '1px', borderStyle: 'solid' }, compoundVariants: [
+    { variants: { intent: ['primary', 'ghost'], outlined: true }, style: { fontWeight: 700 } },
+  ], variants: { intent: {
       primary: { color: 'white', backgroundColor: 'blue' },
       ghost: { color: 'blue', backgroundColor: 'transparent' },
-    },
-    outlined: {
+    }, outlined: {
       true: { borderColor: 'currentColor' },
       false: { borderColor: 'transparent' },
-    },
-  },
-  compoundVariants: [
-    { variants: { intent: ['primary', 'ghost'], outlined: true }, style: { fontWeight: 700 } },
-  ],
-  defaultVariants: { intent: 'primary', outlined: false },
-});
+    } } } });
 
 `,
       'utf8',
@@ -90,9 +82,7 @@ createTheme('parity-dark', {
   base: { 'parity-color': { primary: '#66aaff', surface: '#111111' } },
 });
 
-recipe('parity-themed-card', {
-  base: { color: color.primary, backgroundColor: color.surface },
-});
+recipe({ name: 'parity-themed-card', styles: { base: { color: color.primary, backgroundColor: color.surface } } });
 `,
       'utf8',
     );

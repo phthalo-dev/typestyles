@@ -1,3 +1,4 @@
+import { variant } from './variant';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 import { createStyles } from './styles';
@@ -53,17 +54,12 @@ describe('cascade layers', () => {
     const styles = createStyles({
       layers: ['components'] as const,
     });
-    styles.component(
-      'btn',
-      {
-        base: { padding: '8px' },
-        variants: {
-          size: { sm: { fontSize: '12px' } },
-        },
-        defaultVariants: { size: 'sm' },
-      },
-      { layer: 'components' },
-    );
+    styles.component({
+      name: 'btn',
+      layer: 'components',
+      variants: { size: variant.enum(['sm'], { default: 'sm' }) },
+      styles: { base: { padding: '8px' }, variants: { size: { sm: { fontSize: '12px' } } } },
+    });
     flushSync();
     const css = getRegisteredCss();
     expect(css).toMatch(/@layer components/);
@@ -75,27 +71,25 @@ describe('cascade layers', () => {
       scopeId: 'layer-fn',
       layers: ['components'] as const,
     });
-    const btn = styles.component(
-      'layered-fn-btn',
-      (c) => {
-        const v = c.vars({
-          fg: { value: '#111', syntax: '<color>', inherits: false },
-        });
-        return {
-          base: { color: v.fg.var },
-          variants: {
-            intent: {
-              primary: { [v.fg.name]: '#fff', backgroundColor: '#336699' },
-              ghost: { [v.fg.name]: '#222', backgroundColor: 'transparent' },
-            },
-          },
-          defaultVariants: { intent: 'ghost' as const },
-        };
+    const btn = styles.component({
+      name: 'layered-fn-btn',
+      layer: 'components',
+      variants: { intent: variant.enum(['primary', 'ghost'], { default: 'ghost' }) },
+      vars: {
+        fg: { value: '#111', syntax: '<color>', inherits: false },
       },
-      { layer: 'components' },
-    );
+      styles: ({ vars: v }) => ({
+        base: { color: v.fg.var },
+        variants: {
+          intent: {
+            primary: { [v.fg.name]: '#fff', backgroundColor: '#336699' },
+            ghost: { [v.fg.name]: '#222', backgroundColor: 'transparent' },
+          },
+        },
+      }),
+    });
     const classes = btn({ intent: 'primary' });
-    expect(classes).toContain('layered-fn-btn');
+    expect(classes.className).toContain('layered-fn-btn');
     flushSync();
     expect(getRegisteredCss()).toContain('@layer components');
   });
@@ -158,9 +152,11 @@ describe('cascade layers', () => {
     const styles = createStyles({
       layers: ['components'] as const,
     });
-    styles.component(
-      'merge-btn',
-      {
+    styles.component({
+      name: 'merge-btn',
+      layer: 'components',
+      variants: { size: variant.enum(['sm', 'lg'], { default: 'sm' }) },
+      styles: {
         base: { padding: '8px' },
         variants: {
           size: {
@@ -169,8 +165,7 @@ describe('cascade layers', () => {
           },
         },
       },
-      { layer: 'components' },
-    );
+    });
     flushSync();
     const css = getRegisteredCss();
     expect(css.match(/@layer components \{/g)?.length).toBe(1);
@@ -206,27 +201,28 @@ describe('cascade layers', () => {
       },
     });
 
-    recipe(
-      'button',
-      (c) => {
-        const bg = c.var('bg', {
+    recipe({
+      name: 'button',
+      layer: 'components',
+      variants: { role: variant.enum(['primary', 'secondary'], { default: 'primary' }) },
+      vars: {
+        bg: {
           value: 'var(--vui-color-brand)',
           syntax: '<color>',
-        });
-        return {
-          base: {
-            background: bg.var,
-          },
-          variants: {
-            role: {
-              primary: { background: 'var(--vui-color-red-10)' },
-              secondary: { border: '1px solid black' },
-            },
-          },
-        };
+        },
       },
-      { layer: 'components' },
-    );
+      styles: ({ vars: v }) => ({
+        base: {
+          background: v.bg.var,
+        },
+        variants: {
+          role: {
+            primary: { background: 'var(--vui-color-red-10)' },
+            secondary: { border: '1px solid black' },
+          },
+        },
+      }),
+    });
 
     flushSync();
     await expect(getRegisteredCss()).toMatchFileSnapshot(

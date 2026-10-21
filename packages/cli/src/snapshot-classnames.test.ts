@@ -132,7 +132,7 @@ export const card = recipe('card', () => ({
     }
   });
 
-  it('records flat attribute modifier classes and skips template-mode names', () => {
+  it('records attribute base classes and skips boolean and template-mode modifier classes', () => {
     const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'typestyles-snapshot-'));
     try {
       fs.writeFileSync(
@@ -147,22 +147,11 @@ export const tmpl = createStyles({ mode: 'template', classNameTemplate: (ctx) =>
         path.join(rootDir, 'card.ts'),
         `
 import { attr, tmpl } from './styles';
-export const card = attr.component('card', {
-  base: { padding: '8px' },
-  elevated: { boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
-});
-export const button = attr.component('button', {
-  base: { padding: '8px' },
-  variants: {
-    intent: {
+export const card = attr.component({ name: 'card', variants: { elevated: variant.boolean({ default: false }) }, styles: { base: { padding: '8px' }, variants: { elevated: { true: { boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }, false: {} } } } });
+export const button = attr.component({ name: 'button', variants: { intent: variant.enum(["primary"], { default: "primary" }) }, styles: { base: { padding: '8px' }, variants: { intent: {
       primary: { color: 'white' },
-    },
-  },
-});
-export const custom = tmpl.component('custom', {
-  base: { color: 'red' },
-  variants: { size: { lg: { fontSize: '18px' } } },
-});
+    } } } });
+export const custom = tmpl.component({ name: 'custom', variants: { size: variant.enum(["lg"], { default: "lg" }) }, styles: { base: { color: 'red' }, variants: { size: { lg: { fontSize: '18px' } } } } });
 `,
       );
 
@@ -174,7 +163,7 @@ export const custom = tmpl.component('custom', {
       );
 
       expect(snapshot.classNames).toContain('card');
-      expect(snapshot.classNames).toContain('card--elevated');
+      expect(snapshot.classNames).not.toContain('card--elevated');
       expect(snapshot.classNames).toContain('button');
       expect(snapshot.classNames).not.toContain('button--intent-primary');
       expect(snapshot.classNames).not.toContain('custom');
@@ -199,30 +188,26 @@ export const { recipe } = createTypeStyles({ scopeId: 'ds', mode: 'semantic' });
         `
 import { recipe } from './runtime';
 import { variant } from 'typestyles';
-export const alert = recipe(
-  'alert',
-  {
-    slots: ['root', 'body', 'title'] as const,
+export const alert = recipe({
+  name: 'alert',
+  layer: 'components',
+  slots: ['root', 'body', 'title'] as const,
+  variants: {
+    tone: variant.enum(['info', 'danger'], { default: 'info' }),
+    elevated: variant.boolean({ default: false }),
+  },
+  vars: { accent: { value: 'blue', syntax: '<color>' } },
+  styles: ({ vars: v }) => ({
+    base: { root: { color: v.accent.var }, body: { flex: 1 }, title: { fontWeight: 600 } },
     variants: {
-      tone: variant.enum(['info', 'danger'], { default: 'info' }),
-      elevated: variant.boolean({ default: false }),
-    },
-  },
-  (c) => {
-    const v = c.vars({ accent: { value: 'blue', syntax: '<color>' } });
-    return {
-      base: { root: { color: v.accent.var }, body: { flex: 1 }, title: { fontWeight: 600 } },
-      variants: {
-        tone: {
-          info: { root: { color: 'blue' } },
-          danger: { root: { color: 'red' } },
-        },
-        elevated: { true: { root: { boxShadow: '0 1px 2px' } }, false: {} },
+      tone: {
+        info: { root: { color: 'blue' } },
+        danger: { root: { color: 'red' } },
       },
-    };
-  },
-  { layer: 'components' },
-);
+      elevated: { true: { root: { boxShadow: '0 1px 2px' } }, false: {} },
+    },
+  }),
+});
 `,
       );
 
@@ -264,9 +249,7 @@ export const typestyles = createTypeStyles({ scopeId: 'ds', mode: 'attribute' })
 import { typestyles } from './runtime';
 import { variant } from 'typestyles';
 export const button = typestyles.recipe(
-  'button',
-  { variants: { size: variant.enum(['sm', 'lg'], { default: 'sm' }) } },
-  () => ({ base: { borderRadius: 4 }, variants: { size: { sm: {}, lg: {} } } }),
+  { name: 'button', styles: { variants: { size: variant.enum(['sm', 'lg'], { default: 'sm' }) } } },
 );
 `,
       );

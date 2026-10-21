@@ -185,6 +185,38 @@ function isSchemaRecipeCall(node: ts.CallExpression): boolean {
   return ts.isArrowFunction(unwrapped) || ts.isFunctionExpression(unwrapped);
 }
 
+function propertyInit(obj: ts.ObjectLiteralExpression, key: string): ts.Expression | undefined {
+  for (const prop of obj.properties) {
+    if (!ts.isPropertyAssignment(prop)) continue;
+    if (getStaticObjectKey(prop.name) === key) return prop.initializer;
+  }
+  return undefined;
+}
+
+/**
+ * `recipe({ name, slots?, styles })` or the removed positional
+ * `recipe(name, config | definition, callback?)`.
+ */
+function recipeInputFromCall(node: ts.CallExpression): {
+  namespace: string;
+  styles: ts.ObjectLiteralExpression | null;
+  slots: ts.ArrayLiteralExpression | null;
+} | null {
+  const first = node.arguments[0];
+  if (!first) return null;
+  const unwrapped = unwrapExpression(first);
+  if (ts.isObjectLiteralExpression(unwrapped)) {
+    const namespace = literalFromProperty(unwrapped, 'name');
+    if (!namespace) return null;
+    return {
+      namespace,
+      styles: objectExpressionFromConfigArg(propertyInit(unwrapped, 'styles')),
+      slots: slotsArrayFromObject(unwrapped),
+    };
+  }
+  return null;
+}
+
 /** Slots declared on a schema recipe's definition argument, if any. */
 function definitionSlots(arg: ts.Expression | undefined): ts.ArrayLiteralExpression | null {
   if (!arg) return null;
@@ -521,7 +553,8 @@ function collectCallsFromSourceFile(
     if (ts.isCallExpression(node)) {
       const method = calleeMethodName(node.expression);
       if (method === 'class' || method === 'component') {
-        const namespace = firstStringArg(node.arguments);
+        const recipeInput = method === 'component' ? recipeInputFromCall(node) : null;
+        const namespace = recipeInput?.namespace ?? firstStringArg(node.arguments);
         if (!namespace) {
           ts.forEachChild(node, visit);
           return;
@@ -542,11 +575,15 @@ function collectCallsFromSourceFile(
             });
           }
         } else {
-          const schemaCall = isSchemaRecipeCall(node);
-          const configObj = objectExpressionFromConfigArg(
-            schemaCall ? node.arguments[2] : node.arguments[1],
-          );
-          const slotsOverride = schemaCall ? definitionSlots(node.arguments[1]) : undefined;
+          const schemaCall = recipeInput ? false : isSchemaRecipeCall(node);
+          const configObj =
+            recipeInput?.styles ??
+            objectExpressionFromConfigArg(schemaCall ? node.arguments[2] : node.arguments[1]);
+          const slotsOverride = recipeInput
+            ? recipeInput.slots
+            : schemaCall
+              ? definitionSlots(node.arguments[1])
+              : undefined;
           const parts = configObj
             ? collectClassNamePartsFromConfig(configObj, slotsOverride)
             : [{}];

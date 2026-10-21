@@ -27,7 +27,6 @@ import type {
 type StylesSurface<
   U = undefined,
   L extends string | undefined = undefined,
-  Attrs extends boolean = false,
 > = ComponentRegistryApi & {
   readonly classNaming: Readonly<ClassNamingConfig>;
   readonly container: typeof containerQuery;
@@ -42,16 +41,16 @@ type StylesSurface<
   readonly where: typeof whereNested;
   class: ClassFn<U, L>;
   hashClass: HashFn<U, L>;
-  component: RecipeFn<L, Attrs>;
+  component: RecipeFn<L, [L] extends [undefined] ? 'none' : 'required'>;
   compose: <const S extends readonly ComposeSelectorInput[]>(...selectors: S) => ComposeFn<S>;
   scope: ScopeFn<U, L>;
   override: [L] extends [undefined] ? OverrideFn : OverrideFn<L & string>;
-} & ([U] extends [StyleUtils] ? object : WithoutUtils<L, Attrs>);
+} & ([U] extends [StyleUtils] ? object : WithoutUtils<L>);
 
 /** `property` and `withUtils` exist only before utils are applied. That matches the runtime object. */
-type WithoutUtils<L extends string | undefined, Attrs extends boolean> = {
+type WithoutUtils<L extends string | undefined> = {
   property: StylesPropertyFn;
-  withUtils: <U2 extends StyleUtils>(utils: U2) => StylesSurface<U2, L, Attrs>;
+  withUtils: <U2 extends StyleUtils>(utils: U2) => StylesSurface<U2, L>;
 };
 
 type StyleProps<U> = [U] extends [StyleUtils]
@@ -78,7 +77,6 @@ type ScopeFn<U, L extends string | undefined> = [L] extends [undefined]
     ) => void;
 
 type HasUtils<O> = O extends { utils: infer U extends StyleUtils } ? U : undefined;
-type HasAttrs<O> = O extends { mode: 'attribute' } ? true : false;
 type LayerNames<O> = O extends { layers: infer L extends readonly string[] }
   ? L[number]
   : O extends { layers: { readonly order: infer L extends readonly string[] } }
@@ -96,4 +94,4 @@ type LayerNames<O> = O extends { layers: infer L extends readonly string[] }
  */
 // `{}` is the empty options bag (no utils, no layers, semantic mode), not a value type.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type StylesApi<O = {}> = StylesSurface<HasUtils<O>, LayerNames<O>, HasAttrs<O>>;
+export type StylesApi<O = {}> = StylesSurface<HasUtils<O>, LayerNames<O>>;

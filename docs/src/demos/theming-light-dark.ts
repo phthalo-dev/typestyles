@@ -21,13 +21,16 @@ export const darkTheme = tokens.createTheme({
   },
 });
 
-export const card = recipe('demo-card', {
-  base: {
-    padding: '16px 20px',
-    borderRadius: '8px',
-    border: '1px solid color-mix(in srgb, var(--theme-text) 12%, transparent)',
-    backgroundColor: 'var(--theme-surface)',
-    color: 'var(--theme-text)',
+export const card = recipe({
+  name: 'demo-card',
+  styles: {
+    base: {
+      padding: '16px 20px',
+      borderRadius: '8px',
+      border: '1px solid color-mix(in srgb, var(--theme-text) 12%, transparent)',
+      backgroundColor: 'var(--theme-surface)',
+      color: 'var(--theme-text)',
+    },
   },
 });
 
