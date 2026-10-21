@@ -72,13 +72,16 @@ export const color = tokens.create(
 ### 3. Button recipe
 
 ```ts
+import { variant } from 'typestyles';
 // components/button.ts
 import { recipe } from '../typestyles';
 import { color } from '../tokens/color';
 
-export const button = recipe(
-  'button',
-  {
+export const button = recipe({
+  name: 'button',
+  layer: 'components',
+  variants: { intent: variant.enum(['primary', 'ghost'], { default: 'primary' }) },
+  styles: {
     base: {
       padding: '8px 16px',
       borderRadius: '6px',
@@ -97,10 +100,8 @@ export const button = recipe(
         },
       },
     },
-    defaultVariants: { intent: 'primary' },
   },
-  { layer: 'components' },
-);
+});
 ```
 
 ### 4. Brand theme
@@ -146,11 +147,12 @@ import { override } from '../typestyles';
 import { button } from '../components/button';
 import { brand } from './brand';
 
-override(
-  button,
-  { variants: { intent: { ghost: { textDecoration: 'underline' } } } },
-  { selectorPrefix: `.${brand.className}`, layer: 'overrides' },
-);
+override({
+  recipe: button,
+  layer: 'overrides',
+  selectorPrefix: `.${brand.className}`,
+  styles: { variants: { intent: { ghost: { textDecoration: 'underline' } } } },
+});
 ```
 
 Sharing one root theme across many brands? Use [`Theme.override`](/docs/theming-patterns#deriving-child-themes-override).
@@ -167,10 +169,10 @@ import { brand } from './themes/brand';
 export function App() {
   return (
     <div className={brand.className}>
-      <button type="button" className={button()}>
+      <button type="button" className={button().className}>
         Primary
       </button>
-      <button type="button" className={button({ intent: 'ghost' })}>
+      <button type="button" className={button({ intent: 'ghost' }).className}>
         Ghost
       </button>
     </div>
@@ -202,14 +204,12 @@ Or override tokens from **plain CSS** (no TypeStyles in the consumer app):
 Theme-scoped recipe restyles use a **descendant** prefix (not CSS `@scope`):
 
 ```ts
-override(
-  button,
-  { base: { borderRadius: '999px' } },
-  {
-    selectorPrefix: `.${brand.className}`, // → ".theme-app-brand .button { … }"
-    layer: 'overrides',
-  },
-);
+override({
+  recipe: button,
+  layer: 'overrides',
+  selectorPrefix: `.${brand.className}`,
+  styles: { base: { borderRadius: '999px' } },
+});
 ```
 
 Prefer this (or `createTheme({ components })`) over hand-written class strings. Cascade layers keep override order predictable — see [Cascade layers](/docs/cascade-layers).

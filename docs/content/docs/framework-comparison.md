@@ -62,30 +62,34 @@ Each snippet is a **typed** `intent` (`primary` = filled, `ghost` = outline). Re
 [`createTypeStyles`](/docs/api-reference#createtypestyles-options) keeps **styles** and **tokens** on one **`scopeId`** (see [Getting started](/docs/getting-started)).
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe, tokens } = createTypeStyles({ scopeId: 'app' });
 const color = tokens.create('color', { primary: '#2563eb', surface: '#ffffff' });
 
-export const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
-    borderRadius: '6px',
-    fontWeight: 500,
-    border: 'none',
-    cursor: 'pointer',
-  },
-  variants: {
-    intent: {
-      primary: { backgroundColor: color.primary, color: color.surface },
-      ghost: {
-        backgroundColor: 'transparent',
-        color: color.primary,
-        border: `1px solid ${color.primary}`,
+export const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary', 'ghost'], { default: 'primary' }) },
+  styles: {
+    base: {
+      padding: '8px 16px',
+      borderRadius: '6px',
+      fontWeight: 500,
+      border: 'none',
+      cursor: 'pointer',
+    },
+    variants: {
+      intent: {
+        primary: { backgroundColor: color.primary, color: color.surface },
+        ghost: {
+          backgroundColor: 'transparent',
+          color: color.primary,
+          border: `1px solid ${color.primary}`,
+        },
       },
     },
   },
-  defaultVariants: { intent: 'primary' },
 });
 ```
 
@@ -139,7 +143,12 @@ export const button = cva({
   variants: {
     intent: {
       primary: { bg: 'blue.600', color: 'white', borderWidth: '0' },
-      ghost: { bg: 'transparent', color: 'blue.600', borderWidth: '1px', borderColor: 'blue.600' },
+      ghost: {
+        bg: 'transparent',
+        color: 'blue.600',
+        borderWidth: '1px',
+        borderColor: 'blue.600',
+      },
     },
   },
   defaultVariants: { intent: 'primary' },
@@ -170,7 +179,11 @@ export const button = recipe({
   variants: {
     intent: {
       primary: { background: '#2563eb', color: '#fff' },
-      ghost: { background: 'transparent', color: '#2563eb', border: '1px solid #2563eb' },
+      ghost: {
+        background: 'transparent',
+        color: '#2563eb',
+        border: '1px solid #2563eb',
+      },
     },
   },
   defaultVariants: { intent: 'primary' },

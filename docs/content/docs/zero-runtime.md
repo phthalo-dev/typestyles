@@ -57,7 +57,10 @@ import { createTypeStyles } from 'typestyles';
 const { tokens } = createTypeStyles({ scopeId: 'app' });
 
 export const color = tokens.create('color', { primary: '#0066ff', surface: '#ffffff' });
-tokens.createTheme({ name: 'dark', tokens: { color: { primary: '#66aaff', surface: '#111111' } } });
+tokens.createTheme({
+  name: 'dark',
+  tokens: { color: { primary: '#66aaff', surface: '#111111' } },
+});
 ```
 
 ```css

@@ -90,6 +90,7 @@ function Button({ intent, size, children }) {
 TypeStyles generates class names that mirror your authored style names. If you write a variant called `intent: { primary: {...} }`, you get a class name `button-intent-primary` in the DOM. What you see in your code is what you see in DevTools.
 
 ```tsx
+import { variant } from 'typestyles';
 const card = recipe({
   name: 'card',
   variants: { elevated: variant.boolean({ default: false }) },
@@ -366,6 +367,7 @@ Sync and async render functions are supported — `collectStyles` returns a `Pro
 Creates a component style. Declare variant axes with `variant.enum` / `variant.boolean` and put option styles in `styles`. Calling it returns `{ className, attrs, props }`.
 
 ```tsx
+import { variant } from 'typestyles';
 const button = recipe({
   name: 'button',
   variants: {

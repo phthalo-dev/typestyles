@@ -19,9 +19,12 @@ const fadeIn = keyframes.create('fadeIn', {
   to: { opacity: 1 },
 });
 
-const card = recipe('card', {
-  base: {
-    animation: `${fadeIn} 300ms ease`,
+const card = recipe({
+  name: 'card',
+  styles: {
+    base: {
+      animation: `${fadeIn} 300ms ease`,
+    },
   },
 });
 ```
@@ -111,32 +114,46 @@ const popIn = keyframes.create('popIn', {
 ### Loading spinner
 
 ```ts
+import { variant } from 'typestyles';
 const spin = keyframes.create('spin', {
   from: { transform: 'rotate(0deg)' },
   to: { transform: 'rotate(360deg)' },
 });
 
-const spinner = recipe('spinner', {
-  base: {
-    display: 'inline-block',
-    width: '24px',
-    height: '24px',
-    border: '3px solid #e5e7eb',
-    borderTopColor: '#3b82f6',
-    borderRadius: '50%',
-    animation: `${spin} 800ms linear infinite`,
+const spinner = recipe({
+  name: 'spinner',
+  variants: {
+    sm: variant.boolean({ default: false }),
+    lg: variant.boolean({ default: false }),
   },
-
-  sm: {
-    width: '16px',
-    height: '16px',
-    borderWidth: '2px',
-  },
-
-  lg: {
-    width: '32px',
-    height: '32px',
-    borderWidth: '4px',
+  styles: {
+    base: {
+      display: 'inline-block',
+      width: '24px',
+      height: '24px',
+      border: '3px solid #e5e7eb',
+      borderTopColor: '#3b82f6',
+      borderRadius: '50%',
+      animation: `${spin} 800ms linear infinite`,
+    },
+    variants: {
+      sm: {
+        true: {
+          width: '16px',
+          height: '16px',
+          borderWidth: '2px',
+        },
+        false: {},
+      },
+      lg: {
+        true: {
+          width: '32px',
+          height: '32px',
+          borderWidth: '4px',
+        },
+        false: {},
+      },
+    },
   },
 });
 ```
@@ -149,11 +166,14 @@ const pulse = keyframes.create('pulse', {
   '50%': { opacity: 0.5 },
 });
 
-const skeleton = recipe('skeleton', {
-  base: {
-    backgroundColor: '#e5e7eb',
-    borderRadius: '4px',
-    animation: `${pulse} 2s ease-in-out infinite`,
+const skeleton = recipe({
+  name: 'skeleton',
+  styles: {
+    base: {
+      backgroundColor: '#e5e7eb',
+      borderRadius: '4px',
+      animation: `${pulse} 2s ease-in-out infinite`,
+    },
   },
 });
 ```
@@ -161,19 +181,17 @@ const skeleton = recipe('skeleton', {
 ### Shake animation (error state)
 
 ```ts
+import { variant } from 'typestyles';
 const shake = keyframes.create('shake', {
   '0%, 100%': { transform: 'translateX(0)' },
   '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-4px)' },
   '20%, 40%, 60%, 80%': { transform: 'translateX(4px)' },
 });
 
-const input = recipe('input', {
-  base: { ... },
-  error: {
+const input = recipe({ name: 'input', variants: { error: variant.boolean({ default: false }) }, styles: { base: { ... }, variants: { error: { true: {
     borderColor: '#ef4444',
     animation: `${shake} 500ms ease-in-out`,
-  },
-});
+  }, false: {} } } } });
 ```
 
 ### Bounce animation
@@ -190,9 +208,15 @@ const bounce = keyframes.create('bounce', {
   },
 });
 
-const notification = recipe('notification', {
-  badge: {
-    animation: `${bounce} 1s infinite`,
+const notification = recipe({
+  name: 'notification',
+  slots: ['badge'] as const,
+  styles: {
+    base: {
+      badge: {
+        animation: `${bounce} 1s infinite`,
+      },
+    },
   },
 });
 ```
@@ -207,9 +231,15 @@ const pageFadeIn = keyframes.create('pageFadeIn', {
   to: { opacity: 1 },
 });
 
-const pageLayout = recipe('page', {
-  container: {
-    animation: `${pageFadeIn} 300ms ease`,
+const pageLayout = recipe({
+  name: 'page',
+  slots: ['container'] as const,
+  styles: {
+    base: {
+      container: {
+        animation: `${pageFadeIn} 300ms ease`,
+      },
+    },
   },
 });
 ```
@@ -230,17 +260,29 @@ const listItemFadeIn = keyframes.create('listItemFadeIn', {
 });
 
 // Delay classes for stagger effect
-const list = recipe('list', {
-  item: {
-    opacity: 0,
-    animation: `${listItemFadeIn} 300ms ease forwards`,
+const list = recipe({
+  name: 'list',
+  slots: [
+    'item',
+    'itemDelay1',
+    'itemDelay2',
+    'itemDelay3',
+    'itemDelay4',
+    'itemDelay5',
+  ] as const,
+  styles: {
+    base: {
+      item: {
+        opacity: 0,
+        animation: `${listItemFadeIn} 300ms ease forwards`,
+      },
+      itemDelay1: { animationDelay: '50ms' },
+      itemDelay2: { animationDelay: '100ms' },
+      itemDelay3: { animationDelay: '150ms' },
+      itemDelay4: { animationDelay: '200ms' },
+      itemDelay5: { animationDelay: '250ms' },
+    },
   },
-
-  itemDelay1: { animationDelay: '50ms' },
-  itemDelay2: { animationDelay: '100ms' },
-  itemDelay3: { animationDelay: '150ms' },
-  itemDelay4: { animationDelay: '200ms' },
-  itemDelay5: { animationDelay: '250ms' },
 });
 
 // React usage with index
@@ -271,24 +313,32 @@ function List({ items }) {
 ### Button press
 
 ```ts
+import { variant } from 'typestyles';
 const buttonPress = keyframes.create('buttonPress', {
   '0%': { transform: 'scale(1)' },
   '50%': { transform: 'scale(0.95)' },
   '100%': { transform: 'scale(1)' },
 });
 
-const button = recipe('button', {
-  base: {
-    transition: 'transform 100ms ease',
+const button = recipe({
+  name: 'button',
+  variants: { press: variant.boolean({ default: false }) },
+  styles: {
+    base: {
+      transition: 'transform 100ms ease',
 
-    '&:active': {
-      transform: 'scale(0.95)',
+      '&:active': {
+        transform: 'scale(0.95)',
+      },
     },
-  },
-
-  // Or with keyframe for more control
-  press: {
-    animation: `${buttonPress} 150ms ease`,
+    variants: {
+      press: {
+        true: {
+          animation: `${buttonPress} 150ms ease`,
+        },
+        false: {},
+      },
+    },
   },
 });
 ```
@@ -296,6 +346,7 @@ const button = recipe('button', {
 ### Checkbox check
 
 ```ts
+import { variant } from 'typestyles';
 const checkmark = keyframes.create('checkmark', {
   '0%': {
     strokeDashoffset: 100,
@@ -305,36 +356,39 @@ const checkmark = keyframes.create('checkmark', {
   },
 });
 
-const checkbox = recipe('checkbox', {
-  base: { ... },
-
-  checkmark: {
+const checkbox = recipe({ name: 'checkbox', variants: { checkmark: variant.boolean({ default: false }), checked: variant.boolean({ default: false }) }, styles: { base: { ... }, variants: { checkmark: { true: {
     strokeDasharray: 100,
     strokeDashoffset: 100,
-  },
-
-  checked: {
+  }, false: {} }, checked: { true: {
     '& .checkmark': {
       animation: `${checkmark} 200ms ease forwards`,
     },
-  },
-});
+  }, false: {} } } } });
 ```
 
 ### Hover lift effect
 
 ```ts
-const card = recipe('card', {
-  base: {
-    transition: 'transform 200ms ease, box-shadow 200ms ease',
-  },
+import { variant } from 'typestyles';
+const card = recipe({
+  name: 'card',
+  variants: { interactive: variant.boolean({ default: false }) },
+  styles: {
+    base: {
+      transition: 'transform 200ms ease, box-shadow 200ms ease',
+    },
+    variants: {
+      interactive: {
+        true: {
+          cursor: 'pointer',
 
-  interactive: {
-    cursor: 'pointer',
-
-    '&:hover': {
-      transform: 'translateY(-4px)',
-      boxShadow: '0 12px 24px rgba(0, 0, 0, 0.15)',
+          '&:hover': {
+            transform: 'translateY(-4px)',
+            boxShadow: '0 12px 24px rgba(0, 0, 0, 0.15)',
+          },
+        },
+        false: {},
+      },
     },
   },
 });
@@ -377,33 +431,41 @@ const modalContentSlideOut = keyframes.create('modalContentSlideOut', {
   },
 });
 
-const modal = recipe('modal', {
-  backdrop: {
-    position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-
-  backdropEnter: {
-    animation: `${modalBackdropFadeIn} 200ms ease`,
-  },
-
-  backdropExit: {
-    animation: `${modalBackdropFadeOut} 200ms ease forwards`,
-  },
-
-  content: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    padding: '24px',
-  },
-
-  contentEnter: {
-    animation: `${modalContentSlideIn} 300ms ease`,
-  },
-
-  contentExit: {
-    animation: `${modalContentSlideOut} 200ms ease forwards`,
+const modal = recipe({
+  name: 'modal',
+  slots: [
+    'backdrop',
+    'backdropEnter',
+    'backdropExit',
+    'content',
+    'contentEnter',
+    'contentExit',
+  ] as const,
+  styles: {
+    base: {
+      backdrop: {
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      },
+      backdropEnter: {
+        animation: `${modalBackdropFadeIn} 200ms ease`,
+      },
+      backdropExit: {
+        animation: `${modalBackdropFadeOut} 200ms ease forwards`,
+      },
+      content: {
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        padding: '24px',
+      },
+      contentEnter: {
+        animation: `${modalContentSlideIn} 300ms ease`,
+      },
+      contentExit: {
+        animation: `${modalContentSlideOut} 200ms ease forwards`,
+      },
+    },
   },
 });
 ```
@@ -411,6 +473,7 @@ const modal = recipe('modal', {
 ### Toast notifications
 
 ```ts
+import { variant } from 'typestyles';
 const toastSlideIn = keyframes.create('toastSlideIn', {
   from: {
     opacity: 0,
@@ -438,42 +501,67 @@ const toastProgress = keyframes.create('toastProgress', {
   to: { transform: 'scaleX(0)' },
 });
 
-const toast = recipe('toast', {
-  base: {
-    padding: '16px 20px',
-    borderRadius: '8px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+const toast = recipe({
+  name: 'toast',
+  variants: {
+    enter: variant.boolean({ default: false }),
+    exit: variant.boolean({ default: false }),
+    progressBar: variant.boolean({ default: false }),
+    success: variant.boolean({ default: false }),
+    error: variant.boolean({ default: false }),
+    info: variant.boolean({ default: false }),
   },
-
-  enter: {
-    animation: `${toastSlideIn} 300ms ease`,
-  },
-
-  exit: {
-    animation: `${toastSlideOut} 300ms ease forwards`,
-  },
-
-  progressBar: {
-    height: '3px',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    marginTop: '12px',
-    transformOrigin: 'left',
-    animation: `${toastProgress} 5000ms linear forwards`,
-  },
-
-  success: {
-    backgroundColor: '#10b981',
-    color: 'white',
-  },
-
-  error: {
-    backgroundColor: '#ef4444',
-    color: 'white',
-  },
-
-  info: {
-    backgroundColor: '#3b82f6',
-    color: 'white',
+  styles: {
+    base: {
+      padding: '16px 20px',
+      borderRadius: '8px',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    },
+    variants: {
+      enter: {
+        true: {
+          animation: `${toastSlideIn} 300ms ease`,
+        },
+        false: {},
+      },
+      exit: {
+        true: {
+          animation: `${toastSlideOut} 300ms ease forwards`,
+        },
+        false: {},
+      },
+      progressBar: {
+        true: {
+          height: '3px',
+          backgroundColor: 'rgba(255, 255, 255, 0.3)',
+          marginTop: '12px',
+          transformOrigin: 'left',
+          animation: `${toastProgress} 5000ms linear forwards`,
+        },
+        false: {},
+      },
+      success: {
+        true: {
+          backgroundColor: '#10b981',
+          color: 'white',
+        },
+        false: {},
+      },
+      error: {
+        true: {
+          backgroundColor: '#ef4444',
+          color: 'white',
+        },
+        false: {},
+      },
+      info: {
+        true: {
+          backgroundColor: '#3b82f6',
+          color: 'white',
+        },
+        false: {},
+      },
+    },
   },
 });
 ```
@@ -481,43 +569,69 @@ const toast = recipe('toast', {
 ### Skeleton loading
 
 ```ts
+import { variant } from 'typestyles';
 const shimmer = keyframes.create('shimmer', {
   '0%': { backgroundPosition: '-200% 0' },
   '100%': { backgroundPosition: '200% 0' },
 });
 
-const skeleton = recipe('skeleton', {
-  base: {
-    backgroundColor: '#e5e7eb',
-    borderRadius: '4px',
+const skeleton = recipe({
+  name: 'skeleton',
+  variants: {
+    animated: variant.boolean({ default: false }),
+    text: variant.boolean({ default: false }),
+    textLarge: variant.boolean({ default: false }),
+    circle: variant.boolean({ default: false }),
+    avatar: variant.boolean({ default: false }),
+    card: variant.boolean({ default: false }),
   },
-
-  animated: {
-    background: 'linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%)',
-    backgroundSize: '200% 100%',
-    animation: `${shimmer} 1.5s infinite`,
-  },
-
-  text: {
-    height: '1em',
-    marginBottom: '0.5em',
-  },
-
-  textLarge: {
-    height: '1.5em',
-  },
-
-  circle: {
-    borderRadius: '50%',
-  },
-
-  avatar: {
-    width: '40px',
-    height: '40px',
-  },
-
-  card: {
-    height: '200px',
+  styles: {
+    base: {
+      backgroundColor: '#e5e7eb',
+      borderRadius: '4px',
+    },
+    variants: {
+      animated: {
+        true: {
+          background: 'linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%)',
+          backgroundSize: '200% 100%',
+          animation: `${shimmer} 1.5s infinite`,
+        },
+        false: {},
+      },
+      text: {
+        true: {
+          height: '1em',
+          marginBottom: '0.5em',
+        },
+        false: {},
+      },
+      textLarge: {
+        true: {
+          height: '1.5em',
+        },
+        false: {},
+      },
+      circle: {
+        true: {
+          borderRadius: '50%',
+        },
+        false: {},
+      },
+      avatar: {
+        true: {
+          width: '40px',
+          height: '40px',
+        },
+        false: {},
+      },
+      card: {
+        true: {
+          height: '200px',
+        },
+        false: {},
+      },
+    },
   },
 });
 ```
@@ -527,6 +641,7 @@ const skeleton = recipe('skeleton', {
 ### Infinite scroll indicator
 
 ```ts
+import { variant } from 'typestyles';
 const scrollIndicator = keyframes.create('scrollIndicator', {
   '0%, 100%': {
     opacity: 1,
@@ -538,21 +653,33 @@ const scrollIndicator = keyframes.create('scrollIndicator', {
   },
 });
 
-const scrollCue = recipe('scroll-cue', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '4px',
+const scrollCue = recipe({
+  name: 'scroll-cue',
+  variants: {
+    arrow: variant.boolean({ default: false }),
+    arrowDelay1: variant.boolean({ default: false }),
+    arrowDelay2: variant.boolean({ default: false }),
+    arrowDelay3: variant.boolean({ default: false }),
   },
-
-  arrow: {
-    animation: `${scrollIndicator} 1.5s ease-in-out infinite`,
+  styles: {
+    base: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '4px',
+    },
+    variants: {
+      arrow: {
+        true: {
+          animation: `${scrollIndicator} 1.5s ease-in-out infinite`,
+        },
+        false: {},
+      },
+      arrowDelay1: { true: { animationDelay: '0ms' }, false: {} },
+      arrowDelay2: { true: { animationDelay: '150ms' }, false: {} },
+      arrowDelay3: { true: { animationDelay: '300ms' }, false: {} },
+    },
   },
-
-  arrowDelay1: { animationDelay: '0ms' },
-  arrowDelay2: { animationDelay: '150ms' },
-  arrowDelay3: { animationDelay: '300ms' },
 });
 ```
 
@@ -590,11 +717,14 @@ const badAnimation = keyframes.create('badAnimation', {
 
 ```ts
 // Respect reduced motion preference
-const animated = recipe('animated', {
-  base: {
-    '@media (prefers-reduced-motion: reduce)': {
-      animation: 'none',
-      transition: 'none',
+const animated = recipe({
+  name: 'animated',
+  styles: {
+    base: {
+      '@media (prefers-reduced-motion: reduce)': {
+        animation: 'none',
+        transition: 'none',
+      },
     },
   },
 });
@@ -616,9 +746,12 @@ const enter = 'cubic-bezier(0, 0, 0.2, 1)';
 const exit = 'cubic-bezier(0.4, 0, 1, 1)';
 
 // Usage
-const button = recipe('button', {
-  base: {
-    transition: `transform 200ms ${springy}`,
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      transition: `transform 200ms ${springy}`,
+    },
   },
 });
 ```
@@ -655,7 +788,7 @@ const slideOutUp = keyframes.create('slideOutUp', { ... });
 function createStaggeredAnimation(
   baseName: string,
   itemCount: number,
-  baseDelay: number
+  baseDelay: number,
 ): Record<string, string> {
   const delays: Record<string, string> = {};
 
@@ -676,10 +809,7 @@ function StaggeredList({ items }) {
   return (
     <ul>
       {items.map((item, index) => (
-        <li
-          key={item.id}
-          className={list('item', delayClass(index))}
-        >
+        <li key={item.id} className={list('item', delayClass(index))}>
           {item.name}
         </li>
       ))}
@@ -714,9 +844,15 @@ export const presets = {
 } as const;
 
 // Usage
-const modal = recipe('modal', {
-  enter: {
-    animation: presets.fade.in,
+const modal = recipe({
+  name: 'modal',
+  slots: ['enter'] as const,
+  styles: {
+    base: {
+      enter: {
+        animation: presets.fade.in,
+      },
+    },
   },
 });
 ```

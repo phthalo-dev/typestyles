@@ -25,9 +25,12 @@ import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const card = recipe('card', {
-  base: {
-    animation: `${fadeIn} 300ms ease`,
+const card = recipe({
+  name: 'card',
+  styles: {
+    base: {
+      animation: `${fadeIn} 300ms ease`,
+    },
   },
 });
 
@@ -61,14 +64,17 @@ const spin = keyframes.create('spin', {
   to: { transform: 'rotate(360deg)' },
 });
 
-const loader = recipe('loader', {
-  base: {
-    width: '24px',
-    height: '24px',
-    border: '3px solid #e5e7eb',
-    borderTopColor: '#0066ff',
-    borderRadius: '50%',
-    animation: `${spin} 800ms linear infinite`,
+const loader = recipe({
+  name: 'loader',
+  styles: {
+    base: {
+      width: '24px',
+      height: '24px',
+      border: '3px solid #e5e7eb',
+      borderTopColor: '#0066ff',
+      borderRadius: '50%',
+      animation: `${spin} 800ms linear infinite`,
+    },
   },
 });
 ```

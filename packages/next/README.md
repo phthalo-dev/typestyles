@@ -231,14 +231,17 @@ import { createTypeStyles } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: {
-    padding: '12px 24px',
-    backgroundColor: '#0066ff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      padding: '12px 24px',
+      backgroundColor: '#0066ff',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer',
+    },
   },
 });
 
@@ -273,11 +276,14 @@ export const spacing = tokens.create('space', {
 // app/page.tsx
 import { recipe, colors, spacing } from './styles';
 
-const card = recipe('card', {
-  base: {
-    padding: spacing.md,
-    backgroundColor: colors.primary,
-    borderRadius: '8px',
+const card = recipe({
+  name: 'card',
+  styles: {
+    base: {
+      padding: spacing.md,
+      backgroundColor: colors.primary,
+      borderRadius: '8px',
+    },
   },
 });
 

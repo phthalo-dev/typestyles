@@ -149,35 +149,37 @@ Existing `property(id, { value, syntax, inherits })` call sites continue to work
 
 See [API reference — `styles`](/docs/api-reference#styles) for the full signature.
 
-## `ctx.vars.declare`
+## Recipe `vars`
 
-Component-scoped custom properties: `--{scope}-{component}-{path}`. There is no `ctx.vars.set()` — values are set where they always were: `[ref.name]: value` in `base`, variants, and compound variants.
+Component-scoped custom properties: `--{scope}-{component}-{path}`. Declare them on the recipe. The style callback receives the ref tree, and values are set with `[ref.name]` or `ref.var` inside `styles`.
 
 ```ts
-const badge = recipe('badge', (c) => {
-  const v = c.vars.declare({
-    textColor: { syntax: '<color>', inherits: false },
-    borderWidth: true,
-  });
-  return {
+import { variant } from 'typestyles';
+
+const badge = recipe({
+  name: 'badge',
+  variants: { tone: variant.enum(['neutral', 'danger'], { default: 'neutral' }) },
+  vars: {
+    textColor: { syntax: '<color>', inherits: false, value: '#333' },
+    borderWidth: '1px',
+  },
+  styles: ({ vars }) => ({
     base: {
-      [v.borderWidth.name]: '1px',
-      color: v.textColor.var,
+      color: vars.textColor.var,
       borderStyle: 'solid',
-      borderWidth: v.borderWidth.var,
+      borderWidth: vars.borderWidth.var,
     },
     variants: {
       tone: {
-        neutral: { [v.textColor.name]: '#333' },
-        danger: { [v.textColor.name]: '#900' },
+        neutral: { [vars.textColor.name]: '#333' },
+        danger: { [vars.textColor.name]: '#900' },
       },
     },
-    defaultVariants: { tone: 'neutral' },
-  };
+  }),
 });
 ```
 
-Schema leaves are either `{ syntax, inherits?, initial? }` (`@property` emitted, no default in `base`) or `true` (plain custom property, ref only). The shorthand `c.vars({ … })` still bundles registration and default values when you know them at declare time.
+A leaf is a string, a number, or `{ value, syntax?, inherits? }`. For an `@property` that should not carry a recipe default, use `property.declare` and reference it from `styles`.
 
 See [Components — Expose themeable properties as vars](/docs/components#expose-themeable-properties-as-vars).
 

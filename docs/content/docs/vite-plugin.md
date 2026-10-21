@@ -162,10 +162,13 @@ import { createTypeStyles } from 'typestyles';
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 import { color } from './tokens';
 
-export const button = recipe('button', {
-  base: {
-    backgroundColor: color.primary,
-    padding: '8px 16px',
+export const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      backgroundColor: color.primary,
+      padding: '8px 16px',
+    },
   },
 });
 

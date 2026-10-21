@@ -23,7 +23,7 @@ export const { style, recipe, tokens, global } = createTypeStyles({ scopeId: 'ap
 - `hash(properties, options?)`: Deterministic hashed class (was `styles.hashClass`); `options` may include `label` and `layer`
 - `recipe(namespace, config, options?)`: Multi-variant / slot recipe (was `styles.component`); optional `{ layer?, themeable? }`. Also accepts the **schema-first** shape `recipe(namespace, definition, callback, options?)` — see [`variant`](#variant-schema-axes) and [Schema-first recipes](/docs/schema-recipes)
 - `compose(...fns)`: Compose multiple style functions
-- `override(component, config, options?)`: Recipe-shaped typed overrides from component `__tsMeta`, including typed **`vars`** and [schema-first recipes](/docs/schema-recipes) (see [Theming patterns](/docs/theming-patterns#override-component-internal-vars))
+- `override({ recipe, styles, vars?, layer?, selectorPrefix? })`: partial styles for a recipe, including typed **`vars`** ([schema-first recipes](/docs/schema-recipes), [Theming patterns](/docs/theming-patterns#override-component-internal-vars))
 - `scope(opts, className, overrides)`: Proximity-correct overrides via CSS `@scope`
 - `property(id, options?)` / `property.declare` / `property.set`: Standalone CSS custom properties (optional `@property` when `syntax` is set)
 - `container(…)`, `supports(…)`, `has(…)`, `is(…)`, `where(…)`, `atRuleBlock(…)`, `when(…)`, `breakpoint(…)`, `media(…)`, `containerRef(label)`: Nested-selector / at-rule helpers (also available as top-level named exports)
@@ -49,16 +49,16 @@ const { recipe } = createTypeStyles({ mode: 'attribute' });
 
 const controlSize = variant.enum(['sm', 'md', 'lg'], { default: 'md' });
 
-const button = recipe(
-  'button',
-  { variants: { size: controlSize, elevated: variant.boolean({ default: false }) } },
-  () => ({
+const button = recipe({
+  name: 'button',
+  variants: { size: controlSize, elevated: variant.boolean({ default: false }) },
+  styles: () => ({
     variants: {
       size: { sm: {}, md: {}, lg: {} },
       elevated: { true: {}, false: {} },
     },
   }),
-);
+});
 
 button.defaults; // { size: 'md', elevated: false }
 ```
@@ -215,13 +215,20 @@ Use `cx` to combine TypeStyles classes with external class strings and condition
 In development, passing a `ComponentAttrsResult` from attribute mode logs a warning — variant attrs are not applied. Use [`mergeProps`](#mergepropsresult-classnames) or [`combine`](#combineparts) instead. See [Attribute mode — React & Astro](/docs/attribute-mode-react).
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles, cx } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const card = recipe('card', {
-  base: { padding: '16px' },
-  elevated: { boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
+const card = recipe({
+  name: 'card',
+  variants: { elevated: variant.boolean({ default: false }) },
+  styles: {
+    base: { padding: '16px' },
+    variants: {
+      elevated: { true: { boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }, false: {} },
+    },
+  },
 });
 
 cx(card(), isElevated && card.elevated, externalClassName);
@@ -247,7 +254,9 @@ Merge multiple recipe results onto one element — union of class names and comp
 ```ts
 import { combine } from 'typestyles';
 
-<a {...combine(c.root, c.linkRoot, className)} href={href}>…</a>
+<a {...combine(c.root, c.linkRoot, className)} href={href}>
+  …
+</a>;
 ```
 
 See [Attribute mode — React & Astro](/docs/attribute-mode-react).
@@ -284,16 +293,18 @@ Exported types: **`ClassNamingMode`**, **`ClassNamingConfig`**, **`ClassNameCont
 ### Creating styles
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { recipe, tokens } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: { padding: '8px 16px' },
-  variants: {
-    intent: { primary: { backgroundColor: '#0066ff' } },
+const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+  styles: {
+    base: { padding: '8px 16px' },
+    variants: { intent: { primary: { backgroundColor: '#0066ff' } } },
   },
-  defaultVariants: { intent: 'primary' },
 });
 
 button(); // "app-button app-button--intent-primary"

@@ -12,16 +12,26 @@ Testing components styled with typestyles is straightforward. Since typestyles g
 Since typestyles returns regular class names, test your components the same way you'd test any React/Vue/Svelte component:
 
 ```tsx
+import { variant } from 'typestyles';
 // Button.tsx
 import type { ReactNode } from 'react';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: { padding: '8px 16px' },
-  primary: { backgroundColor: '#0066ff' },
-  large: { fontSize: '18px' },
+const button = recipe({
+  name: 'button',
+  variants: {
+    primary: variant.boolean({ default: false }),
+    large: variant.boolean({ default: false }),
+  },
+  styles: {
+    base: { padding: '8px 16px' },
+    variants: {
+      primary: { true: { backgroundColor: '#0066ff' }, false: {} },
+      large: { true: { fontSize: '18px' }, false: {} },
+    },
+  },
 });
 
 export function Button({
@@ -85,11 +95,16 @@ describe('Button', () => {
 When variants are applied conditionally, test both states:
 
 ```tsx
+import { variant } from 'typestyles';
 import { cx } from 'typestyles';
 
-const btn = recipe('button', {
-  base: { padding: '8px 16px' },
-  loading: { cursor: 'wait', opacity: 0.8 },
+const btn = recipe({
+  name: 'button',
+  variants: { loading: variant.boolean({ default: false }) },
+  styles: {
+    base: { padding: '8px 16px' },
+    variants: { loading: { true: { cursor: 'wait', opacity: 0.8 }, false: {} } },
+  },
 });
 const { loading: loadingClass } = btn;
 
@@ -387,6 +402,7 @@ describe('SSR', () => {
 For library authors or design systems, you might want to snapshot the generated class names:
 
 ```ts
+import { variant } from 'typestyles';
 // styles.test.ts
 import { createTypeStyles } from 'typestyles';
 
@@ -394,9 +410,13 @@ const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
 describe('Button styles', () => {
   it('generates consistent class names', () => {
-    const button = recipe('button', {
-      base: { padding: '8px' },
-      primary: { color: 'blue' },
+    const button = recipe({
+      name: 'button',
+      variants: { primary: variant.boolean({ default: false }) },
+      styles: {
+        base: { padding: '8px' },
+        variants: { primary: { true: { color: 'blue' }, false: {} } },
+      },
     });
 
     expect(button()).toMatchInlineSnapshot(`"button"`);

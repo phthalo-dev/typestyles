@@ -13,14 +13,14 @@ Use kebab-case for namespaces. The namespace should describe the component or pa
 
 ```ts
 // Good - descriptive and consistent
-const button = recipe('button', { ... });
-const card = recipe('card', { ... });
-const navigationMenu = recipe('navigation-menu', { ... });
+const button = recipe({ name: 'button' });
+const card = recipe({ name: 'card' });
+const navigationMenu = recipe({ name: 'navigation-menu' });
 
 // Avoid - generic or single-letter names
-const b = recipe('b', { ... });
-const x = recipe('x', { ... });
-const component = recipe('component', { ... });
+const b = recipe({ name: 'b' });
+const x = recipe({ name: 'x' });
+const component = recipe({ name: 'component' });
 ```
 
 ### Variants
@@ -28,26 +28,17 @@ const component = recipe('component', { ... });
 Use camelCase for variant dimension names. Be descriptive about the style purpose, not just the visual appearance:
 
 ```ts
-const button = recipe('button', {
-  base: { ... },
-  variants: {
-    intent: {
+import { variant } from 'typestyles';
+const button = recipe({ name: 'button', variants: { intent: variant.enum(["primary", "secondary", "danger", "ghost"], { default: "primary" }), size: variant.enum(["small", "medium", "large"], { default: "medium" }) }, styles: { base: { ... }, variants: { intent: {
       primary: { ... },     // The main action
       secondary: { ... },   // Alternative action
       danger: { ... },      // Destructive action
       ghost: { ... },       // Subtle action
-    },
-    size: {
+    }, size: {
       small: { ... },
       medium: { ... },
       large: { ... },
-    },
-  },
-  defaultVariants: {
-    intent: 'primary',
-    size: 'medium',
-  },
-});
+    } } } });
 
 // Avoid - describes appearance only
 // blue: { ... }, big: { ... }, rounded: { ... }
@@ -56,12 +47,8 @@ const button = recipe('button', {
 For flat configs, variant names should still be descriptive:
 
 ```ts
-const card = recipe('card', {
-  base: { ... },
-  elevated: { ... },
-  interactive: { ... },
-  disabled: { ... },
-});
+import { variant } from 'typestyles';
+const card = recipe({ name: 'card', variants: { elevated: variant.boolean({ default: false }), interactive: variant.boolean({ default: false }), disabled: variant.boolean({ default: false }) }, styles: { base: { ... }, variants: { elevated: { true: { ... }, false: {} }, interactive: { true: { ... }, false: {} }, disabled: { true: { ... }, false: {} } } } });
 ```
 
 ### Tokens
@@ -187,19 +174,14 @@ Keep styles co-located with components or in a separate `.styles.ts` file:
 **Option 1: Same file (for simple components)**
 
 ```tsx
+import { variant } from 'typestyles';
 // Button.tsx
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 import { color, space } from '../tokens';
 
-const button = recipe('button', {
-  base: { ... },
-  variants: {
-    intent: { primary: { ... }, secondary: { ... } },
-  },
-  defaultVariants: { intent: 'primary' },
-});
+const button = recipe({ name: 'button', variants: { intent: variant.enum(["primary", "secondary"], { default: "primary" }) }, styles: { base: { ... }, variants: { intent: { primary: { ... }, secondary: { ... } } } } });
 
 export function Button({ variant = 'primary', children }) {
   return <button className={button({ intent: variant })}>{children}</button>;
@@ -209,20 +191,14 @@ export function Button({ variant = 'primary', children }) {
 **Option 2: Separate file (for complex components)**
 
 ```ts
+import { variant } from 'typestyles';
 // Button.styles.ts
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 import { color, space } from '../tokens';
 
-export const button = recipe('button', {
-  base: { ... },
-  variants: {
-    intent: { primary: { ... }, secondary: { ... } },
-    size: { small: { ... }, medium: { ... }, large: { ... } },
-  },
-  defaultVariants: { intent: 'primary', size: 'medium' },
-});
+export const button = recipe({ name: 'button', variants: { intent: variant.enum(["primary", "secondary"], { default: "primary" }), size: variant.enum(["small", "medium", "large"], { default: "medium" }) }, styles: { base: { ... }, variants: { intent: { primary: { ... }, secondary: { ... } }, size: { small: { ... }, medium: { ... }, large: { ... } } } } });
 
 // Button.tsx
 import { button } from './Button.styles';
@@ -292,10 +268,13 @@ export const calendar = tokens.create('calendar', {
 // Usage in Calendar.styles.ts
 import { calendar } from './Calendar.tokens';
 
-const calendarStyles = recipe('calendar', {
-  base: {
-    width: calendar.daySize,
-    height: calendar.daySize,
+const calendarStyles = recipe({
+  name: 'calendar',
+  styles: {
+    base: {
+      width: calendar.daySize,
+      height: calendar.daySize,
+    },
   },
 });
 ```
@@ -329,28 +308,17 @@ const size = tokens.create('size', {
 For related components (like Form + Input + Label), use consistent namespacing:
 
 ```ts
-const form = recipe('form', {
-  base: { ... },
-});
+import { variant } from 'typestyles';
+const form = recipe({ name: 'form', styles: { base: { ... } } });
 
-const input = recipe('input', {
-  base: { ... },
-  variants: {
-    state: {
+const input = recipe({ name: 'input', variants: { state: variant.enum(["error", "success"], { default: "error" }) }, styles: { base: { ... }, variants: { state: {
       error: { borderColor: '#ef4444' },
       success: { borderColor: '#10b981' },
-    },
-  },
-});
+    } } } });
 
-const label = recipe('label', {
-  base: { ... },
-  variants: {
-    required: {
+const label = recipe({ name: 'label', variants: { required: variant.boolean({ default: false }) }, styles: { base: { ... }, variants: { required: {
       true: { '&::after': { content: '"*"', color: '#ef4444' } },
-    },
-  },
-});
+    } } } });
 
 // Usage
 <form className={form()}>
@@ -366,31 +334,35 @@ const label = recipe('label', {
 Use dimensioned variants for structured component APIs:
 
 ```ts
-const button = recipe('button', {
-  base: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    border: 'none',
-    fontWeight: 500,
-    transition: 'all 150ms ease',
-  },
+import { variant } from 'typestyles';
+const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: { backgroundColor: color.primary, color: '#fff' },
-      secondary: { backgroundColor: color.secondary, color: '#fff' },
-      ghost: { backgroundColor: 'transparent' },
-    },
-    size: {
-      small: { padding: '4px 8px', fontSize: '12px' },
-      medium: { padding: '8px 16px', fontSize: '14px' },
-      large: { padding: '12px 24px', fontSize: '16px' },
-    },
+    intent: variant.enum(['primary', 'secondary', 'ghost'], { default: 'primary' }),
+    size: variant.enum(['small', 'medium', 'large'], { default: 'medium' }),
   },
-  defaultVariants: {
-    intent: 'primary',
-    size: 'medium',
+  styles: {
+    base: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+      border: 'none',
+      fontWeight: 500,
+      transition: 'all 150ms ease',
+    },
+    variants: {
+      intent: {
+        primary: { backgroundColor: color.primary, color: '#fff' },
+        secondary: { backgroundColor: color.secondary, color: '#fff' },
+        ghost: { backgroundColor: 'transparent' },
+      },
+      size: {
+        small: { padding: '4px 8px', fontSize: '12px' },
+        medium: { padding: '8px 16px', fontSize: '14px' },
+        large: { padding: '12px 24px', fontSize: '16px' },
+      },
+    },
   },
 });
 
@@ -404,32 +376,40 @@ button({ intent: 'ghost', size: 'small' }); // Small ghost button
 Use layout components with flexible spacing:
 
 ```ts
-const stack = recipe('stack', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  variants: {
-    gap: {
-      1: { gap: space[1] },
-      2: { gap: space[2] },
-      3: { gap: space[3] },
-      4: { gap: space[4] },
+import { variant } from 'typestyles';
+const stack = recipe({
+  name: 'stack',
+  variants: { gap: variant.enum(['1', '2', '3', '4'], { default: '1' }) },
+  styles: {
+    base: {
+      display: 'flex',
+      flexDirection: 'column',
+    },
+    variants: {
+      gap: {
+        1: { gap: space[1] },
+        2: { gap: space[2] },
+        3: { gap: space[3] },
+        4: { gap: space[4] },
+      },
     },
   },
-  defaultVariants: { gap: 2 },
 });
 
-const row = recipe('row', {
-  base: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  variants: {
-    gap: {
-      1: { gap: space[1] },
-      2: { gap: space[2] },
+const row = recipe({
+  name: 'row',
+  variants: { gap: variant.enum(['1', '2'], { default: '1' }) },
+  styles: {
+    base: {
+      display: 'flex',
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    variants: {
+      gap: {
+        1: { gap: space[1] },
+        2: { gap: space[2] },
+      },
     },
   },
 });
@@ -442,18 +422,15 @@ const row = recipe('row', {
 For simple on/off states, use boolean variants or flat configs:
 
 ```ts
-const card = recipe('card', {
-  base: { ... },
-  elevated: {
+import { variant } from 'typestyles';
+const card = recipe({ name: 'card', variants: { elevated: variant.boolean({ default: false }), interactive: variant.boolean({ default: false }) }, styles: { base: { ... }, variants: { elevated: { true: {
     boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-  },
-  interactive: {
+  }, false: {} }, interactive: { true: {
     cursor: 'pointer',
     '&:hover': {
       boxShadow: '0 8px 12px rgba(0,0,0,0.15)',
     },
-  },
-});
+  }, false: {} } } } });
 
 // Destructure and use cx() for conditional application:
 import { cx } from 'typestyles';
@@ -467,16 +444,8 @@ cx(base, isElevated && elevated, isInteractive && interactive);
 For more complex state combinations, use dimensioned variants:
 
 ```ts
-const button = recipe('button', {
-  base: { ... },
-  variants: {
-    intent: { primary: { ... }, secondary: { ... }, ghost: { ... } },
-    size: { small: { ... }, medium: { ... }, large: { ... } },
-    disabled: { true: { opacity: 0.5, cursor: 'not-allowed' } },
-    loading: { true: { cursor: 'wait' } },
-  },
-  defaultVariants: { intent: 'primary', size: 'medium' },
-});
+import { variant } from 'typestyles';
+const button = recipe({ name: 'button', variants: { intent: variant.enum(["primary", "secondary", "ghost"], { default: "primary" }), size: variant.enum(["small", "medium", "large"], { default: "medium" }), disabled: variant.boolean({ default: false }), loading: variant.boolean({ default: false }) }, styles: { base: { ... }, variants: { intent: { primary: { ... }, secondary: { ... }, ghost: { ... } }, size: { small: { ... }, medium: { ... }, large: { ... } }, disabled: { true: { opacity: 0.5, cursor: 'not-allowed' } }, loading: { true: { cursor: 'wait' } } } } });
 
 function getButtonClasses({ variant, size, isDisabled, isLoading }: ButtonProps) {
   return button({
@@ -545,29 +514,49 @@ const highContrast = tokens.createTheme({
 ### Consistent formatting
 
 ```ts
+import { variant } from 'typestyles';
 // Good - consistent structure
-const card = recipe('card', {
-  base: {
-    padding: space[4],
-    borderRadius: '8px',
-    backgroundColor: color.surface,
+const card = recipe({
+  name: 'card',
+  variants: {
+    elevated: variant.boolean({ default: false }),
+    interactive: variant.boolean({ default: false }),
   },
-  elevated: {
-    boxShadow: shadow.md,
-  },
-  interactive: {
-    cursor: 'pointer',
-    transition: 'box-shadow 200ms ease',
-    '&:hover': {
-      boxShadow: shadow.lg,
+  styles: {
+    base: {
+      padding: space[4],
+      borderRadius: '8px',
+      backgroundColor: color.surface,
+    },
+    variants: {
+      elevated: {
+        true: {
+          boxShadow: shadow.md,
+        },
+        false: {},
+      },
+      interactive: {
+        true: {
+          cursor: 'pointer',
+          transition: 'box-shadow 200ms ease',
+          '&:hover': {
+            boxShadow: shadow.lg,
+          },
+        },
+        false: {},
+      },
     },
   },
 });
 
 // Avoid - inconsistent formatting
-const card = recipe('card', {
-  base: { padding: space[4], borderRadius: '8px', backgroundColor: color.surface },
-  elevated: { boxShadow: shadow.md },
+const card = recipe({
+  name: 'card',
+  variants: { elevated: variant.boolean({ default: false }) },
+  styles: {
+    base: { padding: space[4], borderRadius: '8px', backgroundColor: color.surface },
+    variants: { elevated: { true: { boxShadow: shadow.md }, false: {} } },
+  },
 });
 ```
 
@@ -601,7 +590,7 @@ import { useCardState } from './useCardState';
 
 ### Why scopeId matters
 
-In semantic mode (the default), `recipe('button', …)` produces class names like `button`. If two packages — or two files in the same app — both register a `'button'` namespace without a `scopeId`, their CSS rules silently overwrite each other. TypeStyles warns about this in development, but the fix is simple: always set a `scopeId`.
+In semantic mode (the default), `recipe({ name: 'button' })` produces class names like `button`. If two packages — or two files in the same app — both register a `'button'` namespace without a `scopeId`, their CSS rules silently overwrite each other. TypeStyles warns about this in development, but the fix is simple: always set a `scopeId`.
 
 ### For applications
 
@@ -652,12 +641,12 @@ Each file gets a unique hash-based scope, similar to CSS Modules.
 ```tsx
 // Bad - creates new styles on every render
 function Button({ children }) {
-  const button = recipe('button', { base: { ... } }); // Don't do this
+  const button = recipe({ name: 'button', styles: { base: { ... } } }); // Don't do this
   return <button className={button()}>{children}</button>;
 }
 
 // Good - define at module level
-const button = recipe('button', { base: { ... } });
+const button = recipe({ name: 'button', styles: { base: { ... } } });
 
 function Button({ children }) {
   return <button className={button()}>{children}</button>;
@@ -672,15 +661,14 @@ import { createTypeStyles, createVar, assignVars } from 'typestyles';
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
 // Bad - creates styles for every possible value
-const button = recipe('button', {
-  base: { width: props.width }, // Don't do this
-});
+const button = recipe({ name: 'button', styles: { base: { width: props.width } } });
 
 // Good - wire dynamic values through CSS custom properties
 const widthVar = createVar('buttonWidth');
 
-const button = recipe('button', {
-  base: { display: 'inline-block', width: widthVar },
+const button = recipe({
+  name: 'button',
+  styles: { base: { display: 'inline-block', width: widthVar } },
 });
 
 function Button({ width, children }) {
@@ -696,18 +684,18 @@ function Button({ width, children }) {
 
 ```ts
 // File A
-const button = recipe('button', { ... });
+const button = recipe({ name: 'button' });
 
 // File B
-const button = recipe('button', { ... }); // Collision!
+const button = recipe({ name: 'button' }); // Collision!
 
 // Fix 1 - use descriptive names
-const iconButton = recipe('icon-button', { ... });
-const textButton = recipe('text-button', { ... });
+const iconButton = recipe({ name: 'icon-button' });
+const textButton = recipe({ name: 'text-button' });
 
 // Fix 2 (recommended) - use scopeId to isolate
 const { recipe } = createTypeStyles({ scopeId: 'my-app' });
-const button = recipe('button', { ... }); // "my-app-button"
+const button = recipe({ name: 'button' }); // "my-app-button"
 ```
 
 ## Summary

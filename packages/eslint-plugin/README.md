@@ -66,10 +66,10 @@ Disallows reusing the same logical namespace across the project:
 
 ```ts
 // file-a.ts
-recipe('button', { base: { … } });
+recipe({ name: 'button', styles: { base: { … } } });
 
 // file-b.ts — ❌ collision
-recipe('button', { base: { … } });
+recipe({ name: 'button', styles: { base: { … } } });
 ```
 
 Tracks `recipe`, `style`, `hash`, `tokens.create`, `tokens.createTheme`, `keyframes.create`, and `global.rule` / `global.fontFace` (and legacy `styles.component`, `styles.class`, `global.style` where used). Reports duplicates within a file and across files in the same ESLint run.
