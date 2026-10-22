@@ -1,5 +1,11 @@
 # typestyles
 
+## 0.32.1
+
+### Patch Changes
+
+- [#279](https://github.com/type-styles/typestyles/pull/279) [`e0f6d15`](https://github.com/type-styles/typestyles/commit/e0f6d154e2c211ace5b67255ff0b9be881980365) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Export `RecipeCallResult` so libraries can declaration-emit a `recipe()` result without TS4023.
+
 ## 0.32.0
 
 ### Minor Changes
