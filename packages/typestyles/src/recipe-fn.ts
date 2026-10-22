@@ -169,7 +169,16 @@ type SlotClassNames<Slots> = [SlotKey<Slots>] extends [never]
     ? unknown
     : { readonly [K in SlotKey<Slots>]: string };
 
-type RecipeCallResult<Slots, Axes, Vars extends ComponentVarDefinitions> = ([Vars] extends [never]
+/**
+ * Value returned by {@link RecipeFn} (`recipe()` / `component()`).
+ *
+ * Exported so a library can name this type in its own `.d.ts`. Expanding the
+ * handle prints `recipeDefinitionBrand`, which is not a public export, and
+ * `tsc --declaration` fails with TS4023.
+ */
+export type RecipeCallResult<Slots, Axes, Vars extends ComponentVarDefinitions> = ([Vars] extends [
+  never,
+]
   ? HideVars<RecipeHandle<RecipeDef<Slots, Axes> & RecipeDefinition, ComponentAttrsResult>>
   : RecipeHandle<RecipeDef<Slots, Axes> & RecipeDefinition, ComponentAttrsResult, Vars> & {
       readonly vars: ComponentVarRefTree<Vars>;

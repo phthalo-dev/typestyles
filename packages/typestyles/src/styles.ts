@@ -263,7 +263,7 @@ export function compose<const S extends readonly ComposeSelectorInput[]>(
 }
 
 export type { StylesApi };
-export type { ComponentCreateOptions, RecipeFn } from './recipe-fn';
+export type { ComponentCreateOptions, RecipeCallResult, RecipeFn } from './recipe-fn';
 
 /** Runtime options bag. Unlayered calls may pass `{ themeable }` with no `layer`. */
 type RecipeRuntimeOptions = {

@@ -31,7 +31,13 @@ import { whenStyle } from './when-style';
 import { atan2, calc, clamp, cos, hypot, pow, sin, sqrt, tan } from './css-math';
 import { content } from './css-content';
 
-export type { StylesApi, CreateStylesInput, ComponentCreateOptions, RecipeFn } from './styles';
+export type {
+  StylesApi,
+  CreateStylesInput,
+  ComponentCreateOptions,
+  RecipeCallResult,
+  RecipeFn,
+} from './styles';
 export type { CreateTokensOptions, TokensApi } from './tokens';
 export type { ThemeTokenContext } from './theme-token-context';
 export type { BreakpointMap, BreakpointsConfig, ResponsiveValue } from './breakpoints';
