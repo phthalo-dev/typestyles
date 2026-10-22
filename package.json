@@ -5,6 +5,7 @@
   "packageManager": "pnpm@10.11.1",
   "scripts": {
     "build": "turbo run build",
+    "clean": "node scripts/clean.js",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "dev": "turbo run dev",

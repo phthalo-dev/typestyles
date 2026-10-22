@@ -77,6 +77,38 @@ jobs:
       - name: Run tests
         run: pnpm run test
 
+      # `turbo run test` builds packages that have tests. Publish needs every
+      # package's dist, including ones outside that graph (for example
+      # @typestyles/open-props). Build only the gaps, then hand dist to the
+      # release jobs so they do not compile again.
+      - name: Build packages the test graph skipped
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          for dir in packages/*; do
+            if [ ! -d "$dir/dist" ]; then
+              pnpm --filter "./$dir" run build
+            fi
+          done
+          for dir in packages/*; do
+            if [ ! -d "$dir/dist" ]; then
+              echo "Missing dist for $dir"
+              exit 1
+            fi
+          done
+
+      - name: Pack package dist artifacts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: tar -czf package-dist.tar.gz packages/*/dist
+
+      - name: Upload package dist artifacts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-dist
+          path: package-dist.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+
   benchmark:
     name: Benchmark
     if: github.event_name == 'pull_request'
@@ -108,7 +140,10 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [lint, typecheck, test]
     concurrency:
-      group: typestyles-npm-release
+      # Separate from unstable publishes. A normal push used to leave this job
+      # queued behind `pnpm -r publish`, and a version-package merge should
+      # publish without waiting on (or running) that job.
+      group: typestyles-changesets-release
       cancel-in-progress: false
       # Keep pending publishes instead of replacing them (default queue: single).
       queue: max
@@ -141,11 +176,29 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download package dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-dist
+
+      - name: Restore package dist artifacts
+        run: |
+          tar -xzf package-dist.tar.gz
+          rm package-dist.tar.gz
+          for dir in packages/*; do
+            if [ ! -d "$dir/dist" ]; then
+              echo "Missing restored dist for $dir"
+              exit 1
+            fi
+          done
+
       - name: Create Release Pull Request or Publish
         id: changesets
         uses: changesets/action@v1
         with:
-          publish: pnpm release
+          # `pnpm release` is `turbo build && changeset publish`. dist is already
+          # restored from the test job.
+          publish: pnpm exec changeset publish
           version: pnpm run version
           commit: 'chore: version packages'
           title: 'chore: version packages'
@@ -154,13 +207,14 @@ jobs:
 
   release-unstable:
     name: Release unstable packages
+    # Squash merges are "chore: version packages (#123)", not the exact title.
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
-      github.event.head_commit.message != 'chore: version packages'
+      !contains(github.event.head_commit.message, 'chore: version packages')
     needs: [lint, typecheck, test]
     concurrency:
-      group: typestyles-npm-release
+      group: typestyles-npm-unstable
       cancel-in-progress: false
       # Keep pending publishes instead of replacing them (default queue: single).
       queue: max
@@ -192,8 +246,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build packages
-        run: pnpm run build
+      - name: Download package dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: package-dist
+
+      - name: Restore package dist artifacts
+        run: |
+          tar -xzf package-dist.tar.gz
+          rm package-dist.tar.gz
+          for dir in packages/*; do
+            if [ ! -d "$dir/dist" ]; then
+              echo "Missing restored dist for $dir"
+              exit 1
+            fi
+          done
 
       - name: Set unstable commit versions
         run: node scripts/set-unstable-versions.js
