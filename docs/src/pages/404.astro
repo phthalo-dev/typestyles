@@ -20,8 +20,8 @@ const docsBySlug = Object.fromEntries(docs.map((d) => [d.slug, { slug: d.slug, t
       index.
     </p>
     <div class={home.actions}>
-      <a href="/" class:list={[linkButton.base, linkButton.primary]}>Home</a>
-      <a href="/docs" class:list={[linkButton.base, linkButton.secondary]}>Documentation</a>
+      <a href="/" class={linkButton({ intent: 'primary' }).className}>Home</a>
+      <a href="/docs" class={linkButton({ intent: 'secondary' }).className}>Documentation</a>
     </div>
   </div>
 </DocsLayout>

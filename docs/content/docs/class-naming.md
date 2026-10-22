@@ -83,9 +83,9 @@ are retained in modifiers so equal option values from different dimensions never
 | Root slot              | `dialog`                                                   |
 | Named slot             | `dialog__content`                                          |
 | Slot variant           | `dialog__content--size-lg`                                 |
-| Flat base / modifier   | `card`, `card--elevated`                                   |
+| Boolean axis           | `card`, `card--elevated-true`                              |
 
-`style('button')` and the base class from `recipe('button', …)`
+`style('button')` and the base class from `recipe({ name: 'button' })`
 now intentionally use the same string. Give unrelated definitions distinct namespaces
 or a `scopeId`. In development, typestyles logs a **class name collision** error when
 both APIs emit the same string (their CSS still share one sheet key — first registration
@@ -93,10 +93,10 @@ wins). Do not rely on both definitions contributing different base styles under 
 
 With **`scopeId`** set, the sanitized scope is prefixed onto every class name — the same way `tokens.create` scopes custom property names:
 
-- `createTypeStyles({ scopeId: 'my-ui' })` + `recipe('button', { … })` → `my-ui-button`, `my-ui-button--intent-primary`
+- `createTypeStyles({ scopeId: 'my-ui' })` + `recipe({ name: 'button', … })` → `my-ui-button`, `my-ui-button--intent-primary`
 - `createTypeStyles({ scopeId: '@acme/ds' })` + `style('card', { … })` → `acme-ds-card`
 
-This keeps semantic names readable while making isolation real: two packages can both register `recipe('button', …)` without their CSS rules overwriting each other. In development, typestyles also logs an error if two different definitions ever emit the same class string (cross-scope collisions, or hash collisions in `hashed`/`compact` mode).
+This keeps semantic names readable while making isolation real: two packages can both register `recipe({ name: 'button' })` without their CSS rules overwriting each other. In development, typestyles also logs an error if two different definitions ever emit the same class string (cross-scope collisions, or hash collisions in `hashed`/`compact` mode).
 
 ### `hashed`
 
@@ -115,7 +115,7 @@ Use this when you want the shortest hash-only class strings without per-declarat
 **One class per CSS declaration.** Identical property values share a class across the codebase—CSS size plateaus as you add components instead of growing linearly with every rule chunk.
 
 - `style('card', { padding: '1rem', color: 'red' })` → two classes joined with a space
-- `recipe('button', { base: { color: 'red', padding: '8px' } })` → `button.base` is a space-separated list of atomic classes
+- `recipe({ name: 'button', styles: { base: { color: 'red', padding: '8px' } } })` → `button.base` is a space-separated list of atomic classes
 - Nested selectors (`&:hover`, attribute selectors) and `@media` blocks decompose the same way; each inner declaration gets its own class
 
 Hash inputs include (when set) `scopeId`, the declaration path (property + nested context), and the value. For Tailwind-style **utility prop APIs**, see [`@typestyles/props`](/docs/atomic-css).
@@ -153,7 +153,7 @@ Like `bem`, but the block/element/modifier class name is decided by a user-suppl
 
 ## Monorepos and `scopeId`
 
-Two packages might both use `recipe('button', …)`. Give each package its own **`createTypeStyles({ scopeId: '…' })`**: in **`semantic`** mode the scope is prefixed onto the class name (`pkg-a-button` vs `pkg-b-button`); in **`hashed`**, **`compact`**, or **`atomic`** mode the scope is mixed into the hash so identical style objects in different packages do not map to the same class string.
+Two packages might both use `recipe({ name: 'button' })`. Give each package its own **`createTypeStyles({ scopeId: '…' })`**: in **`semantic`** mode the scope is prefixed onto the class name (`pkg-a-button` vs `pkg-b-button`); in **`hashed`**, **`compact`**, or **`atomic`** mode the scope is mixed into the hash so identical style objects in different packages do not map to the same class string.
 
 For tokens, use **`createTokens({ scopeId })`** or **`createTypeStyles({ scopeId })`** per package so `--color-*` and `.theme-*` rules do not overwrite each other on `:root` or clash by name.
 

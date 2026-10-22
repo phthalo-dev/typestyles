@@ -1,3 +1,4 @@
+import { variant } from './variant';
 import { describe, it, expect, beforeEach, vi, expectTypeOf } from 'vitest';
 import { createClass, createHashClass, compose, createStyles } from './styles';
 import { cx } from './index';
@@ -306,17 +307,21 @@ describe('createStyles({ utils })', () => {
       },
     });
 
-    const card = u.component('util-comp', {
-      base: { paddingY: 12 },
-      variants: {
-        size: {
-          lg: { paddingY: 24 },
+    const card = u.component({
+      name: 'util-comp',
+      variants: { size: variant.enum(['lg'], { default: 'lg' }) },
+      styles: {
+        base: { paddingY: 12 },
+        variants: {
+          size: {
+            lg: { paddingY: 24 },
+          },
         },
       },
     });
 
     // Should be callable
-    expect(card()).toContain('util-comp');
+    expect(card().className).toContain('util-comp');
 
     flushSync();
 
@@ -336,19 +341,21 @@ describe('createStyles({ utils })', () => {
       },
     });
 
-    const box = u.component('util-fn-comp', (c) => {
-      const ink = c.var('ink');
-      return {
-        base: { padY: 8, color: ink.var },
+    const box = u.component({
+      name: 'util-fn-comp',
+      variants: { t: variant.enum(['hi'], { default: 'hi' }) },
+      vars: { ink: 'black' },
+      styles: ({ vars: v }) => ({
+        base: { padY: 8, color: v.ink.var },
         variants: {
           t: {
-            hi: { [ink.name]: '#f00', padY: 20 },
+            hi: { [v.ink.name]: '#f00', padY: 20 },
           },
         },
-      };
+      }),
     });
 
-    expect(box({ t: 'hi' })).toContain('util-fn-comp');
+    expect(box({ t: 'hi' }).className).toContain('util-fn-comp');
     flushSync();
     const style = document.getElementById('typestyles') as HTMLStyleElement;
     const baseRule = Array.from(style.sheet?.cssRules ?? []).find(
@@ -368,13 +375,16 @@ describe('createStyles({ utils })', () => {
       },
     });
 
-    const chip = u.component('util-config-vars', {
+    const chip = u.component({
+      name: 'util-config-vars',
       vars: {
         background: { value: '#fff', syntax: '<color>' as const },
       },
-      base: {
-        backgroundColor: 'var(--util-config-vars-background)',
-        padY: 8,
+      styles: {
+        base: {
+          backgroundColor: 'var(--util-config-vars-background)',
+          padY: 8,
+        },
       },
     });
 
@@ -396,12 +406,10 @@ describe('createStyles({ utils })', () => {
       },
     });
 
-    const card = u.component('util-cb-vars', (c) => {
-      const v = c.vars({ accent: 'blue' });
-      return {
-        vars: v,
-        base: { color: v.accent.var, padY: 12 },
-      };
+    const card = u.component({
+      name: 'util-cb-vars',
+      vars: { accent: 'blue' },
+      styles: ({ vars: v }) => ({ base: { color: v.accent.var, padY: 12 } }),
     });
 
     expect(card.vars.accent.var).toBe('var(--util-cb-vars-accent)');
@@ -422,13 +430,14 @@ describe('createStyles({ utils })', () => {
       },
     });
 
-    const card = u.component('util-flat', {
-      base: { marginX: 10 },
-      active: { marginX: 20 },
+    const card = u.component({
+      name: 'util-flat',
+      variants: { active: variant.boolean({ default: false }) },
+      styles: { base: { marginX: 10 }, variants: { active: { true: { marginX: 20 }, false: {} } } },
     });
 
-    expect(card()).toContain('util-flat');
-    expect(card({ active: true })).toContain('util-flat--active');
+    expect(card().className).toContain('util-flat');
+    expect(card({ active: true }).className).toContain('util-flat--active-true');
 
     flushSync();
 
@@ -437,7 +446,7 @@ describe('createStyles({ utils })', () => {
       (r) => r instanceof CSSStyleRule && r.selectorText === '.util-flat',
     ) as CSSStyleRule;
     const activeRule = Array.from(style.sheet?.cssRules ?? []).find(
-      (r) => r instanceof CSSStyleRule && r.selectorText === '.util-flat--active',
+      (r) => r instanceof CSSStyleRule && r.selectorText === '.util-flat--active-true',
     ) as CSSStyleRule;
 
     expect(baseRule.style.getPropertyValue('margin-left')).toBe('10px');
@@ -522,9 +531,10 @@ describe('style and recipe coexistence', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const styles = createStyles();
-    styles.component('button', {
-      base: { color: 'blue' },
-      variants: { intent: { primary: { fontWeight: 700 } } },
+    styles.component({
+      name: 'button',
+      variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+      styles: { base: { color: 'blue' }, variants: { intent: { primary: { fontWeight: 700 } } } },
     });
     styles.class('button', { color: 'red', padding: '4px' });
 
@@ -539,9 +549,10 @@ describe('style and recipe coexistence', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     const styles = createStyles();
     styles.class('button', { color: 'red', padding: '4px' });
-    styles.component('button', {
-      base: { color: 'blue' },
-      variants: { intent: { primary: { fontWeight: 700 } } },
+    styles.component({
+      name: 'button',
+      variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+      styles: { base: { color: 'blue' }, variants: { intent: { primary: { fontWeight: 700 } } } },
     });
 
     const css = getRegisteredCss();
@@ -688,9 +699,10 @@ describe('mode: template', () => {
       },
     });
 
-    const button = styles.component('button', {
-      base: { padding: '8px' },
-      variants: { intent: { primary: { color: 'blue' } } },
+    const button = styles.component({
+      name: 'button',
+      variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+      styles: { base: { padding: '8px' }, variants: { intent: { primary: { color: 'blue' } } } },
     });
     expect(button.base).toBe('button');
     expect(button['intent-primary']).toBe('button-is-primary');

@@ -12,18 +12,28 @@ TypeStyles is built with TypeScript in mind. This guide covers tips for getting 
 TypeStyles automatically infers types from your definitions:
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
 // Types are inferred automatically
-const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
-    backgroundColor: '#0066ff',
-  },
-  primary: {
-    color: 'white',
+const button = recipe({
+  name: 'button',
+  variants: { primary: variant.boolean({ default: false }) },
+  styles: {
+    base: {
+      padding: '8px 16px',
+      backgroundColor: '#0066ff',
+    },
+    variants: {
+      primary: {
+        true: {
+          color: 'white',
+        },
+        false: {},
+      },
+    },
   },
 });
 
@@ -118,25 +128,32 @@ const styles: Record<string, CustomAtRules> = {
 Make your component props type-safe:
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: { fontWeight: 500 },
+const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: { backgroundColor: '#2563eb', color: 'white' },
-      secondary: { backgroundColor: '#e5e7eb', color: '#111' },
-      ghost: { backgroundColor: 'transparent', color: '#111' },
-    },
-    size: {
-      small: { fontSize: '12px', padding: '4px 8px' },
-      medium: { fontSize: '14px', padding: '8px 12px' },
-      large: { fontSize: '16px', padding: '10px 16px' },
+    intent: variant.enum(['primary', 'secondary', 'ghost'], { default: 'primary' }),
+    size: variant.enum(['small', 'medium', 'large'], { default: 'medium' }),
+  },
+  styles: {
+    base: { fontWeight: 500 },
+    variants: {
+      intent: {
+        primary: { backgroundColor: '#2563eb', color: 'white' },
+        secondary: { backgroundColor: '#e5e7eb', color: '#111' },
+        ghost: { backgroundColor: 'transparent', color: '#111' },
+      },
+      size: {
+        small: { fontSize: '12px', padding: '4px 8px' },
+        medium: { fontSize: '14px', padding: '8px 12px' },
+        large: { fontSize: '16px', padding: '10px 16px' },
+      },
     },
   },
-  defaultVariants: { intent: 'primary', size: 'medium' },
 });
 
 // First argument: partial variant overrides (typed from your recipe)
@@ -150,11 +167,7 @@ interface ButtonProps {
 }
 
 function Button({ variant = 'primary', size = 'medium', children }: ButtonProps) {
-  return (
-    <button className={button({ intent: variant, size })}>
-      {children}
-    </button>
-  );
+  return <button className={button({ intent: variant, size })}>{children}</button>;
 }
 ```
 
@@ -167,14 +180,12 @@ You can add `as const` to **nested values** when you want literal types preserve
 ### Extracting style types
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const card = recipe('card', {
-  base: { ... },
-  elevated: { ... },
-});
+const card = recipe({ name: 'card', variants: { elevated: variant.boolean({ default: false }) }, styles: { base: { ... }, variants: { elevated: { true: { ... }, false: {} } } } });
 
 // Optional argument is a partial of flat variant flags
 type CardOptions = Parameters<typeof card>[0];
@@ -291,19 +302,23 @@ function ThemedComponent({ color, space }: ThemedComponentProps) {
 ### Generic style components
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const box = recipe('box', {
-  base: { padding: '16px' },
-  variants: {
-    tone: {
-      default: {},
-      elevated: { boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
+const box = recipe({
+  name: 'box',
+  variants: { tone: variant.enum(['default', 'elevated'], { default: 'default' }) },
+  styles: {
+    base: { padding: '16px' },
+    variants: {
+      tone: {
+        default: {},
+        elevated: { boxShadow: '0 4px 6px rgba(0,0,0,0.1)' },
+      },
     },
   },
-  defaultVariants: { tone: 'default' },
 });
 
 function StyledBox({
@@ -381,25 +396,29 @@ declare module 'typestyles' {
 ### Safe variant checking
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: { padding: '8px 12px' },
+const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: { color: 'white', backgroundColor: '#2563eb' },
-      secondary: { color: '#111', backgroundColor: '#e5e7eb' },
-      ghost: { color: '#111', backgroundColor: 'transparent' },
+    intent: variant.enum(['primary', 'secondary', 'ghost'], { default: 'primary' }),
+  },
+  styles: {
+    base: { padding: '8px 12px' },
+    variants: {
+      intent: {
+        primary: { color: 'white', backgroundColor: '#2563eb' },
+        secondary: { color: '#111', backgroundColor: '#e5e7eb' },
+        ghost: { color: '#111', backgroundColor: 'transparent' },
+      },
     },
   },
-  defaultVariants: { intent: 'primary' },
 });
 
-function isValidVariant(
-  variant: string
-): variant is 'primary' | 'secondary' | 'ghost' {
+function isValidVariant(variant: string): variant is 'primary' | 'secondary' | 'ghost' {
   return ['primary', 'secondary', 'ghost'].includes(variant);
 }
 
@@ -416,31 +435,35 @@ function Button({ variant }: { variant?: string }) {
 
 ```ts
 // styles/config.ts
-import { createTypeStyles, type CSSProperties } from 'typestyles';
+import { createTypeStyles, variant, type CSSProperties } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
 interface StyleConfig {
-  namespace: string;
+  name: string;
   base: CSSProperties;
-  variants: Record<string, CSSProperties>;
+  primary: CSSProperties;
 }
 
 function createStrictStyles(config: StyleConfig) {
-  const { namespace, base, variants } = config;
-  return recipe(namespace, { base, ...variants });
+  const { name, base, primary } = config;
+  return recipe({
+    name,
+    variants: { primary: variant.boolean({ default: false }) },
+    styles: {
+      base,
+      variants: { primary: { true: primary, false: {} } },
+    },
+  });
 }
 
-// Usage with full type safety
 const button = createStrictStyles({
-  namespace: 'button',
+  name: 'button',
   base: { padding: '8px' },
-  variants: {
-    primary: { backgroundColor: 'blue' },
-  },
+  primary: { backgroundColor: 'blue' },
 });
 
-button({ primary: true }); // ✓ base + primary classes
+button({ primary: true }).className;
 ```
 
 ## Type narrowing
@@ -448,6 +471,7 @@ button({ primary: true }); // ✓ base + primary classes
 ### Narrowing with type predicates
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
@@ -458,16 +482,21 @@ function isButtonVariant(value: string): value is ButtonVariant {
   return ['primary', 'secondary', 'ghost'].includes(value);
 }
 
-const button = recipe('button', {
-  base: { padding: '8px 12px' },
+const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: { color: 'white', backgroundColor: '#2563eb' },
-      secondary: { color: '#111', backgroundColor: '#e5e7eb' },
-      ghost: { color: '#111', backgroundColor: 'transparent' },
+    intent: variant.enum(['primary', 'secondary', 'ghost'], { default: 'primary' }),
+  },
+  styles: {
+    base: { padding: '8px 12px' },
+    variants: {
+      intent: {
+        primary: { color: 'white', backgroundColor: '#2563eb' },
+        secondary: { color: '#111', backgroundColor: '#e5e7eb' },
+        ghost: { color: '#111', backgroundColor: 'transparent' },
+      },
     },
   },
-  defaultVariants: { intent: 'primary' },
 });
 
 function Button({ variant: variantProp }: { variant?: string }) {
@@ -529,15 +558,18 @@ hypot('3px', '4px'); // "hypot(3px, 4px)"
 
    ```ts
    height: `calc(100vh - 2 * ${t.space[4]})`,
+
    ```
+
+````
 
 2. **Custom helpers** when you repeat the same shape:
 
    ```ts
-   function calcSubtract(minuend: string, subtrahend: string) {
-     return `calc(${minuend} - ${subtrahend})`;
-   }
-   ```
+function calcSubtract(minuend: string, subtrahend: string) {
+  return `calc(${minuend} - ${subtrahend})`;
+}
+````
 
 3. **Name intermediate pieces** if a value gets long—easier to review than a single huge string.
 
@@ -578,11 +610,14 @@ This can happen with very complex nested styles. Solution: simplify nesting or a
 
 ```ts
 // If you get deep type errors, add explicit return type
-const complex = recipe('complex', {
-  base: {
-    // very deep nesting
+const complex = recipe({
+  name: 'complex',
+  styles: {
+    base: {
+      // very deep nesting
+    },
   },
-} as const); // or use explicit type annotation
+});
 ```
 
 ### Issue: "Property does not exist"
@@ -603,16 +638,19 @@ Break complex styles into smaller pieces:
 
 ```ts
 // ❌ Avoid very complex single definitions
-const complex = recipe('complex', {
-  base: {
-    // hundreds of lines
+const complex = recipe({
+  name: 'complex',
+  styles: {
+    base: {
+      // hundreds of lines
+    },
   },
 });
 
 // ✅ Break into logical groups
-const header = recipe('header', { ... });
-const content = recipe('content', { ... });
-const footer = recipe('footer', { ... });
+const header = recipe({ name: 'header' });
+const content = recipe({ name: 'content' });
+const footer = recipe({ name: 'footer' });
 ```
 
 ## Summary

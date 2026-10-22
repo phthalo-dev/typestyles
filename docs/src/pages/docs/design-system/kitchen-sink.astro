@@ -113,9 +113,9 @@ console.log(classes.root);`}
 
       <h2>Link button classes</h2>
       <p>
-        <a class:list={[linkButton.base, linkButton.primary]} href="/docs/getting-started">Primary</a>{' '}
-        <a class:list={[linkButton.base, linkButton.secondary]} href="/docs/component-library">Secondary</a>{' '}
-        <a class:list={[linkButton.base, linkButton.ghost]} href="/docs/tokens">Ghost</a>
+        <a class={linkButton({ intent: 'primary' }).className} href="/docs/getting-started">Primary</a>{' '}
+        <a class={linkButton({ intent: 'secondary' }).className} href="/docs/component-library">Secondary</a>{' '}
+        <a class={linkButton({ intent: 'ghost' }).className} href="/docs/tokens">Ghost</a>
       </p>
     </div>
   </article>

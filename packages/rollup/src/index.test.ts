@@ -17,7 +17,7 @@ describe('extractNamespaces', () => {
       import { createTypeStyles } from 'typestyles';
       const { recipe, tokens } = createTypeStyles();
       const color = tokens.create('color', { primary: '#0066ff' });
-      const button = recipe('button', { base: { color: color.primary } });
+      const button = recipe({ name: 'button', styles: { base: { color: color.primary } } });
     `;
     const result = extractNamespaces(code);
     expect(result.keys).toEqual(['tokens:color']);
@@ -44,7 +44,7 @@ describe('typestylesRollupPlugin', () => {
       join(dir, 'src/typestyles-entry.ts'),
       `import { createTypeStyles } from 'typestyles';
 const { recipe } = createTypeStyles();
-recipe('rollup-convention', { base: { color: 'red' } });`,
+recipe({ name: 'rollup-convention', styles: { base: { color: 'red' } } });`,
     );
 
     const plugin = typestylesRollupPlugin({ root: dir });
@@ -115,10 +115,10 @@ createTheme('rollup-dark', { base: { 'rollup-color': { primary: '#66aaff' } } })
     if (transform == null) throw new Error('expected plugin.transform');
     const codeA = `import { createTypeStyles } from 'typestyles';
 const { recipe } = createTypeStyles();
-recipe('rollup-dup', { base: { color: 'red' } });`;
+recipe({ name: 'rollup-dup', styles: { base: { color: 'red' } } });`;
     const codeB = `import { createTypeStyles } from 'typestyles';
 const { recipe } = createTypeStyles();
-recipe('rollup-dup', { base: { color: 'blue' } });`;
+recipe({ name: 'rollup-dup', styles: { base: { color: 'blue' } } });`;
 
     const ctx = {
       error(message: string) {

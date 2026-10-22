@@ -19,7 +19,7 @@ try {
       ':root { --example-ds-color-background-app:',
       '.example-ds-button {',
       '.theme-example-ds-default {',
-      '.example-ds-ds-layout {',
+      '.example-ds-ds-layout__base {',
       '.example-app-app-site-page {',
     ],
   });

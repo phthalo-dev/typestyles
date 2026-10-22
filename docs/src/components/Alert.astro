@@ -30,23 +30,23 @@ const a = alert({
 const hasIcon = Astro.slots.has('icon');
 ---
 
-<div class:list={[a.root]} data-alert data-alert-variant={variant} data-alert-appearance={appearance}>
+<div class:list={[a.root.className]} data-alert data-alert-variant={variant} data-alert-appearance={appearance}>
   {
     hasIcon ? (
-      <div class={a.icon} data-alert-icon>
+      <div class={a.icon.className} data-alert-icon>
         <slot name="icon" />
       </div>
     ) : null
   }
-  <div class={a.body}>
-    {title ? <p class={a.title}>{title}</p> : null}
-    <div class={a.content} data-alert-content>
+  <div class={a.body.className}>
+    {title ? <p class={a.title.className}>{title}</p> : null}
+    <div class={a.content.className} data-alert-content>
       <slot />
     </div>
     {
       actionLabel && actionHref ? (
-        <div class={a.action}>
-          <a class={a.actionLink} href={actionHref} data-alert-action>
+        <div class={a.action.className}>
+          <a class={a.actionLink.className} href={actionHref} data-alert-action>
             {actionLabel}
           </a>
         </div>

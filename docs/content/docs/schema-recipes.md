@@ -3,14 +3,10 @@ title: Schema-first recipes
 description: Define a recipe's visual props once with variant axes and let TypeScript type the style map
 ---
 
-A **schema-first recipe** declares its visual props — the variant axes and the slots —
-as an explicit definition _before_ the style callback. The callback is then contextually
-typed from that definition, so every option is required, boolean props are real
-`boolean`s, and the callable, `RecipeVariants`, and docs all read the same definition.
-
-This is an **additive** call shape. `recipe(namespace, config)` and
-`recipe(namespace, config, { layer })` keep working exactly as before; see
-[Components](/docs/components).
+A recipe declares its visual props — the variant axes and the slots — on the same object
+as `styles`. `styles` is then checked against that declaration, so every option is
+required, boolean props are real `boolean`s, and the callable, `RecipeVariants`, and docs
+all read the same fields. See [Components](/docs/components) for the full call.
 
 ```ts
 import { createTypeStyles, variant } from 'typestyles';
@@ -45,76 +41,74 @@ export `controlSize` / `surfaceAppearance` from one module and pass them into ma
 
 ## A slot recipe
 
-Pass the definition as the second argument and the style callback third. `slots` lives on
-the definition, so the callback can no longer drop the slot names.
+`slots` and `variants` are fields on the object. `styles` is checked against them, so the
+callback cannot invent a slot or drop an option.
 
 ```ts
-const alert = recipe(
-  'alert',
-  {
-    slots: ['root', 'icon', 'body', 'title', 'content', 'action', 'actionLink'] as const,
-    variants: {
-      tone: variant.enum(['info', 'success', 'warning', 'danger', 'tip'], { default: 'info' }),
-      appearance: surfaceAppearance,
-      contentGap: variant.enum(['spaced', 'flush'], { default: 'spaced' }),
-    },
+import { variant } from 'typestyles';
+const alert = recipe({
+  name: 'alert',
+  layer: 'components',
+  slots: ['root', 'icon', 'body', 'title', 'content', 'action', 'actionLink'] as const,
+  variants: {
+    tone: variant.enum(['info', 'success', 'warning', 'danger', 'tip'], {
+      default: 'info',
+    }),
+    appearance: surfaceAppearance,
+    contentGap: variant.enum(['spaced', 'flush'], { default: 'spaced' }),
   },
-  (c) => {
-    const v = c.vars({ surface: '#fff' });
-    return {
-      vars: v,
-      base: { root: { display: 'flex' } },
-      variants: {
-        tone: {
-          info: { root: { backgroundColor: v.surface.var } },
-          success: {
-            root: {
-              /* … */
-            },
-          },
-          warning: {
-            root: {
-              /* … */
-            },
-          },
-          danger: {
-            root: {
-              /* … */
-            },
-          },
-          tip: {
-            root: {
-              /* … */
-            },
+  vars: { surface: '#fff' },
+  styles: ({ vars }) => ({
+    base: { root: { display: 'flex', backgroundColor: vars.surface.var } },
+    variants: {
+      tone: {
+        info: { root: { color: vars.surface.var } },
+        success: {
+          root: {
+            /* … */
           },
         },
-        appearance: {
-          subtle: {
-            root: {
-              /* … */
-            },
-          },
-          solid: {
-            root: {
-              /* … */
-            },
-            title: { color: 'inherit' },
-          },
-          outline: {
-            root: {
-              /* … */
-            },
+        warning: {
+          root: {
+            /* … */
           },
         },
-        contentGap: {
-          spaced: { content: { marginTop: '4px' } },
-          flush: { content: { marginTop: 0 } },
+        danger: {
+          root: {
+            /* … */
+          },
+        },
+        tip: {
+          root: {
+            /* … */
+          },
         },
       },
-    };
-  },
-  { layer: 'components' },
-);
+      appearance: {
+        subtle: {
+          root: {
+            /* … */
+          },
+        },
+        solid: {
+          root: {
+            /* … */
+          },
+          title: { color: 'inherit' },
+        },
+        outline: {
+          root: {
+            /* … */
+          },
+        },
+      },
+      contentGap: {
+        spaced: { content: { marginTop: '4px' } },
+        flush: { content: { marginTop: 0 } },
+      },
+    },
+  }),
+});
 
 alert({ tone: 'tip', appearance: 'solid' });
 alert.defaults.tone; // 'info'
@@ -123,15 +117,12 @@ alert.defaults.tone; // 'info'
 A **single-target** recipe omits `slots`:
 
 ```ts
-const button = recipe(
-  'button',
-  {
-    variants: {
-      size: controlSize,
-      elevated: variant.boolean({ default: false }),
-    },
-  },
-  () => ({
+import { variant } from 'typestyles';
+const button = recipe({
+  name: 'button',
+  layer: 'components',
+  variants: { size: controlSize, elevated: variant.boolean({ default: false }) },
+  styles: () => ({
     base: {
       /* … */
     },
@@ -150,8 +141,7 @@ const button = recipe(
       elevated: { true: { boxShadow: 'var(--shadow-md)' }, false: {} },
     },
   }),
-  { layer: 'components' },
-);
+});
 
 button({ size: 'sm', elevated: true });
 ```
@@ -174,6 +164,7 @@ TypeScript checks the callback's return against the definition:
 attribute selector compiles to.
 
 ```ts
+import { variant } from 'typestyles';
 variant.boolean({ default: false });
 // callable:     elevated?: boolean
 // style map:    elevated: { true: { … }, false: { … } }
@@ -224,8 +215,7 @@ export function CodeBlock({ variant = codeBlock.defaults.variant, code }: CodeBl
 }
 ```
 
-When the callback declares internal vars with `c.vars()`, they are threaded onto the handle,
-so `.vars` is typed with those leaves:
+When the recipe declares `vars`, `.vars` is on the handle and typed with those leaves:
 
 ```ts
 const v = alert.vars; // ComponentVarRefTree<{ surface: string }> | undefined
@@ -251,21 +241,17 @@ getComponentMeta(alert)?.schema;
 // }
 ```
 
-`meta.schema` is absent for recipes created with the legacy call shapes, so existing docs
-pipelines are unaffected.
+`getComponentMeta(recipe).schema` records the slots and axes for every `recipe()` call.
 
 ## Interop
 
-- Legacy `recipe(namespace, config)` and `recipe(namespace, config, { layer })` calls are
-  unchanged.
-- `c.vars()` / `c.var()` remain available on the callback context, and `.vars` is still
-  exposed on the handle.
-- `compoundVariants` is allowed in the callback and is checked against the schema's option
-  unions.
-- `override()` and `OverrideConfigFor<typeof recipe>` follow the definition's axes and
-  slots, including boolean axes and `c.vars()` keys.
-- Schema recipes do **not** take `defaultVariants` — defaults live on the axes, and the
-  handle exposes `.defaults`.
+- `styles` may be an object or `({ vars }) => object`. `compoundVariants` is checked
+  against the axis options.
+- `.vars` is on the handle when the recipe declares `vars`.
+- `override()` and `OverrideConfigFor<typeof recipe>` follow the recipe's axes and
+  slots, including boolean axes and `vars` keys.
+- Defaults live on the axes (`variant.enum` / `variant.boolean`). The handle exposes
+  `.defaults`. There is no `defaultVariants` field.
 
 ## Related docs
 

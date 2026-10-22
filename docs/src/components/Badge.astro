@@ -11,6 +11,6 @@ interface Props {
 const { variant = 'neutral' } = Astro.props as Props;
 ---
 
-<span class={badge({ tone: variant })}>
+<span class={badge({ tone: variant }).className}>
   <slot />
 </span>

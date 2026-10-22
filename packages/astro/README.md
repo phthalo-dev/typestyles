@@ -78,12 +78,13 @@ import { createTypeStyles } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const card = recipe('card', {
-  base: { padding: '16px', borderRadius: '8px' },
+const card = recipe({
+  name: 'card',
+  styles: { base: { padding: '16px', borderRadius: '8px' } },
 });
 ---
 
-<div class={card()}>Hello</div>
+<div class={card().className}>Hello</div>
 ```
 
 ## Configuration

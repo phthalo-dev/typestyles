@@ -20,6 +20,59 @@ If you are adopting the variant API, start with [Components](/docs/components). 
 
 **Mental model shared across all four:** TypeStyles themes are **CSS custom properties on a stable class** (`.theme-{name}`), not a closed compiler vocabulary. Consumers can override with TypeStyles **or** plain CSS (`--*` / class selectors). Readable recipe classes (`button--intent-primary`) stay targetable outside the framework.
 
+## Upgrading to the object `recipe()`
+
+`recipe()` and `override()` take one object. These positional calls throw:
+
+- `recipe(name, config, options?)`
+- `recipe(name, definition, callback, options?)`
+- `override(component, config, options?)`
+
+```ts
+const button = recipe({
+  name: 'button',
+  layer: 'components',
+  variants: { intent: variant.enum(['primary', 'ghost'], { default: 'primary' }) },
+  styles: {
+    base: { padding: '8px' },
+    variants: {
+      intent: {
+        primary: { backgroundColor: 'blue' },
+        ghost: { backgroundColor: 'transparent' },
+      },
+    },
+  },
+});
+
+button({ intent: 'primary' }).className;
+
+override({
+  recipe: button,
+  layer: 'overrides',
+  selectorPrefix: '.theme-classic',
+  styles: { base: { color: 'rebeccapurple' } },
+});
+```
+
+Every call returns `{ className, attrs, props }`. `String(result)` is the class name. A slotted recipe returns one of those objects per slot, and the static slot class stays on the function (`layout.stack`).
+
+Theme component patches use the same object. The component key replaces `recipe`:
+
+```ts
+tokens.createTheme({
+  name: 'brand',
+  components: {
+    button: {
+      styles: ({ tokens }) => ({
+        base: { color: tokens.color.text.primary.var },
+      }),
+    },
+  },
+});
+```
+
+A bare `button: (ctx) => ({ base })` is not a patch. `styles` holds the partial style object or the callback.
+
 ## Upgrading to 0.10 (semantic + attribute naming)
 
 `0.10` changes the default `mode: 'semantic'` class grammar and finishes `mode: 'attribute'`.
@@ -105,19 +158,23 @@ const button = cva({
 **After (typestyles):**
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: { fontWeight: 500 },
-  variants: {
-    intent: {
-      solid: { backgroundColor: '#2563eb', color: 'white' },
-      ghost: { backgroundColor: 'transparent' },
+const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['solid', 'ghost'], { default: 'solid' }) },
+  styles: {
+    base: { fontWeight: 500 },
+    variants: {
+      intent: {
+        solid: { backgroundColor: '#2563eb', color: 'white' },
+        ghost: { backgroundColor: 'transparent' },
+      },
     },
   },
-  defaultVariants: { intent: 'solid' },
 });
 
 // Call as function (base auto-applied):
@@ -243,27 +300,31 @@ const Button = styled.button`
 **After (typestyles):**
 
 ```tsx
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe, tokens } = createTypeStyles({ scopeId: 'app' });
 
 const color = tokens.use('color');
 
-const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
-    borderRadius: '6px',
-    color: 'white',
-    '&:hover': { opacity: 0.9 },
-    '&:disabled': { opacity: 0.5, cursor: 'not-allowed' },
-  },
-  variants: {
-    intent: {
-      primary: { backgroundColor: color.primary },
-      secondary: { backgroundColor: color.secondary },
+const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary', 'secondary'], { default: 'primary' }) },
+  styles: {
+    base: {
+      padding: '8px 16px',
+      borderRadius: '6px',
+      color: 'white',
+      '&:hover': { opacity: 0.9 },
+      '&:disabled': { opacity: 0.5, cursor: 'not-allowed' },
+    },
+    variants: {
+      intent: {
+        primary: { backgroundColor: color.primary },
+        secondary: { backgroundColor: color.secondary },
+      },
     },
   },
-  defaultVariants: { intent: 'primary' },
 });
 
 function Button({ primary, children }) {
@@ -294,9 +355,12 @@ const Box = styled.div`
 **After:**
 
 ```tsx
-const box = recipe('box', {
-  base: {
-    display: 'inline-block',
+const box = recipe({
+  name: 'box',
+  styles: {
+    base: {
+      display: 'inline-block',
+    },
   },
 });
 
@@ -348,13 +412,16 @@ import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
-    backgroundColor: '#0066ff',
-    color: 'white',
-    '&:hover': {
-      backgroundColor: '#0052cc',
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      padding: '8px 16px',
+      backgroundColor: '#0066ff',
+      color: 'white',
+      '&:hover': {
+        backgroundColor: '#0052cc',
+      },
     },
   },
 });
@@ -383,21 +450,16 @@ className={cx(base, isPrimary && primary, isLarge && large)}
 When all classes come from one `recipe` recipe, you can call it with variant overrides or combine pieces with `cx()`:
 
 ```tsx
+import { variant } from 'typestyles';
 import { createTypeStyles, cx } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: { padding: '8px' },
-  variants: {
-    intent: {
+const button = recipe({ name: 'button', variants: { intent: variant.enum(["primary"], { default: "primary" }), size: variant.enum(["large"], { default: "large" }) }, styles: { base: { padding: '8px' }, variants: { intent: {
       primary: { backgroundColor: 'blue' },
-    },
-    size: {
+    }, size: {
       large: { fontSize: '18px' },
-    },
-  },
-});
+    } } } });
 
 // Option 1: Call with variant overrides
 className={button({ intent: isPrimary ? 'primary' : undefined, size: isLarge ? 'large' : undefined })}
@@ -410,15 +472,13 @@ className={cx(base, isPrimary && intentPrimary, isLarge && sizeLarge)}
 When you need to combine classes from different sources (multiple style groups, external class strings, or conditional expressions), use the built-in `cx` utility:
 
 ```tsx
+import { variant } from 'typestyles';
 import { createTypeStyles, cx } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
 const card = style('card', { padding: '16px' });
-const button = recipe('button', {
-  base: { padding: '8px' },
-  primary: { backgroundColor: 'blue' },
-});
+const button = recipe({ name: 'button', variants: { primary: variant.boolean({ default: false }) }, styles: { base: { padding: '8px' }, variants: { primary: { true: { backgroundColor: 'blue' }, false: {} } } } });
 const { primary } = button;
 
 className={cx(card, button(), isPrimary && primary, isActive && 'active', externalClassName)}
@@ -467,40 +527,44 @@ export const button = cva('inline-flex rounded font-medium', {
 **After (typestyles):**
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-export const button = recipe('button', {
-  base: {
-    display: 'inline-flex',
-    borderRadius: '8px',
-    fontWeight: 500,
-  },
+export const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: { backgroundColor: '#2563eb', color: 'white' },
-      ghost: { backgroundColor: 'transparent', color: '#111827' },
-    },
-    size: {
-      sm: { padding: '4px 8px', fontSize: '14px' },
-      lg: { padding: '8px 16px', fontSize: '16px' },
-    },
+    intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+    size: variant.enum(['sm', 'lg'], { default: 'sm' }),
   },
-  compoundVariants: [
-    {
-      variants: {
-        intent: ['primary', 'ghost'],
-        size: 'lg',
+  styles: {
+    base: {
+      display: 'inline-flex',
+      borderRadius: '8px',
+      fontWeight: 500,
+    },
+    compoundVariants: [
+      {
+        variants: {
+          intent: ['primary', 'ghost'],
+          size: 'lg',
+        },
+        style: {
+          textTransform: 'uppercase',
+        },
       },
-      style: {
-        textTransform: 'uppercase',
+    ],
+    variants: {
+      intent: {
+        primary: { backgroundColor: '#2563eb', color: 'white' },
+        ghost: { backgroundColor: 'transparent', color: '#111827' },
+      },
+      size: {
+        sm: { padding: '4px 8px', fontSize: '14px' },
+        lg: { padding: '8px 16px', fontSize: '16px' },
       },
     },
-  ],
-  defaultVariants: {
-    intent: 'primary',
-    size: 'sm',
   },
 });
 
@@ -553,38 +617,42 @@ const Button = styled('button', {
 **After (typestyles):**
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: {
-    padding: '8px 12px',
-  },
+const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: { backgroundColor: 'dodgerblue', color: 'white' },
-      ghost: { backgroundColor: 'transparent' },
-    },
-    outlined: {
-      true: { border: '1px solid currentColor' },
-      false: { border: 'none' },
-    },
+    intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+    outlined: variant.boolean({ default: false }),
   },
-  compoundVariants: [
-    {
-      variants: {
-        intent: 'primary',
-        outlined: true,
+  styles: {
+    base: {
+      padding: '8px 12px',
+    },
+    compoundVariants: [
+      {
+        variants: {
+          intent: 'primary',
+          outlined: true,
+        },
+        style: {
+          borderColor: 'blue',
+        },
       },
-      style: {
-        borderColor: 'blue',
+    ],
+    variants: {
+      intent: {
+        primary: { backgroundColor: 'dodgerblue', color: 'white' },
+        ghost: { backgroundColor: 'transparent' },
+      },
+      outlined: {
+        true: { border: '1px solid currentColor' },
+        false: { border: 'none' },
       },
     },
-  ],
-  defaultVariants: {
-    intent: 'primary',
-    outlined: false,
   },
 });
 ```
@@ -644,10 +712,13 @@ const dark = tokens.createTheme({
   },
 });
 
-const button = recipe('button', {
-  base: {
-    backgroundColor: color.primary, // → var(--app-color-primary)
-    color: color.text,
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      backgroundColor: color.primary, // → var(--app-color-primary)
+      color: color.text,
+    },
   },
 });
 ```
@@ -689,22 +760,24 @@ export const button = recipe({
 **After (typestyles):**
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-export const button = recipe('button', {
-  base: {
-    borderRadius: '6px',
-  },
-  variants: {
-    tone: {
-      neutral: { backgroundColor: 'white' },
-      brand: { backgroundColor: 'blue', color: 'white' },
+export const button = recipe({
+  name: 'button',
+  variants: { tone: variant.enum(['neutral', 'brand'], { default: 'neutral' }) },
+  styles: {
+    base: {
+      borderRadius: '6px',
     },
-  },
-  defaultVariants: {
-    tone: 'neutral',
+    variants: {
+      tone: {
+        neutral: { backgroundColor: 'white' },
+        brand: { backgroundColor: 'blue', color: 'white' },
+      },
+    },
   },
 });
 ```
@@ -815,29 +888,33 @@ const styles = stylex.create({
 **After (typestyles):**
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: {
-    paddingInline: '16px',
-    paddingBlock: '8px',
-    borderRadius: '6px',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  variants: {
-    intent: {
-      primary: { backgroundColor: '#2563eb', color: '#fff' },
-      ghost: {
-        backgroundColor: 'transparent',
-        color: '#2563eb',
-        border: '1px solid #2563eb',
+const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary', 'ghost'], { default: 'primary' }) },
+  styles: {
+    base: {
+      paddingInline: '16px',
+      paddingBlock: '8px',
+      borderRadius: '6px',
+      border: 'none',
+      cursor: 'pointer',
+    },
+    variants: {
+      intent: {
+        primary: { backgroundColor: '#2563eb', color: '#fff' },
+        ghost: {
+          backgroundColor: 'transparent',
+          color: '#2563eb',
+          border: '1px solid #2563eb',
+        },
       },
     },
   },
-  defaultVariants: { intent: 'primary' },
 });
 ```
 
@@ -931,6 +1008,7 @@ function Button({ primary, children }) {
 **After (typestyles):**
 
 ```tsx
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe, tokens } = createTypeStyles({ scopeId: 'app' });
@@ -942,28 +1020,31 @@ const color = tokens.create('color', {
   secondaryHover: '#4b5563',
 });
 
-const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
-    borderRadius: '6px',
-    fontWeight: 500,
-    transition: 'background-color 150ms ease',
-  },
-  variants: {
-    intent: {
-      primary: {
-        backgroundColor: color.primary,
-        color: '#fff',
-        '&:hover': { backgroundColor: color.primaryHover },
-      },
-      secondary: {
-        backgroundColor: color.secondary,
-        color: '#fff',
-        '&:hover': { backgroundColor: color.secondaryHover },
+const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary', 'secondary'], { default: 'primary' }) },
+  styles: {
+    base: {
+      padding: '8px 16px',
+      borderRadius: '6px',
+      fontWeight: 500,
+      transition: 'background-color 150ms ease',
+    },
+    variants: {
+      intent: {
+        primary: {
+          backgroundColor: color.primary,
+          color: '#fff',
+          '&:hover': { backgroundColor: color.primaryHover },
+        },
+        secondary: {
+          backgroundColor: color.secondary,
+          color: '#fff',
+          '&:hover': { backgroundColor: color.secondaryHover },
+        },
       },
     },
   },
-  defaultVariants: { intent: 'primary' },
 });
 
 function Button({ primary, children }) {
@@ -1023,10 +1104,13 @@ import { createTypeStyles, cx } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const card = recipe('card', {
-  base: {
-    // New styles with typestyles
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+const card = recipe({
+  name: 'card',
+  styles: {
+    base: {
+      // New styles with typestyles
+      boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    },
   },
 });
 
@@ -1076,22 +1160,26 @@ function Button({ variant, children }) {
 **After (button.styles.ts):**
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-export const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
-    borderRadius: '6px',
-  },
-  variants: {
-    intent: {
-      primary: { backgroundColor: '#0066ff', color: 'white' },
-      secondary: { backgroundColor: '#6b7280', color: 'white' },
+export const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary', 'secondary'], { default: 'primary' }) },
+  styles: {
+    base: {
+      padding: '8px 16px',
+      borderRadius: '6px',
+    },
+    variants: {
+      intent: {
+        primary: { backgroundColor: '#0066ff', color: 'white' },
+        secondary: { backgroundColor: '#6b7280', color: 'white' },
+      },
     },
   },
-  defaultVariants: { intent: 'primary' },
 });
 ```
 
@@ -1124,9 +1212,12 @@ import { createTypeStyles } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const tooltip = recipe('tooltip', {
-  base: {
-    position: 'absolute',
+const tooltip = recipe({
+  name: 'tooltip',
+  styles: {
+    base: {
+      position: 'absolute',
+    },
   },
 });
 
@@ -1152,6 +1243,8 @@ Migrating from plain CSS gives you type safety and better organization.
    });
    ```
 
+````
+
 3. **Create style definitions** - Convert CSS rules to typestyles:
 
    ```css
@@ -1163,20 +1256,23 @@ Migrating from plain CSS gives you type safety and better organization.
    .btn:hover {
      background: #0052cc;
    }
-   ```
+````
 
-   ```ts
-   // After
-   const button = recipe('button', {
-     base: {
-       padding: '8px 16px',
-       backgroundColor: color.primary,
-       '&:hover': {
-         backgroundColor: color.primaryHover,
-       },
-     },
-   });
-   ```
+```ts
+// After
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      padding: '8px 16px',
+      backgroundColor: color.primary,
+      '&:hover': {
+        backgroundColor: color.primaryHover,
+      },
+    },
+  },
+});
+```
 
 4. **Update components** - Replace className strings with function calls
 
@@ -1191,10 +1287,20 @@ If you are migrating from the previous `styles.create()` API:
 **Before:**
 
 ```ts
-const button = recipe('button', {
-  base: { padding: '8px 16px' },
-  primary: { backgroundColor: '#0066ff' },
-  large: { fontSize: '18px' },
+import { variant } from 'typestyles';
+const button = recipe({
+  name: 'button',
+  variants: {
+    primary: variant.boolean({ default: false }),
+    large: variant.boolean({ default: false }),
+  },
+  styles: {
+    base: { padding: '8px 16px' },
+    variants: {
+      primary: { true: { backgroundColor: '#0066ff' }, false: {} },
+      large: { true: { fontSize: '18px' }, false: {} },
+    },
+  },
 });
 
 // Usage:
@@ -1205,10 +1311,20 @@ button('base', isPrimary && 'primary');
 **After (flat config):**
 
 ```ts
-const button = recipe('button', {
-  base: { padding: '8px 16px' },
-  primary: { backgroundColor: '#0066ff' },
-  large: { fontSize: '18px' },
+import { variant } from 'typestyles';
+const button = recipe({
+  name: 'button',
+  variants: {
+    primary: variant.boolean({ default: false }),
+    large: variant.boolean({ default: false }),
+  },
+  styles: {
+    base: { padding: '8px 16px' },
+    variants: {
+      primary: { true: { backgroundColor: '#0066ff' }, false: {} },
+      large: { true: { fontSize: '18px' }, false: {} },
+    },
+  },
 });
 
 // Base is auto-applied. Destructure for direct access:
@@ -1222,17 +1338,24 @@ cx(button(), isPrimary && primary);
 **After (dimensioned config -- recommended for variants like intent/size):**
 
 ```ts
-const button = recipe('button', {
-  base: { padding: '8px 16px' },
+import { variant } from 'typestyles';
+const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: { backgroundColor: '#0066ff' },
-    },
-    size: {
-      large: { fontSize: '18px' },
+    intent: variant.enum(['primary'], { default: 'primary' }),
+    size: variant.enum(['large'], { default: 'large' }),
+  },
+  styles: {
+    base: { padding: '8px 16px' },
+    variants: {
+      intent: {
+        primary: { backgroundColor: '#0066ff' },
+      },
+      size: {
+        large: { fontSize: '18px' },
+      },
     },
   },
-  defaultVariants: { intent: 'primary', size: 'large' },
 });
 
 // Base auto-applied, defaults kick in:

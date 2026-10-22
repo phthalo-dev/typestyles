@@ -88,7 +88,7 @@ Note: `typestyles` should be a peer dependency so consuming apps can control the
 
 ## Scope isolation
 
-Published packages **must** use a `scopeId` to prevent class name collisions with consumer code or other libraries. Without one, `recipe('button', …)` produces `button` in both your library and the consuming app — their CSS rules silently overwrite each other.
+Published packages **must** use a `scopeId` to prevent class name collisions with consumer code or other libraries. Without one, `recipe({ name: 'button' })` produces `button` in both your library and the consuming app — their CSS rules silently overwrite each other.
 
 ```ts
 // src/styles.ts
@@ -240,92 +240,98 @@ export { fontSize, fontWeight, lineHeight } from './typography';
 ### Button component
 
 ```ts
+import { variant } from 'typestyles';
 // src/components/Button/Button.styles.ts
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 import { semanticColors, spacing, fontSize, fontWeight } from '../../tokens';
 
-export const button = recipe('button', {
-  base: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing[2],
-    borderRadius: '6px',
-    lineHeight: '1.5',
-    cursor: 'pointer',
-    border: 'none',
-    transition: 'all 150ms ease',
-
-    '&:disabled': {
-      opacity: 0.5,
-      cursor: 'not-allowed',
-    },
-
-    '&:focus': {
-      outline: 'none',
-      boxShadow: `0 0 0 3px ${semanticColors.primary}33`,
-    },
-  },
+export const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: {
-        backgroundColor: semanticColors.primary,
-        color: '#ffffff',
-        '&:hover:not(:disabled)': {
-          backgroundColor: semanticColors.primaryHover,
-        },
-      },
-      secondary: {
-        backgroundColor: semanticColors.secondary,
-        color: '#ffffff',
-        '&:hover:not(:disabled)': {
-          backgroundColor: semanticColors.secondaryHover,
-        },
-      },
-      outline: {
-        backgroundColor: 'transparent',
-        border: `1px solid ${semanticColors.border}`,
-        color: semanticColors.text,
-        '&:hover:not(:disabled)': {
-          backgroundColor: semanticColors.surfaceRaised,
-        },
-      },
-      ghost: {
-        backgroundColor: 'transparent',
-        color: semanticColors.text,
-        '&:hover:not(:disabled)': {
-          backgroundColor: semanticColors.surfaceRaised,
-        },
-      },
-    },
-    size: {
-      sm: {
-        padding: `${spacing[1]} ${spacing[3]}`,
-        fontSize: fontSize.sm,
-        fontWeight: fontWeight.medium,
-      },
-      md: {
-        padding: `${spacing[2]} ${spacing[4]}`,
-        fontSize: fontSize.base,
-        fontWeight: fontWeight.medium,
-      },
-      lg: {
-        padding: `${spacing[3]} ${spacing[6]}`,
-        fontSize: fontSize.lg,
-        fontWeight: fontWeight.medium,
-      },
-    },
-    width: {
-      auto: {},
-      full: { width: '100%' },
-    },
+    intent: variant.enum(['primary', 'secondary', 'outline', 'ghost'], {
+      default: 'primary',
+    }),
+    size: variant.enum(['sm', 'md', 'lg'], { default: 'md' }),
+    width: variant.enum(['auto', 'full'], { default: 'auto' }),
   },
-  defaultVariants: {
-    intent: 'primary',
-    size: 'md',
-    width: 'auto',
+  styles: {
+    base: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing[2],
+      borderRadius: '6px',
+      lineHeight: '1.5',
+      cursor: 'pointer',
+      border: 'none',
+      transition: 'all 150ms ease',
+
+      '&:disabled': {
+        opacity: 0.5,
+        cursor: 'not-allowed',
+      },
+
+      '&:focus': {
+        outline: 'none',
+        boxShadow: `0 0 0 3px ${semanticColors.primary}33`,
+      },
+    },
+    variants: {
+      intent: {
+        primary: {
+          backgroundColor: semanticColors.primary,
+          color: '#ffffff',
+          '&:hover:not(:disabled)': {
+            backgroundColor: semanticColors.primaryHover,
+          },
+        },
+        secondary: {
+          backgroundColor: semanticColors.secondary,
+          color: '#ffffff',
+          '&:hover:not(:disabled)': {
+            backgroundColor: semanticColors.secondaryHover,
+          },
+        },
+        outline: {
+          backgroundColor: 'transparent',
+          border: `1px solid ${semanticColors.border}`,
+          color: semanticColors.text,
+          '&:hover:not(:disabled)': {
+            backgroundColor: semanticColors.surfaceRaised,
+          },
+        },
+        ghost: {
+          backgroundColor: 'transparent',
+          color: semanticColors.text,
+          '&:hover:not(:disabled)': {
+            backgroundColor: semanticColors.surfaceRaised,
+          },
+        },
+      },
+      size: {
+        sm: {
+          padding: `${spacing[1]} ${spacing[3]}`,
+          fontSize: fontSize.sm,
+          fontWeight: fontWeight.medium,
+        },
+        md: {
+          padding: `${spacing[2]} ${spacing[4]}`,
+          fontSize: fontSize.base,
+          fontWeight: fontWeight.medium,
+        },
+        lg: {
+          padding: `${spacing[3]} ${spacing[6]}`,
+          fontSize: fontSize.lg,
+          fontWeight: fontWeight.medium,
+        },
+      },
+      width: {
+        auto: {},
+        full: { width: '100%' },
+      },
+    },
   },
 });
 ```
@@ -596,11 +602,14 @@ import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const customCard = recipe('custom-card', {
-  base: {
-    padding: spacing[6],
-    border: `2px solid ${semanticColors.primary}`,
-    borderRadius: '12px',
+const customCard = recipe({
+  name: 'custom-card',
+  styles: {
+    base: {
+      padding: spacing[6],
+      border: `2px solid ${semanticColors.primary}`,
+      borderRadius: '12px',
+    },
   },
 });
 

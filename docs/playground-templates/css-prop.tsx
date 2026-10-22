@@ -10,13 +10,16 @@ const color = tokens.create('color', {
   surface: '#faf5ff',
 });
 
-const card = recipe('card', {
-  base: {
-    padding: '1.5rem',
-    borderRadius: '12px',
-    backgroundColor: color.surface,
-    border: `1px solid color-mix(in oklch, ${color.accent} 25%, transparent)`,
-    maxWidth: '20rem',
+const card = recipe({
+  name: 'card',
+  styles: {
+    base: {
+      padding: '1.5rem',
+      borderRadius: '12px',
+      backgroundColor: color.surface,
+      border: `1px solid color-mix(in oklch, ${color.accent} 25%, transparent)`,
+      maxWidth: '20rem',
+    },
   },
 });
 

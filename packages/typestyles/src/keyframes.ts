@@ -39,8 +39,9 @@ function serializeDeclarations(properties: CSSProperties): string {
  *   to: { opacity: 1 },
  * });
  *
- * const card = recipe('card', {
- *   base: { animation: `${fadeIn} 300ms ease` },
+ * const card = recipe({
+ *   name: 'card',
+ *   styles: { base: { animation: `${fadeIn} 300ms ease` } },
  * });
  * ```
  *

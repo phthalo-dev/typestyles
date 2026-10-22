@@ -32,12 +32,15 @@ import { sizes, radius, color, font } from '@typestyles/open-props';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const card = recipe('card', {
-  base: {
-    padding: sizes['4'],
-    borderRadius: radius['3'],
-    backgroundColor: color['gray-2'],
-    fontFamily: font['sans'],
+const card = recipe({
+  name: 'card',
+  styles: {
+    base: {
+      padding: sizes['4'],
+      borderRadius: radius['3'],
+      backgroundColor: color['gray-2'],
+      fontFamily: font['sans'],
+    },
   },
 });
 ```
@@ -109,11 +112,14 @@ const brand = tokens.create('brand', {
   primary: '#ff6b6b',
 });
 
-const hero = recipe('hero', {
-  base: {
-    padding: sizes['6'],
-    backgroundColor: brand.primary,
-    color: color['gray-0'],
+const hero = recipe({
+  name: 'hero',
+  styles: {
+    base: {
+      padding: sizes['6'],
+      backgroundColor: brand.primary,
+      color: color['gray-0'],
+    },
   },
 });
 ```

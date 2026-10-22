@@ -17,6 +17,7 @@ When you opt in with a **`layers`** config on `createStyles`, `createTokens`, or
 One config object gives you matching **`scopeId`**, **`layers`**, and default layers for both class CSS and token/theme CSS:
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe, tokens } = createTypeStyles({
@@ -31,17 +32,15 @@ const { style, recipe, tokens } = createTypeStyles({
 
 const reset = style('reset', { margin: 0, padding: 0 }, { layer: 'reset' });
 
-const button = recipe(
-  'button',
-  {
+const button = recipe({
+  name: 'button',
+  layer: 'components',
+  variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+  styles: {
     base: { padding: '8px 16px' },
-    variants: {
-      intent: { primary: { backgroundColor: '#0066ff' } },
-    },
-    defaultVariants: { intent: 'primary' },
+    variants: { intent: { primary: { backgroundColor: '#0066ff' } } },
   },
-  { layer: 'components' },
-);
+});
 
 tokens.create('color', { primary: '#0066ff' });
 ```

@@ -10,44 +10,47 @@ TypeStyles supports all CSS at-rules and advanced selectors through special key 
 Use the `&` prefix for pseudo-classes:
 
 ```ts
-const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
-    backgroundColor: '#0066ff',
-    color: 'white',
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      padding: '8px 16px',
+      backgroundColor: '#0066ff',
+      color: 'white',
 
-    // Hover state
-    '&:hover': {
-      backgroundColor: '#0052cc',
-    },
+      // Hover state
+      '&:hover': {
+        backgroundColor: '#0052cc',
+      },
 
-    // Focus state
-    '&:focus': {
-      outline: '2px solid #0066ff',
-      outlineOffset: '2px',
-    },
+      // Focus state
+      '&:focus': {
+        outline: '2px solid #0066ff',
+        outlineOffset: '2px',
+      },
 
-    // Active/pressed state
-    '&:active': {
-      transform: 'scale(0.98)',
-    },
+      // Active/pressed state
+      '&:active': {
+        transform: 'scale(0.98)',
+      },
 
-    // Disabled state
-    '&:disabled': {
-      opacity: 0.5,
-      cursor: 'not-allowed',
-    },
+      // Disabled state
+      '&:disabled': {
+        opacity: 0.5,
+        cursor: 'not-allowed',
+      },
 
-    // Pseudo-elements
-    '&::before': {
-      content: '""',
-      display: 'inline-block',
-      width: '16px',
-      height: '16px',
-    },
+      // Pseudo-elements
+      '&::before': {
+        content: '""',
+        display: 'inline-block',
+        width: '16px',
+        height: '16px',
+      },
 
-    '&::after': {
-      content: '" →"',
+      '&::after': {
+        content: '" →"',
+      },
     },
   },
 });
@@ -56,33 +59,36 @@ const button = recipe('button', {
 ### Form-related pseudo-classes
 
 ```ts
-const input = recipe('input', {
-  base: {
-    border: '1px solid #e5e7eb',
+const input = recipe({
+  name: 'input',
+  styles: {
+    base: {
+      border: '1px solid #e5e7eb',
 
-    // Checked state (checkboxes, radios)
-    '&:checked': {
-      backgroundColor: '#0066ff',
-    },
+      // Checked state (checkboxes, radios)
+      '&:checked': {
+        backgroundColor: '#0066ff',
+      },
 
-    // Placeholder text
-    '&::placeholder': {
-      color: '#9ca3af',
-    },
+      // Placeholder text
+      '&::placeholder': {
+        color: '#9ca3af',
+      },
 
-    // Invalid state
-    '&:invalid': {
-      borderColor: '#ef4444',
-    },
+      // Invalid state
+      '&:invalid': {
+        borderColor: '#ef4444',
+      },
 
-    // Valid state
-    '&:valid': {
-      borderColor: '#10b981',
-    },
+      // Valid state
+      '&:valid': {
+        borderColor: '#10b981',
+      },
 
-    // Required field
-    '&:required': {
-      borderColor: '#f59e0b',
+      // Required field
+      '&:required': {
+        borderColor: '#f59e0b',
+      },
     },
   },
 });
@@ -91,35 +97,41 @@ const input = recipe('input', {
 ### Structural pseudo-classes
 
 ```ts
-const list = recipe('list', {
-  item: {
-    padding: '8px 0',
-    borderBottom: '1px solid #e5e7eb',
+const list = recipe({
+  name: 'list',
+  slots: ['item'] as const,
+  styles: {
+    base: {
+      item: {
+        padding: '8px 0',
+        borderBottom: '1px solid #e5e7eb',
 
-    // First child
-    '&:first-child': {
-      paddingTop: 0,
-    },
+        // First child
+        '&:first-child': {
+          paddingTop: 0,
+        },
 
-    // Last child
-    '&:last-child': {
-      paddingBottom: 0,
-      borderBottom: 'none',
-    },
+        // Last child
+        '&:last-child': {
+          paddingBottom: 0,
+          borderBottom: 'none',
+        },
 
-    // Every other item
-    '&:nth-child(even)': {
-      backgroundColor: '#f9fafb',
-    },
+        // Every other item
+        '&:nth-child(even)': {
+          backgroundColor: '#f9fafb',
+        },
 
-    // First 3 items
-    '&:nth-child(-n+3)': {
-      fontWeight: 600,
-    },
+        // First 3 items
+        '&:nth-child(-n+3)': {
+          fontWeight: 600,
+        },
 
-    // Only child
-    '&:only-child': {
-      border: 'none',
+        // Only child
+        '&:only-child': {
+          border: 'none',
+        },
+      },
     },
   },
 });
@@ -130,30 +142,46 @@ const list = recipe('list', {
 ### Child selectors
 
 ```ts
-const card = recipe('card', {
-  base: {
-    padding: '16px',
+import { variant } from 'typestyles';
+const card = recipe({
+  name: 'card',
+  variants: {
+    '& > header': variant.boolean({ default: false }),
+    '& .content': variant.boolean({ default: false }),
+    '& p': variant.boolean({ default: false }),
+    '& h1, & h2, & h3': variant.boolean({ default: false }),
   },
-
-  // Direct children
-  '& > header': {
-    marginBottom: '12px',
-    fontWeight: 600,
-  },
-
-  // Any descendant
-  '& .content': {
-    lineHeight: 1.6,
-  },
-
-  // Descendant with specific element
-  '& p': {
-    marginBottom: '8px',
-  },
-
-  // Multiple selectors
-  '& h1, & h2, & h3': {
-    marginTop: 0,
+  styles: {
+    base: {
+      padding: '16px',
+    },
+    variants: {
+      '& > header': {
+        true: {
+          marginBottom: '12px',
+          fontWeight: 600,
+        },
+        false: {},
+      },
+      '& .content': {
+        true: {
+          lineHeight: 1.6,
+        },
+        false: {},
+      },
+      '& p': {
+        true: {
+          marginBottom: '8px',
+        },
+        false: {},
+      },
+      '& h1, & h2, & h3': {
+        true: {
+          marginTop: 0,
+        },
+        false: {},
+      },
+    },
   },
 });
 ```
@@ -161,27 +189,42 @@ const card = recipe('card', {
 ### Sibling selectors
 
 ```ts
-const form = recipe('form', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
+import { variant } from 'typestyles';
+const form = recipe({
+  name: 'form',
+  variants: {
+    '& > * + *': variant.boolean({ default: false }),
+    '& input ~ .error': variant.boolean({ default: false }),
+    '& input:invalid ~ .error': variant.boolean({ default: false }),
   },
-
-  // Adjacent sibling
-  '& > * + *': {
-    // Adds margin between consecutive children (owl selector)
-    marginTop: '16px',
-  },
-
-  // General sibling
-  '& input ~ .error': {
-    display: 'none',
-  },
-
-  '& input:invalid ~ .error': {
-    display: 'block',
-    color: '#ef4444',
+  styles: {
+    base: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '16px',
+    },
+    variants: {
+      '& > * + *': {
+        true: {
+          // Adds margin between consecutive children (owl selector)
+          marginTop: '16px',
+        },
+        false: {},
+      },
+      '& input ~ .error': {
+        true: {
+          display: 'none',
+        },
+        false: {},
+      },
+      '& input:invalid ~ .error': {
+        true: {
+          display: 'block',
+          color: '#ef4444',
+        },
+        false: {},
+      },
+    },
   },
 });
 ```
@@ -189,35 +232,38 @@ const form = recipe('form', {
 ## Attribute selectors
 
 ```ts
-const link = recipe('link', {
-  base: {
-    color: '#0066ff',
-    textDecoration: 'none',
+const link = recipe({
+  name: 'link',
+  styles: {
+    base: {
+      color: '#0066ff',
+      textDecoration: 'none',
 
-    // External links
-    '&[href^="http"]': {
-      '&::after': {
-        content: '" ↗"',
+      // External links
+      '&[href^="http"]': {
+        '&::after': {
+          content: '" ↗"',
+        },
       },
-    },
 
-    // Download links
-    '&[download]': {
-      '&::after': {
-        content: '" ↓"',
+      // Download links
+      '&[download]': {
+        '&::after': {
+          content: '" ↓"',
+        },
       },
-    },
 
-    // Links with specific target
-    '&[target="_blank"]': {
-      '&::after': {
-        content: '" (opens in new tab)"',
+      // Links with specific target
+      '&[target="_blank"]': {
+        '&::after': {
+          content: '" (opens in new tab)"',
+        },
       },
-    },
 
-    // Selector list support (both selectors scoped to .link-base)
-    '[data-state="open"], [aria-expanded="true"]': {
-      fontWeight: 600,
+      // Selector list support (both selectors scoped to .link-base)
+      '[data-state="open"], [aria-expanded="true"]': {
+        fontWeight: 600,
+      },
     },
   },
 });
@@ -262,26 +308,32 @@ You can still author raw nested keys (e.g. `'&:has(.active)'`, `'&:is(:hover, :f
 Use the `@` prefix for media queries:
 
 ```ts
-const layout = recipe('layout', {
-  container: {
-    display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: '16px',
+const layout = recipe({
+  name: 'layout',
+  slots: ['container'] as const,
+  styles: {
+    base: {
+      container: {
+        display: 'grid',
+        gridTemplateColumns: '1fr',
+        gap: '16px',
 
-    // Tablet
-    '@media (min-width: 768px)': {
-      gridTemplateColumns: 'repeat(2, 1fr)',
-    },
+        // Tablet
+        '@media (min-width: 768px)': {
+          gridTemplateColumns: 'repeat(2, 1fr)',
+        },
 
-    // Desktop
-    '@media (min-width: 1024px)': {
-      gridTemplateColumns: 'repeat(3, 1fr)',
-    },
+        // Desktop
+        '@media (min-width: 1024px)': {
+          gridTemplateColumns: 'repeat(3, 1fr)',
+        },
 
-    // Wide screens
-    '@media (min-width: 1440px)': {
-      gridTemplateColumns: 'repeat(4, 1fr)',
-      gap: '24px',
+        // Wide screens
+        '@media (min-width: 1440px)': {
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '24px',
+        },
+      },
     },
   },
 });
@@ -290,31 +342,34 @@ const layout = recipe('layout', {
 ### Complex media queries
 
 ```ts
-const hero = recipe('hero', {
-  base: {
-    padding: '48px 16px',
+const hero = recipe({
+  name: 'hero',
+  styles: {
+    base: {
+      padding: '48px 16px',
 
-    // High DPI screens
-    '@media (min-resolution: 192dpi)': {
-      backgroundImage: 'url(hero@2x.jpg)',
-    },
+      // High DPI screens
+      '@media (min-resolution: 192dpi)': {
+        backgroundImage: 'url(hero@2x.jpg)',
+      },
 
-    // Dark mode preference
-    '@media (prefers-color-scheme: dark)': {
-      backgroundColor: '#1a1a2e',
-      color: '#e0e0e0',
-    },
+      // Dark mode preference
+      '@media (prefers-color-scheme: dark)': {
+        backgroundColor: '#1a1a2e',
+        color: '#e0e0e0',
+      },
 
-    // Reduced motion preference
-    '@media (prefers-reduced-motion: reduce)': {
-      animation: 'none',
-      transition: 'none',
-    },
+      // Reduced motion preference
+      '@media (prefers-reduced-motion: reduce)': {
+        animation: 'none',
+        transition: 'none',
+      },
 
-    // Print styles
-    '@media print': {
-      background: 'none',
-      color: 'black',
+      // Print styles
+      '@media print': {
+        background: 'none',
+        color: 'black',
+      },
     },
   },
 });
@@ -323,20 +378,23 @@ const hero = recipe('hero', {
 ### Combining media queries with pseudo-classes
 
 ```ts
-const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      padding: '8px 16px',
 
-    // Hover only on devices that support it
-    '@media (hover: hover)': {
-      '&:hover': {
-        backgroundColor: '#0052cc',
+      // Hover only on devices that support it
+      '@media (hover: hover)': {
+        '&:hover': {
+          backgroundColor: '#0052cc',
+        },
       },
-    },
 
-    // Touch device adjustments
-    '@media (pointer: coarse)': {
-      padding: '12px 20px', // Larger touch target
+      // Touch device adjustments
+      '@media (pointer: coarse)': {
+        padding: '12px 20px', // Larger touch target
+      },
     },
   },
 });
@@ -351,15 +409,18 @@ import { createTypeStyles, mediaQueries } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const card = recipe('card', {
-  base: {
-    transition: 'transform 200ms ease',
+const card = recipe({
+  name: 'card',
+  styles: {
+    base: {
+      transition: 'transform 200ms ease',
 
-    // Respect prefers-reduced-motion
-    [mediaQueries.prefersReducedMotion.reduce]: { transition: 'none' },
+      // Respect prefers-reduced-motion
+      [mediaQueries.prefersReducedMotion.reduce]: { transition: 'none' },
 
-    // Larger touch target on coarse pointers (e.g. touchscreens)
-    [mediaQueries.pointer.coarse]: { padding: '12px 20px' },
+      // Larger touch target on coarse pointers (e.g. touchscreens)
+      [mediaQueries.pointer.coarse]: { padding: '12px 20px' },
+    },
   },
 });
 ```
@@ -382,20 +443,26 @@ const { recipe, media, breakpoint, atRuleBlock } = createTypeStyles({
   },
 });
 
-const layout = recipe('layout', {
-  container: {
-    display: 'grid',
-    gridTemplateColumns: '1fr',
+const layout = recipe({
+  name: 'layout',
+  slots: ['container'] as const,
+  styles: {
+    base: {
+      container: {
+        display: 'grid',
+        gridTemplateColumns: '1fr',
 
-    // Spreadable block helper
-    ...media('md', {
-      gridTemplateColumns: 'repeat(2, 1fr)',
-    }),
+        // Spreadable block helper
+        ...media('md', {
+          gridTemplateColumns: 'repeat(2, 1fr)',
+        }),
 
-    // Same pattern as container queries: breakpoint key + atRuleBlock
-    ...atRuleBlock(breakpoint('lg'), {
-      gridTemplateColumns: 'repeat(3, 1fr)',
-    }),
+        // Same pattern as container queries: breakpoint key + atRuleBlock
+        ...atRuleBlock(breakpoint('lg'), {
+          gridTemplateColumns: 'repeat(3, 1fr)',
+        }),
+      },
+    },
   },
 });
 ```
@@ -531,13 +598,16 @@ Feature detection with `@supports`. You can write plain `'@supports …'` keys (
 ### Typed keys with `supports()`
 
 ```ts
-const backdrop = recipe('backdrop', {
-  base: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+const backdrop = recipe({
+  name: 'backdrop',
+  styles: {
+    base: {
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
 
-    [supports({ backdropFilter: 'blur(4px)' })]: {
-      backdropFilter: 'blur(4px)',
-      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      [supports({ backdropFilter: 'blur(4px)' })]: {
+        backdropFilter: 'blur(4px)',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      },
     },
   },
 });
@@ -550,21 +620,24 @@ const backdrop = recipe('backdrop', {
 ### Complex supports queries
 
 ```ts
-const grid = recipe('grid', {
-  base: {
-    // Fallback layout
-    display: 'flex',
-    flexWrap: 'wrap',
+const grid = recipe({
+  name: 'grid',
+  styles: {
+    base: {
+      // Fallback layout
+      display: 'flex',
+      flexWrap: 'wrap',
 
-    // Use grid if supported
-    [supports({ display: 'grid' })]: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    },
+      // Use grid if supported
+      [supports({ display: 'grid' })]: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+      },
 
-    // Use subgrid if supported
-    [supports({ gridTemplateColumns: 'subgrid' })]: {
-      gridTemplateColumns: 'subgrid',
+      // Use subgrid if supported
+      [supports({ gridTemplateColumns: 'subgrid' })]: {
+        gridTemplateColumns: 'subgrid',
+      },
     },
   },
 });
@@ -581,22 +654,31 @@ For `not`, `selector()`, or other syntax that does not map to a single declarati
 CSS cascade layers for organizing styles:
 
 ```ts
-const reset = recipe('reset', {
-  base: {
-    // Apply to @layer reset
-    '@layer reset': {
-      margin: 0,
-      padding: 0,
-      boxSizing: 'border-box',
+const reset = recipe({
+  name: 'reset',
+  styles: {
+    base: {
+      // Apply to @layer reset
+      '@layer reset': {
+        margin: 0,
+        padding: 0,
+        boxSizing: 'border-box',
+      },
     },
   },
 });
 
-const components = recipe('components', {
-  button: {
-    '@layer components': {
-      padding: '8px 16px',
-      backgroundColor: '#0066ff',
+const components = recipe({
+  name: 'components',
+  slots: ['button'] as const,
+  styles: {
+    base: {
+      button: {
+        '@layer components': {
+          padding: '8px 16px',
+          backgroundColor: '#0066ff',
+        },
+      },
     },
   },
 });
@@ -608,28 +690,34 @@ While typestyles supports deep nesting, it's best to keep it shallow:
 
 ```ts
 // ✅ Good - 2-3 levels deep
-const nav = recipe('nav', {
-  base: {
-    display: 'flex',
+const nav = recipe({
+  name: 'nav',
+  styles: {
+    base: {
+      display: 'flex',
 
-    '& li': {
-      position: 'relative',
+      '& li': {
+        position: 'relative',
 
-      '&:hover > ul': {
-        display: 'block', // 3 levels, acceptable
+        '&:hover > ul': {
+          display: 'block', // 3 levels, acceptable
+        },
       },
     },
   },
 });
 
 // ❌ Avoid - too deep, hard to maintain
-const deep = recipe('deep', {
-  base: {
-    '& div': {
-      '& span': {
-        '& a': {
-          '&:hover': {
-            color: 'red', // 5 levels, problematic
+const deep = recipe({
+  name: 'deep',
+  styles: {
+    base: {
+      '& div': {
+        '& span': {
+          '& a': {
+            '&:hover': {
+              color: 'red', // 5 levels, problematic
+            },
           },
         },
       },
@@ -641,72 +729,75 @@ const deep = recipe('deep', {
 ## Complex real-world example
 
 ```ts
-const dataTable = recipe('data-table', {
-  container: {
-    overflowX: 'auto',
-    containerType: 'inline-size',
-    containerName: 'data-table',
-  },
+const dataTable = recipe({
+  name: 'data-table',
+  slots: ['container', 'table', '@media print'] as const,
+  styles: {
+    base: {
+      container: {
+        overflowX: 'auto',
+        containerType: 'inline-size',
+        containerName: 'data-table',
+      },
+      table: {
+        width: '100%',
+        borderCollapse: 'collapse',
 
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
+        // Responsive adjustments
+        '@container (max-width: 600px)': {
+          fontSize: '14px',
+        },
 
-    // Responsive adjustments
-    '@container (max-width: 600px)': {
-      fontSize: '14px',
-    },
+        // Sticky header
+        '& thead': {
+          position: 'sticky',
+          top: 0,
+          backgroundColor: '#f9fafb',
 
-    // Sticky header
-    '& thead': {
-      position: 'sticky',
-      top: 0,
-      backgroundColor: '#f9fafb',
+          '& th': {
+            padding: '12px',
+            textAlign: 'left',
+            fontWeight: 600,
 
-      '& th': {
-        padding: '12px',
-        textAlign: 'left',
-        fontWeight: 600,
+            '&:hover': {
+              backgroundColor: '#e5e7eb',
+              cursor: 'pointer',
+            },
+          },
+        },
 
-        '&:hover': {
-          backgroundColor: '#e5e7eb',
-          cursor: 'pointer',
+        // Body rows
+        '& tbody tr': {
+          borderBottom: '1px solid #e5e7eb',
+
+          '&:last-child': {
+            borderBottom: 'none',
+          },
+
+          '&:hover': {
+            backgroundColor: '#f9fafb',
+          },
+
+          '& td': {
+            padding: '12px',
+          },
+
+          // Selected row
+          '&[data-selected="true"]': {
+            backgroundColor: '#eff6ff',
+          },
         },
       },
-    },
+      '@media print': {
+        container: {
+          overflow: 'visible',
+        },
 
-    // Body rows
-    '& tbody tr': {
-      borderBottom: '1px solid #e5e7eb',
-
-      '&:last-child': {
-        borderBottom: 'none',
-      },
-
-      '&:hover': {
-        backgroundColor: '#f9fafb',
-      },
-
-      '& td': {
-        padding: '12px',
-      },
-
-      // Selected row
-      '&[data-selected="true"]': {
-        backgroundColor: '#eff6ff',
-      },
-    },
-  },
-
-  // Print styles
-  '@media print': {
-    container: {
-      overflow: 'visible',
-    },
-
-    table: {
-      '& thead': {
-        position: 'static',
+        table: {
+          '& thead': {
+            position: 'static',
+          },
+        },
       },
     },
   },
@@ -720,14 +811,17 @@ TypeStyles converts these nested objects to flat CSS:
 **Input:**
 
 ```ts
-const button = recipe('button', {
-  base: {
-    padding: '8px',
-    '&:hover': {
-      backgroundColor: 'blue',
-    },
-    '@media (min-width: 768px)': {
-      padding: '12px',
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      padding: '8px',
+      '&:hover': {
+        backgroundColor: 'blue',
+      },
+      '@media (min-width: 768px)': {
+        padding: '12px',
+      },
     },
   },
 });

@@ -1,8 +1,11 @@
+import { variant } from 'typestyles';
 import { recipe } from '../runtime';
 import { designTokens as t } from '../tokens';
 
-export const button = recipe('button', (c) => {
-  const v = c.vars({
+export const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary', 'secondary', 'ghost'], { default: 'secondary' }) },
+  vars: {
     border: {
       value: `${t.color.border.default}`,
       syntax: '<color>',
@@ -18,8 +21,8 @@ export const button = recipe('button', (c) => {
       syntax: '<color>',
       inherits: false,
     },
-  });
-  return {
+  },
+  styles: ({ vars: v }) => ({
     base: {
       appearance: 'none',
       border: `1px solid ${v.border.var}`,
@@ -78,8 +81,7 @@ export const button = recipe('button', (c) => {
         },
       },
     },
-    defaultVariants: { intent: 'secondary' },
-  };
+  }),
 });
 
 export const linkButton = button;

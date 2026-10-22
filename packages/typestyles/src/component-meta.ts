@@ -36,7 +36,7 @@ export type ComponentMetaBase = {
   /** Internal vars registered via `c.var()` / `c.vars()` during recipe definition. */
   varRegistry?: ComponentVarRegistry;
   /**
-   * Schema for recipes created with the schema-first `recipe(namespace, definition, …)`
+   * Schema for recipes created with `recipe({ name, slots?, variants?, styles })`.
    * call shape (Issue #259). Absent for recipes using the legacy config shapes.
    */
   schema?: RecipeSchemaMeta;

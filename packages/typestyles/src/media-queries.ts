@@ -8,10 +8,13 @@ import type { MediaQueryKey } from './media';
  *
  * @example
  * ```ts
- * const card = recipe('card', {
- *   base: {
- *     transition: 'transform 200ms ease',
- *     [mediaQueries.prefersReducedMotion.reduce]: { transition: 'none' },
+ * const card = recipe({
+ *   name: 'card',
+ *   styles: {
+ *     base: {
+ *       transition: 'transform 200ms ease',
+ *       [mediaQueries.prefersReducedMotion.reduce]: { transition: 'none' },
+ *     },
  *   },
  * });
  * ```

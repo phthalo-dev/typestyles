@@ -8,5 +8,5 @@ export type ButtonProps = Omit<RACButtonProps, 'className'> & {
 };
 
 export function Button({ intent = 'secondary', className, ...props }: ButtonProps): JSX.Element {
-  return <AriaButton {...props} className={`${button({ intent })} ${className || ''}`} />;
+  return <AriaButton {...props} className={`${button({ intent }).className} ${className || ''}`} />;
 }

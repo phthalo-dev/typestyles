@@ -5,7 +5,7 @@ description: Create and compose style variants with recipe
 
 The TypeStyles **`style`** and **`recipe`** APIs let you define named style variants and compose them at the call site. Create one runtime per app or package with **`createTypeStyles`**.
 
-`recipe()` is the unified API for creating component styles. It supports both **flat** configs (simple named variants) and **dimensioned** configs (typed `variants`, `compoundVariants`, `defaultVariants`). For the full dimensioned variant API, see [Components](/docs/components).
+`recipe()` takes one object. Boolean toggles and enum axes are both `variants` (`variant.boolean` / `variant.enum`); option styles live in `styles`. For slots, compounds, and vars, see [Components](/docs/components).
 
 ## How TypeStyles runs
 
@@ -16,47 +16,52 @@ The TypeStyles **`style`** and **`recipe`** APIs let you define named style vari
 
 ## Choosing an API
 
-| You want to…                                                            | Use                           | Why                                                                                           |
-| ----------------------------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------- |
-| Style a component with base + flat toggles (`elevated`, `compact`)      | `recipe` (flat config)        | Small surface area; base applies automatically when you call the function.                    |
-| Build typed variant axes (`intent`, `size`) with defaults and compounds | `recipe` (dimensioned config) | First-class variant model: `variants`, `compoundVariants`, `defaultVariants`.                 |
-| One reusable class from a single style object                           | `style`                       | One class string, no variant machinery.                                                       |
-| Merge several style groups                                              | `compose`                     | Reuse groups without repeating objects.                                                       |
-| Join class names conditionally                                          | `cx()` from `'typestyles'`    | Filters falsy values; pairs well with props from parents (not tied to a TypeStyles instance). |
+| You want to…                                                            | Use                          | Why                                                                                            |
+| ----------------------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------- |
+| Style a component with base + boolean toggles (`elevated`, `compact`)   | `recipe` + `variant.boolean` | Base applies on every call. The toggle is `elevated: true`.                                    |
+| Build typed variant axes (`intent`, `size`) with defaults and compounds | `recipe` + `variant.enum`    | Axes are declared up front. `styles.variants` and `compoundVariants` are checked against them. |
+| One reusable class from a single style object                           | `style`                      | One class string, no variant machinery.                                                        |
+| Merge several style groups                                              | `compose`                    | Reuse groups without repeating objects.                                                        |
+| Join class names conditionally                                          | `cx()` from `'typestyles'`   | Filters falsy values; pairs well with props from parents (not tied to a TypeStyles instance).  |
 
 **Practical default:** one [`createTypeStyles`](/docs/api-reference#createtypestyles-options) module per app or package; then use `recipe` for UI components, `style` for one-off utilities, and `import { cx } from 'typestyles'` when you merge external `className` strings.
 
 ## Creating styles (flat config)
 
-Call `recipe(namespace, definitions)` with a unique namespace and an object of variant names to style definitions:
+Pass `name`, the axes, and `styles`:
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const card = recipe('card', {
-  base: {
-    padding: '16px',
-    borderRadius: '8px',
-    border: '1px solid #e5e5e5',
-  },
-  elevated: {
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+const card = recipe({
+  name: 'card',
+  variants: { elevated: variant.boolean({ default: false }) },
+  styles: {
+    base: {
+      padding: '16px',
+      borderRadius: '8px',
+      border: '1px solid #e5e5e5',
+    },
+    variants: {
+      elevated: {
+        true: {
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        },
+        false: {},
+      },
+    },
   },
 });
 ```
 
-The returned object is both **callable** and **destructurable**:
+The call returns `{ className, attrs, props }`. Base styles are always included:
 
 ```ts
-// Call as a function -- base styles are always auto-applied:
-card(); // "card" (flat variants are opt-in via the call or `defaultVariants`)
-
-// Destructure for direct class access:
-const { base, elevated } = card;
-// base => "card"
-// elevated => "card--elevated"
+card().className; // "card"
+card({ elevated: true }).className; // "card card--elevated-true"
 ```
 
 Class names are deterministic: `card`, `card--elevated`.
@@ -68,19 +73,26 @@ To use **hashed** or **hash-only** class strings instead (for example in a desig
 For typed variant dimensions, use the full variant config:
 
 ```ts
-const button = recipe('button', {
-  base: { padding: '8px 16px', borderRadius: '6px' },
+import { variant } from 'typestyles';
+const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: { backgroundColor: '#0066ff', color: '#fff' },
-      secondary: { backgroundColor: '#6b7280', color: '#fff' },
-    },
-    size: {
-      sm: { fontSize: '14px' },
-      lg: { fontSize: '18px' },
+    intent: variant.enum(['primary', 'secondary'], { default: 'primary' }),
+    size: variant.enum(['sm', 'lg'], { default: 'sm' }),
+  },
+  styles: {
+    base: { padding: '8px 16px', borderRadius: '6px' },
+    variants: {
+      intent: {
+        primary: { backgroundColor: '#0066ff', color: '#fff' },
+        secondary: { backgroundColor: '#6b7280', color: '#fff' },
+      },
+      size: {
+        sm: { fontSize: '14px' },
+        lg: { fontSize: '18px' },
+      },
     },
   },
-  defaultVariants: { intent: 'primary', size: 'sm' },
 });
 
 // Base styles auto-applied; pass variant overrides:
@@ -96,11 +108,14 @@ See [Components](/docs/components) for `compoundVariants`, boolean variants, and
 Use the `&` prefix for pseudo-classes and nested selectors, just like in CSS:
 
 ```ts
-const button = recipe('button', {
-  base: {
-    padding: '8px 16px',
-    '&:hover': { opacity: 0.9 },
-    '&:disabled': { opacity: 0.5, cursor: 'not-allowed' },
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      padding: '8px 16px',
+      '&:hover': { opacity: 0.9 },
+      '&:disabled': { opacity: 0.5, cursor: 'not-allowed' },
+    },
   },
 });
 ```
@@ -110,23 +125,26 @@ const button = recipe('button', {
 Attribute selectors work with `&`-prefixed nested selectors, including all CSS attribute selector operators:
 
 ```ts
-const trigger = recipe('trigger', {
-  base: {
-    // exact match
-    '&[data-state="open"]': { opacity: 1 },
+const trigger = recipe({
+  name: 'trigger',
+  styles: {
+    base: {
+      // exact match
+      '&[data-state="open"]': { opacity: 1 },
 
-    // starts with / ends with / contains
-    '&[data-side^="top"]': { marginTop: '4px' },
-    '&[data-size$="-lg"]': { padding: '12px' },
-    '&[data-name*="admin"]': { fontWeight: 700 },
+      // starts with / ends with / contains
+      '&[data-side^="top"]': { marginTop: '4px' },
+      '&[data-size$="-lg"]': { padding: '12px' },
+      '&[data-name*="admin"]': { fontWeight: 700 },
 
-    // whitespace-separated token / language-style match
-    '&[data-flags~="selected"]': { borderStyle: 'solid' },
-    '&[lang|="en"]': { fontFamily: 'system-ui' },
+      // whitespace-separated token / language-style match
+      '&[data-flags~="selected"]': { borderStyle: 'solid' },
+      '&[lang|="en"]': { fontFamily: 'system-ui' },
 
-    // accessibility state hooks
-    '&[aria-expanded="true"]': { backgroundColor: '#1d4ed8' },
-    '&[aria-selected="true"]': { color: 'white' },
+      // accessibility state hooks
+      '&[aria-expanded="true"]': { backgroundColor: '#1d4ed8' },
+      '&[aria-selected="true"]': { color: 'white' },
+    },
   },
 });
 ```
@@ -155,12 +173,14 @@ Use `compose()` to combine multiple component style functions or class strings:
 ```ts
 const { recipe, compose } = createTypeStyles({ scopeId: 'app' });
 
-const base = recipe('base', {
-  base: { padding: '8px', borderRadius: '4px' },
+const base = recipe({
+  name: 'base',
+  styles: { base: { padding: '8px', borderRadius: '4px' } },
 });
 
-const primary = recipe('primary', {
-  base: { backgroundColor: '#0066ff', color: 'white' },
+const primary = recipe({
+  name: 'primary',
+  styles: { base: { backgroundColor: '#0066ff', color: 'white' } },
 });
 
 const button = compose(base, primary);
@@ -173,13 +193,20 @@ See the [Style Composition](/docs/compose) guide for more details.
 Use the built-in `cx()` utility to conditionally join class strings:
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles, cx } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
-const card = recipe('card', {
-  base: { padding: '16px' },
-  elevated: { boxShadow: '0 4px 8px rgba(0,0,0,0.1)' },
+const card = recipe({
+  name: 'card',
+  variants: { elevated: variant.boolean({ default: false }) },
+  styles: {
+    base: { padding: '16px' },
+    variants: {
+      elevated: { true: { boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }, false: {} },
+    },
+  },
 });
 
 const { base, elevated } = card;
@@ -193,6 +220,7 @@ cx(base, isElevated && elevated, customClassName);
 Define reusable shorthand properties (similar to Stitches `utils`) on your **`createTypeStyles`** instance so class names, scope, and layers stay on one API — no global registration.
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { style, recipe } = createTypeStyles({
@@ -218,9 +246,13 @@ const avatar = style('avatar', {
   marginX: 8,
 });
 
-const button = recipe('button', {
-  base: { paddingY: 8 },
-  compact: { paddingY: 4 },
+const button = recipe({
+  name: 'button',
+  variants: { compact: variant.boolean({ default: false }) },
+  styles: {
+    base: { paddingY: 8 },
+    variants: { compact: { true: { paddingY: 4 }, false: {} } },
+  },
 });
 ```
 

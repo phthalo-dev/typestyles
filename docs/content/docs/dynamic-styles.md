@@ -12,23 +12,33 @@ This keeps your extracted CSS static while still letting each element pick its o
 Define a var reference in your styles, then set its value on each instance:
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles, createVar, assignVars } from 'typestyles';
 
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
 const progressFill = createVar('progressFill');
 
-const progress = recipe('progress', {
-  base: {
-    height: '8px',
-    borderRadius: '4px',
-    background: '#e5e7eb',
-  },
-  bar: {
-    height: '100%',
-    borderRadius: 'inherit',
-    background: '#0066ff',
-    width: progressFill,
+const progress = recipe({
+  name: 'progress',
+  variants: { bar: variant.boolean({ default: false }) },
+  styles: {
+    base: {
+      height: '8px',
+      borderRadius: '4px',
+      background: '#e5e7eb',
+    },
+    variants: {
+      bar: {
+        true: {
+          height: '100%',
+          borderRadius: 'inherit',
+          background: '#0066ff',
+          width: progressFill,
+        },
+        false: {},
+      },
+    },
   },
 });
 
@@ -90,12 +100,15 @@ Prefer `createVar` over raw inline styles when the property is part of a compone
 const barColor = createVar('barColor');
 const barWidth = createVar('barWidth');
 
-const chartBar = recipe('chart-bar', {
-  base: {
-    background: barColor,
-    width: barWidth,
-    height: '100%',
-    borderRadius: '2px',
+const chartBar = recipe({
+  name: 'chart-bar',
+  styles: {
+    base: {
+      background: barColor,
+      width: barWidth,
+      height: '100%',
+      borderRadius: '2px',
+    },
   },
 });
 
@@ -116,12 +129,10 @@ Provide a CSS fallback as the second argument — useful when a var might not be
 ```ts
 const accent = createVar('accent', '#0066ff');
 
-const badge = recipe('badge', {
-  base: {
+const badge = recipe({ name: 'badge', styles: { base: {
     color: accent,
     fontWeight: 600,
-  },
-});
+  } } });
 
 // Without assignVars, the fallback '#0066ff' applies
 <div className={badge('base')} />

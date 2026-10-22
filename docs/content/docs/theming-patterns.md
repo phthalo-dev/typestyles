@@ -1057,8 +1057,8 @@ app.get('/', (req, res) => {
     renderToString(
       <div className={htmlClass}>
         <App />
-      </div>
-    )
+      </div>,
+    ),
   );
 
   res.send(`
@@ -1085,9 +1085,9 @@ nested-theme proximity.
 
 ### Typed component overrides
 
-`override(component, config, options?)` restyles a `recipe()`
-return with the same shape as the recipe — variant keys autocomplete from the
-recipe type, and you never pass class names. Call it on the **same**
+`override({ recipe, styles, vars?, layer?, selectorPrefix? })` restyles a `recipe()`
+with the same style object — variant keys autocomplete from the recipe, and you never
+pass class names. `styles` is partial. Call it on the **same**
 `createTypeStyles` instance that created the component (design systems typically wrap this).
 Cross-instance calls — a component from one `createTypeStyles` instance passed to
 another instance's `override` — are unsupported: emission uses **this** instance's
@@ -1101,6 +1101,7 @@ override keys always replaces the previous CSS. Recipe HMR still preserves
 override rules — theme modules own those registrations.
 
 ```ts
+import { variant } from 'typestyles';
 import { createTypeStyles } from 'typestyles';
 
 const { recipe, override } = createTypeStyles({
@@ -1112,9 +1113,14 @@ const { recipe, override } = createTypeStyles({
   },
 });
 
-const button = recipe(
-  'button',
-  {
+const button = recipe({
+  name: 'button',
+  layer: 'components',
+  variants: {
+    intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+    size: variant.enum(['sm', 'lg'], { default: 'sm' }),
+  },
+  styles: {
     base: { borderRadius: '6px' },
     variants: {
       intent: {
@@ -1124,27 +1130,27 @@ const button = recipe(
       size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } },
     },
   },
-  { layer: 'components' },
-);
+});
 
 // App-global
-override(
-  button,
-  {
+override({
+  recipe: button,
+  layer: 'overrides',
+  styles: {
     base: { borderRadius: '999px' },
     variants: {
       intent: { primary: { textTransform: 'uppercase' } },
     },
   },
-  { layer: 'overrides' },
-);
+});
 
 // Theme-scoped (descendant prefix — not CSS `@scope`)
-override(
-  button,
-  { base: { boxShadow: 'none' } },
-  { selectorPrefix: '.theme-acme', layer: 'overrides' },
-);
+override({
+  recipe: button,
+  layer: 'overrides',
+  selectorPrefix: '.theme-acme',
+  styles: { base: { boxShadow: 'none' } },
+});
 ```
 
 Works for semantic, bem, template, and attribute naming modes (and flat / slot /
@@ -1156,40 +1162,37 @@ custom stacks without `"overrides"` must pass `{ layer }` explicitly.
 
 #### Override component internal vars
 
-When a recipe exposes themeable surfaces with `c.vars()` or top-level config **`vars`**,
-consumers override them with the matching top-level **`vars`** block on
-`override()` (typed logical keys) or token/theme CSS on the var host.
+When a recipe declares **`vars`**, consumers override them with the matching **`vars`**
+block on `override()` (typed logical keys) or token/theme CSS on the var host.
 
 ```ts
-const sideNav = recipe('side-nav', (c) => {
-  const v = c.vars({
+const sideNav = recipe({
+  name: 'side-nav',
+  slots: ['root', 'heading'] as const,
+  vars: {
     border: { value: '#ccc', syntax: '<color>' as const },
     headingColor: '#111',
-  });
-  return {
-    vars: v,
-    slots: ['root', 'heading'] as const,
+  },
+  styles: ({ vars }) => ({
     base: {
-      root: { borderColor: v.border.var },
-      heading: { color: v.headingColor.var },
+      root: { borderColor: vars.border.var },
+      heading: { color: vars.headingColor.var },
     },
-  };
+  }),
 });
 
 // sideNav.vars.border.var — same paths consumers override below
-override(
-  sideNav,
-  {
-    vars: { border: 'transparent', headingColor: 'var(--brand-heading)' },
-    base: { root: { margin: '8px', borderRadius: '12px' } },
-  },
-  { selectorPrefix: '.theme-acme', layer: 'overrides' },
-);
+override({
+  recipe: sideNav,
+  layer: 'overrides',
+  selectorPrefix: '.theme-acme',
+  vars: { border: 'transparent', headingColor: 'var(--brand-heading)' },
+  styles: { base: { root: { margin: '8px', borderRadius: '12px' } } },
+});
 // => .theme-acme .side-nav { --side-nav-border: transparent; …; margin: 8px; … }
 ```
 
-Use `vars: v` so `OverrideConfigFor<typeof sideNav>` infers theme keys — no need to repeat
-the definition object. `c.vars()` alone auto-stamps runtime metadata when you omit `vars`.
+Declaring `vars` on the recipe makes `OverrideConfigFor<typeof sideNav>` infer those keys.
 
 Var overrides emit on the **var host class** (same element that owns default var
 declarations from the recipe). They compose with `base` slot overrides on that host;
@@ -1205,12 +1208,14 @@ import { createTypeStyles, colorModes } from 'typestyles';
 
 const { recipe, override } = createTypeStyles({ scopeId: 'var-ui', colorModes });
 
-const button = recipe('button', {
-  base: { borderColor: { light: 'red', dark: 'blue' } },
+const button = recipe({
+  name: 'button',
+  styles: { base: { borderColor: { light: 'red', dark: 'blue' } } },
 });
 
-override(button, {
-  base: { color: { light: '#111', dark: '#eee' } },
+override({
+  recipe: button,
+  styles: { base: { color: { light: '#111', dark: '#eee' } } },
 });
 // => border-color: light-dark(red, blue); color: light-dark(#111, #eee)
 ```
@@ -1230,13 +1235,16 @@ and `@media` wrappers:
 ```ts
 import { resolvedDarkWhen, when } from 'typestyles';
 
-recipe('badge', {
-  base: {
-    color: '#111827',
-    ...when(when.prefersDark, { color: '#e5e7eb' }),
-    ...when(resolvedDarkWhen('data-mode', 'ancestor'), {
-      '&::after': { opacity: 0.85 },
-    }),
+recipe({
+  name: 'badge',
+  styles: {
+    base: {
+      color: '#111827',
+      ...when(when.prefersDark, { color: '#e5e7eb' }),
+      ...when(resolvedDarkWhen('data-mode', 'ancestor'), {
+        '&::after': { opacity: 0.85 },
+      }),
+    },
   },
 });
 ```
@@ -1255,9 +1263,11 @@ compiles `when` with the same `tokens.when.*` builders theme modes use:
 import { conditional } from 'typestyles';
 import { when } from 'typestyles'; // or tokens.when from your tokens instance
 
-override(
-  button,
-  {
+override({
+  recipe: button,
+  layer: 'overrides',
+  selectorPrefix: '.theme-acme',
+  styles: {
     base: {
       letterSpacing: '0.02em',
       conditions: [
@@ -1268,8 +1278,7 @@ override(
       ],
     },
   },
-  { selectorPrefix: '.theme-acme', layer: 'overrides' },
-);
+});
 ```
 
 `conditions` is reserved — do not put it on `recipe()` recipe definitions.
@@ -1284,8 +1293,8 @@ footgun as plain descendant CSS — use Tier 1 vars or [`scope()`](#tier-2--plai
 
 ### Tier 1 — component-scoped CSS custom properties (preferred)
 
-If a component author exposed a property as a CSS custom property (`ctx.vars` /
-`c.vars`), consumers override it per theme with **`override({ vars })`** (typed
+If a component author exposed a property as a CSS custom property (`vars` on the
+recipe), consumers override it per theme with **`override({ vars })`** (typed
 logical keys) or ordinary token/theme CSS on the var host. Custom properties inherit
 down the DOM and reset at each `.theme-*` boundary, so nested themes stay
 proximity-correct with no extra tooling.
@@ -1312,7 +1321,11 @@ const { recipe, style, override } = createTypeStyles({
   },
 });
 
-const button = recipe('button', { base: { padding: '8px 16px' } }, { layer: 'components' });
+const button = recipe({
+  name: 'button',
+  layer: 'components',
+  styles: { base: { padding: '8px 16px' } },
+});
 
 // In theme setup for `.theme-acme`:
 style('.theme-acme .button', { borderRadius: '999px' }, { layer: 'overrides' });
@@ -1355,9 +1368,15 @@ const { recipe, override, scope } = createTypeStyles({
   },
 });
 
-const button = recipe('button', { base: { borderRadius: '6px' } }, { layer: 'components' });
+const button = recipe({
+  name: 'button',
+  layer: 'components',
+  styles: { base: { borderRadius: '6px' } },
+});
 
-scope({ root: '.theme-acme', layer: 'overrides' }, button.base, { borderRadius: '999px' });
+scope({ root: '.theme-acme', layer: 'overrides' }, button.base, {
+  borderRadius: '999px',
+});
 // Prefer override(button, { base: { borderRadius: '999px' } }, { selectorPrefix: '.theme-acme', layer: 'overrides' })
 ```
 

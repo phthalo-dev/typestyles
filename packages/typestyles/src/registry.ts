@@ -63,8 +63,10 @@ export function warnUnscopedCollision(namespace: string, apiName: string): void 
   if (!isDev()) return;
   if (warnedUnscopedNamespaces.has(namespace)) return;
   warnedUnscopedNamespaces.add(namespace);
+  const rendered =
+    apiName === 'recipe' ? `recipe({ name: '${namespace}', … })` : `${apiName}('${namespace}', …)`;
   console.warn(
-    `[typestyles] ${apiName}('${namespace}', …) was registered more than once without a ` +
+    `[typestyles] ${rendered} was registered more than once without a ` +
       `scopeId. Their CSS rules will overwrite each other. Isolate each definition with ` +
       `createStyles({ scopeId: '…' }) or createTypeStyles({ scopeId: '…' }). ` +
       `If this is caused by HMR re-execution, this warning is safe to ignore.`,

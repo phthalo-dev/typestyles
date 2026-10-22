@@ -3,7 +3,7 @@ import type {
   CSSPropertiesWithUtils,
   ComposeFn,
   ComposeSelectorInput,
-  ComponentConfigContext,
+  ComponentVarDefinitions,
   StyleUtils,
   StylesPropertyFn,
 } from './types';
@@ -21,7 +21,12 @@ import {
   type ClassNamingConfig,
 } from './class-naming';
 import { decomposeAtomicStyle, classNamesAndRulesForProperties } from './atomic-decompose';
-import { createComponent, createSchemaComponent, isSchemaRecipeDefinition } from './component';
+import {
+  createComponent,
+  createComponentAttrsResult,
+  createSchemaComponent,
+  isSchemaRecipeDefinition,
+} from './component';
 import type { RecipeDefinition, RecipeStyles } from './schema-recipe';
 import type { StylesApi } from './styles-api';
 import {
@@ -31,7 +36,12 @@ import {
 } from './compose-meta';
 import { createScope, type ScopeOptions } from './scope';
 import { createOverride, type OverrideOptions } from './override';
-import { getComponentMeta } from './component-meta';
+import {
+  attachComponentMeta,
+  attachComponentSchema,
+  getComponentMeta,
+  stampVarDefinitionsBrand,
+} from './component-meta';
 import {
   attachComponentRegistryMethods,
   createComponentRegistry,
@@ -219,8 +229,8 @@ export function createHashClass(
  *
  * @example
  * ```ts
- * const base = recipe('base', { base: { padding: '8px' } });
- * const primary = recipe('primary', { base: { color: 'blue' } });
+ * const base = recipe({ name: 'base', styles: { base: { padding: '8px' } } });
+ * const primary = recipe({ name: 'primary', styles: { base: { color: 'blue' } } });
  * const button = compose(base, primary);
  *
  * button(); // "base primary"
@@ -259,6 +269,24 @@ export type { ComponentCreateOptions, RecipeFn } from './recipe-fn';
 type RecipeRuntimeOptions = {
   readonly layer?: string;
   readonly themeable?: boolean;
+};
+
+type RecipeRuntimeInput = {
+  name?: string;
+  layer?: string;
+  themeable?: boolean;
+  slots?: readonly string[];
+  variants?: Record<string, unknown>;
+  vars?: Record<string, unknown>;
+  styles?: unknown;
+};
+
+type OverrideRuntimeInput = {
+  recipe?: object;
+  layer?: string;
+  selectorPrefix?: string;
+  vars?: Record<string, unknown>;
+  styles?: unknown;
 };
 
 export type CreateStylesInput = Partial<Omit<ClassNamingConfig, 'cascadeLayers'>> & {
@@ -348,6 +376,42 @@ export function createStyles<const O extends CreateStylesInput>(options?: O): St
   return buildStylesApi(classNaming, registry, utils) as unknown as StylesApi<O>;
 }
 
+function presentRecipeHandle(handle: object, hasSlots: boolean): object {
+  if (typeof handle !== 'function') return handle;
+  const call = handle as (selections?: Record<string, unknown>) => unknown;
+  const wrapped = (selections?: Record<string, unknown>) => {
+    const result = call(selections);
+    if (result && typeof result === 'object') {
+      if ('className' in result && 'attrs' in result && 'props' in result) return result;
+      if (hasSlots) {
+        const entries = Object.entries(result as Record<string, unknown>);
+        if (entries.every(([, value]) => typeof value === 'string')) {
+          return Object.fromEntries(
+            entries.map(([slot, value]) => [slot, createComponentAttrsResult(value as string)]),
+          );
+        }
+      }
+      return result;
+    }
+    if (typeof result === 'string') return createComponentAttrsResult(result);
+    return result;
+  };
+  Object.assign(wrapped, handle);
+  const meta = getComponentMeta(handle);
+  if (meta) attachComponentMeta(wrapped, meta);
+  const defs = (handle as { __varDefinitions?: Record<string, unknown> }).__varDefinitions;
+  if (defs) stampVarDefinitionsBrand(wrapped, defs);
+  if (!('defaults' in wrapped)) {
+    Object.defineProperty(wrapped, 'defaults', {
+      value: {},
+      enumerable: true,
+      writable: false,
+      configurable: false,
+    });
+  }
+  return wrapped;
+}
+
 function registerComponentFromOptions(
   registry: ComponentRegistry,
   namespace: string,
@@ -385,15 +449,10 @@ type StylesCore = {
   where: typeof whereNested;
   class: (name: string, properties: CSSProperties, options?: { readonly layer?: string }) => string;
   hashClass: StylesHashClass;
-  component: (
-    namespace: string,
-    configOrDefinition: unknown,
-    callbackOrOptions?: unknown,
-    maybeOptions?: RecipeRuntimeOptions,
-  ) => unknown;
+  component: (input: RecipeRuntimeInput) => unknown;
   compose: typeof compose;
   scope: (opts: ScopeOptions, className: string, overrides: CSSProperties) => void;
-  override: (componentHandle: object, config: unknown, options?: OverrideOptions<string>) => void;
+  override: (input: OverrideRuntimeInput) => void;
 };
 
 type StylesBuilderResult = StylesCore &
@@ -414,50 +473,79 @@ function buildStylesApi(
     : undefined;
   const transform = apply ? makeTransformComponentConfigWithUtils(apply) : undefined;
 
-  const component = (
-    namespace: string,
-    configOrDefinition: unknown,
-    callbackOrOptions?: unknown,
-    maybeOptions?: RecipeRuntimeOptions,
-  ) => {
-    if (isSchemaRecipeDefinition(configOrDefinition)) {
-      const definition = configOrDefinition;
-      const userConfig = callbackOrOptions as (
-        ctx: ComponentConfigContext,
-      ) => Record<string, unknown>;
-      const handle = createSchemaComponent(
-        classNaming,
-        namespace,
-        definition,
-        transform
-          ? (ctx) =>
-              transform({
-                ...userConfig(ctx),
-                ...(definition.slots ? { slots: definition.slots } : {}),
-              }) as unknown as RecipeStyles<RecipeDefinition>
-          : (userConfig as (ctx: ComponentConfigContext) => RecipeStyles<RecipeDefinition>),
-        maybeOptions,
+  const component = (input: RecipeRuntimeInput) => {
+    if (input == null || typeof input !== 'object' || typeof input.name !== 'string') {
+      throw new Error(
+        '[typestyles] recipe() takes one object: { name, styles, slots?, variants?, vars?, layer?, themeable? }.',
       );
-      registerComponentFromOptions(registry, namespace, handle, maybeOptions);
-      return handle;
+    }
+    const { name, layer, themeable, slots, variants, vars, styles } = input;
+    const options: RecipeRuntimeOptions = { layer, themeable };
+    if (variants != null && !isSchemaRecipeDefinition({ variants })) {
+      throw new Error(
+        `[typestyles] recipe({ name: "${name}" }) \`variants\` must be variant.enum() / variant.boolean() axes. Put option styles in \`styles\`.`,
+      );
     }
 
-    const config = configOrDefinition as
-      | Record<string, unknown>
-      | ((ctx: ComponentConfigContext) => Record<string, unknown>);
-    const options = callbackOrOptions as RecipeRuntimeOptions | undefined;
-    let resolved: typeof config;
-    if (!transform) {
-      resolved = config;
-    } else if (typeof config === 'function') {
-      const configFn = config;
-      resolved = (ctx) => transform(configFn(ctx));
+    const readStyles = (refTree: object): Record<string, unknown> => {
+      const raw =
+        typeof styles === 'function'
+          ? ((styles as (ctx: { vars: object }) => Record<string, unknown>)({ vars: refTree }) ??
+            {})
+          : ((styles as Record<string, unknown> | undefined) ?? {});
+      const withSlots = slots && slots.length > 0 ? { ...raw, slots: [...slots] } : { ...raw };
+      const transformed: Record<string, unknown> = transform ? transform(withSlots) : withSlots;
+      const { vars: _vars, slots: _slots, ...rest } = transformed;
+      return rest;
+    };
+
+    let handle: object;
+    if (variants && isSchemaRecipeDefinition({ variants })) {
+      const definition = {
+        ...(slots ? { slots } : {}),
+        variants,
+      } as RecipeDefinition;
+      handle = createSchemaComponent(
+        classNaming,
+        name,
+        definition,
+        (ctx) => {
+          const refTree = vars ? ctx.vars(vars as ComponentVarDefinitions) : {};
+          const resolved = readStyles(refTree);
+          if (vars) resolved.vars = refTree;
+          return resolved as RecipeStyles<RecipeDefinition>;
+        },
+        { layer },
+      );
     } else {
-      resolved = transform(config);
+      handle = createComponent(
+        classNaming,
+        name,
+        (ctx) => {
+          const refTree = vars ? ctx.vars(vars as ComponentVarDefinitions) : {};
+          const resolved = readStyles(refTree);
+          if (slots && slots.length > 0) {
+            const base = resolved.base;
+            const legacy: Record<string, unknown> = { slots: [...slots] };
+            if (base && typeof base === 'object' && !Array.isArray(base)) {
+              Object.assign(legacy, base as Record<string, unknown>);
+            }
+            if (vars) legacy.vars = refTree;
+            return legacy;
+          }
+          if (vars) resolved.vars = refTree;
+          return resolved;
+        },
+        { layer },
+      ) as object;
+      if (slots && slots.length > 0) {
+        attachComponentSchema(handle, { slots: [...slots], variants: {} });
+      }
     }
-    const handle = createComponent(classNaming, namespace, resolved as never, options);
-    registerComponentFromOptions(registry, namespace, handle, options);
-    return handle;
+
+    const presented = presentRecipeHandle(handle, Boolean(slots && slots.length > 0));
+    registerComponentFromOptions(registry, name, presented, options);
+    return presented;
   };
 
   const containerRef = (label: string): ContainerNameRef =>
@@ -472,25 +560,35 @@ function buildStylesApi(
   const scope = (opts: ScopeOptions, className: string, overrides: CSSProperties) =>
     createScope(classNaming, opts, className, normalize(overrides));
 
-  const override = (
-    componentHandle: object,
-    config: unknown,
-    options?: OverrideOptions<string>,
-  ) => {
-    if (!apply) {
-      return createOverride(
-        classNaming,
-        componentHandle,
-        config as Record<string, unknown>,
-        options,
+  const override = (input: OverrideRuntimeInput) => {
+    if (input == null || typeof input !== 'object' || input.recipe == null) {
+      throw new Error(
+        '[typestyles] override() takes one object: { recipe, styles?, vars?, layer?, selectorPrefix? }.',
       );
     }
-    const meta = getComponentMeta(componentHandle);
+    const handle = input.recipe;
+    if (typeof input.styles === 'function') {
+      throw new Error(
+        '[typestyles] override({ styles: ({ vars, tokens }) => … }) needs the token registry from createTypeStyles(). ' +
+          'Call override on that instance, or pass a styles object to createStyles().override().',
+      );
+    }
+    const styleValue = (input.styles as Record<string, unknown> | undefined) ?? {};
+    const config: Record<string, unknown> = { ...styleValue };
+    if (input.vars) config.vars = input.vars;
+    const options: OverrideOptions<string> = {
+      layer: input.layer,
+      selectorPrefix: input.selectorPrefix,
+    };
+    if (!apply) {
+      return createOverride(classNaming, handle, config, options);
+    }
+    const meta = getComponentMeta(handle);
     const hasSlots = meta?.kind === 'slot' || meta?.kind === 'multi-slot';
     return createOverride(
       classNaming,
-      componentHandle,
-      transformOverrideConfigWithUtils(config as Record<string, unknown>, apply, hasSlots),
+      handle,
+      transformOverrideConfigWithUtils(config, apply, hasSlots),
       options,
     );
   };

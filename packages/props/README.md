@@ -125,8 +125,9 @@ const atoms = createProps(
   }),
 );
 
-const card = recipe('card', {
-  base: { borderRadius: '8px', backgroundColor: 'white' },
+const card = recipe({
+  name: 'card',
+  styles: { base: { borderRadius: '8px', backgroundColor: 'white' } },
 });
 
 <div className={cx(card(), atoms({ display: 'flex', gap: 2 }))} />;

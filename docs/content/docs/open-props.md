@@ -19,11 +19,17 @@ import { createTypeStyles } from 'typestyles';
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 import { sizes, radius, color, font } from '@typestyles/open-props';
 
-const card = recipe('card', {
-  padding: sizes['4'],
-  borderRadius: radius['3'],
-  backgroundColor: color['gray-2'],
-  fontFamily: font['sans'],
+const card = recipe({
+  name: 'card',
+  slots: ['padding', 'borderRadius', 'backgroundColor', 'fontFamily'] as const,
+  styles: {
+    base: {
+      padding: sizes['4'],
+      borderRadius: radius['3'],
+      backgroundColor: color['gray-2'],
+      fontFamily: font['sans'],
+    },
+  },
 });
 ```
 
@@ -292,21 +298,38 @@ import { createTypeStyles } from 'typestyles';
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 import { sizes, radius, color, shadow, fontSize } from '@typestyles/open-props';
 
-const button = recipe('button', {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: `${sizes['2']} ${sizes['4']}`,
-  borderRadius: radius['2'],
-  fontSize: fontSize['2'],
-  backgroundColor: color['blue-6'],
-  color: color['blue-0'],
-  boxShadow: shadow['2'],
-  transition: 'all 200ms var(--ease-2)',
-
-  '&:hover': {
-    boxShadow: shadow['3'],
-    backgroundColor: color['blue-5'],
+const button = recipe({
+  name: 'button',
+  slots: [
+    'display',
+    'alignItems',
+    'justifyContent',
+    'padding',
+    'borderRadius',
+    'fontSize',
+    'backgroundColor',
+    'color',
+    'boxShadow',
+    'transition',
+    '&:hover',
+  ] as const,
+  styles: {
+    base: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: `${sizes['2']} ${sizes['4']}`,
+      borderRadius: radius['2'],
+      fontSize: fontSize['2'],
+      backgroundColor: color['blue-6'],
+      color: color['blue-0'],
+      boxShadow: shadow['2'],
+      transition: 'all 200ms var(--ease-2)',
+      '&:hover': {
+        boxShadow: shadow['3'],
+        backgroundColor: color['blue-5'],
+      },
+    },
   },
 });
 ```
@@ -328,9 +351,15 @@ const brand = tokens.create('brand', {
 });
 
 // Use both together
-const container = recipe('container', {
-  backgroundColor: brand.primary, // var(--brand-primary)
-  padding: sizes['4'], // var(--size-4)
-  borderColor: color['gray-3'], // var(--color-gray-3)
+const container = recipe({
+  name: 'container',
+  slots: ['backgroundColor', 'padding', 'borderColor'] as const,
+  styles: {
+    base: {
+      backgroundColor: brand.primary,
+      padding: sizes['4'],
+      borderColor: color['gray-3'],
+    },
+  },
 });
 ```

@@ -8,13 +8,13 @@ describe('no-default-scope-in-package', () => {
       {
         code: `const { style, recipe } = createTypeStyles({ scopeId: 'pkg' });
 style('card', { padding: 8 });
-recipe('button', { base: { color: 'red' } });`,
+recipe({ name: 'button', styles: { base: { color: 'red' } } });`,
         filename: 'src/card.ts',
       },
       {
         code: `import { style, recipe } from './runtime';
 style('card', { padding: 8 });
-recipe('button', { base: { color: 'red' } });`,
+recipe({ name: 'button', styles: { base: { color: 'red' } } });`,
         filename: 'src/button.ts',
       },
       {
@@ -69,7 +69,7 @@ style('card', { padding: 8 });`,
         errors: [{ messageId: 'unscopedInPackage' }],
       },
       {
-        code: `styles.component('button', { base: { color: 'red' } })`,
+        code: `styles.component({ name: 'button', styles: { base: { color: 'red' } } })`,
         filename: 'src/button.ts',
         errors: [{ messageId: 'unscopedInPackage' }],
       },

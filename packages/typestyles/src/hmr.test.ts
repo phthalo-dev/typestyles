@@ -1,3 +1,4 @@
+import { variant } from './variant';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { invalidatePrefix, invalidateKeys, createOverrideHmrSlot } from './hmr';
 import { createStyles } from './styles';
@@ -330,13 +331,17 @@ describe('invalidateKeys', () => {
 
   it('preserves override rules when a component namespace is invalidated', () => {
     const styles = createStyles();
-    const button = styles.component('hmr-ov-btn', {
-      base: { color: 'black' },
-      variants: { intent: { primary: { color: 'blue' } } },
+    const button = styles.component({
+      name: 'hmr-ov-btn',
+      variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+      styles: { base: { color: 'black' }, variants: { intent: { primary: { color: 'blue' } } } },
     });
-    styles.override(button, {
-      base: { borderRadius: '999px' },
-      variants: { intent: { primary: { textTransform: 'uppercase' } } },
+    styles.override({
+      recipe: button,
+      styles: {
+        base: { borderRadius: '999px' },
+        variants: { intent: { primary: { textTransform: 'uppercase' } } },
+      },
     });
     flushSync();
 
@@ -355,14 +360,15 @@ describe('invalidateKeys', () => {
 
   it('updates override CSS when the same keys are re-registered with new values', () => {
     const styles = createStyles();
-    const button = styles.component('hmr-ov-replace', {
-      base: { color: 'black' },
+    const button = styles.component({
+      name: 'hmr-ov-replace',
+      styles: { base: { color: 'black' } },
     });
-    styles.override(button, { base: { borderRadius: '4px' } });
+    styles.override({ recipe: button, styles: { base: { borderRadius: '4px' } } });
     flushSync();
     expect(getRegisteredCss()).toContain('border-radius: 4px');
 
-    styles.override(button, { base: { borderRadius: '999px' } });
+    styles.override({ recipe: button, styles: { base: { borderRadius: '999px' } } });
     flushSync();
     const css = getRegisteredCss();
     expect(css).toContain('border-radius: 999px');
@@ -374,12 +380,13 @@ describe('invalidateKeys', () => {
     process.env.NODE_ENV = 'production';
     try {
       const styles = createStyles();
-      const button = styles.component('hmr-ov-prod', {
-        base: { color: 'black' },
+      const button = styles.component({
+        name: 'hmr-ov-prod',
+        styles: { base: { color: 'black' } },
       });
-      styles.override(button, { base: { borderRadius: '4px' } });
+      styles.override({ recipe: button, styles: { base: { borderRadius: '4px' } } });
       flushSync();
-      styles.override(button, { base: { borderRadius: '999px' } });
+      styles.override({ recipe: button, styles: { base: { borderRadius: '999px' } } });
       flushSync();
       const css = getRegisteredCss();
       expect(css).toContain('border-radius: 999px');
@@ -391,29 +398,31 @@ describe('invalidateKeys', () => {
 
   it('dispose does not drop sibling override rules that share attribute substrings', () => {
     const styles = createStyles({ mode: 'attribute' });
-    const button = styles.component('hmr-ov-attr', {
-      base: { color: 'black' },
-      variants: {
-        intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } },
+    const button = styles.component({
+      name: 'hmr-ov-attr',
+      variants: { intent: variant.enum(['primary', 'ghost'], { default: 'primary' }) },
+      styles: {
+        base: { color: 'black' },
+        variants: { intent: { primary: { color: 'blue' }, ghost: { color: 'gray' } } },
       },
     });
 
     const themeA = createOverrideHmrSlot();
     themeA.activate();
-    styles.override(
-      button,
-      { variants: { intent: { primary: { textTransform: 'uppercase' } } } },
-      { selectorPrefix: '.theme-a' },
-    );
+    styles.override({
+      recipe: button,
+      selectorPrefix: '.theme-a',
+      styles: { variants: { intent: { primary: { textTransform: 'uppercase' } } } },
+    });
     themeA.deactivate();
 
     const themeB = createOverrideHmrSlot();
     themeB.activate();
-    styles.override(
-      button,
-      { variants: { intent: { primary: { fontWeight: 700 } } } },
-      { selectorPrefix: '.theme-b' },
-    );
+    styles.override({
+      recipe: button,
+      selectorPrefix: '.theme-b',
+      styles: { variants: { intent: { primary: { fontWeight: 700 } } } },
+    });
     themeB.deactivate();
     flushSync();
 
@@ -433,18 +442,22 @@ describe('invalidateKeys', () => {
 
   it('dispose of an override HMR slot drops tracked override rules (theme module HMR)', () => {
     const styles = createStyles();
-    const button = styles.component('hmr-ov-slot', {
-      base: { color: 'black' },
-      variants: { intent: { primary: { color: 'blue' } } },
+    const button = styles.component({
+      name: 'hmr-ov-slot',
+      variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+      styles: { base: { color: 'black' }, variants: { intent: { primary: { color: 'blue' } } } },
     });
 
     const slot = createOverrideHmrSlot();
     slot.activate();
-    styles.override(
-      button,
-      { base: { borderRadius: '999px' }, variants: { intent: { primary: { fontWeight: 700 } } } },
-      { selectorPrefix: '.theme-acme' },
-    );
+    styles.override({
+      recipe: button,
+      selectorPrefix: '.theme-acme',
+      styles: {
+        base: { borderRadius: '999px' },
+        variants: { intent: { primary: { fontWeight: 700 } } },
+      },
+    });
     slot.deactivate();
     flushSync();
 
@@ -479,10 +492,12 @@ describe('invalidateKeys', () => {
 
   it('releases component namespace reservations so the same module can re-register (HMR)', () => {
     const styles = createStyles({ scopeId: 'docs' });
-    styles.component('docs-sidebar', { base: { color: 'red' } });
+    styles.component({ name: 'docs-sidebar', styles: { base: { color: 'red' } } });
 
     invalidateKeys([], ['.docs-sidebar-']);
 
-    expect(() => styles.component('docs-sidebar', { base: { color: 'blue' } })).not.toThrow();
+    expect(() =>
+      styles.component({ name: 'docs-sidebar', styles: { base: { color: 'blue' } } }),
+    ).not.toThrow();
   });
 });

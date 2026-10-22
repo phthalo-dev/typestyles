@@ -43,13 +43,16 @@ function mergeInto(target: Record<string, unknown>, key: string, value: VariantO
  *
  * @example
  * ```ts
- * recipe('badge', {
- *   base: {
- *     color: '#111',
- *     ...styles.when(when.prefersDark, { color: '#eee' }),
- *     ...styles.when(resolvedDarkWhen(), {
- *       '&::after': { opacity: 0.85 },
- *     }),
+ * recipe({
+ *   name: 'badge',
+ *   styles: {
+ *     base: {
+ *       color: '#111',
+ *       ...styles.when(when.prefersDark, { color: '#eee' }),
+ *       ...styles.when(resolvedDarkWhen(), {
+ *         '&::after': { opacity: 0.85 },
+ *       }),
+ *     },
  *   },
  * });
  * ```

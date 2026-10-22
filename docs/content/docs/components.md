@@ -3,16 +3,16 @@ title: Components
 description: Build typed variant APIs with recipe
 ---
 
-`recipe()` is the first-class API for variant-driven component styling.
+`recipe()` is the API for component styling. It takes one object. Declare `slots`, variant axes, and component `vars` on that object, and put the CSS in `styles`. `styles` is an object or `({ vars }) => object`, and it is checked against those fields. Tokens are imported; they are not passed into the style callback.
 
-`recipe()` is the unified API for all component styling. For flat configs (no dimensioned `variants`), see [Styles](/docs/styles).
+- `styles.base` — always-on styles. With `slots`, each slot's styles nest under `base` (`'& > *'` is legal on a flat `base`, and is not a sibling of a slot).
+- `variants` — `variant.enum` / `variant.boolean` axes. Option styles live in `styles.variants`, and every declared option is required.
+- `styles.compoundVariants` — styles that apply for a combination of axis values.
+- `vars` — component custom properties (`{ syntax, value }`). The callback receives the ref tree (`.name`, `.var`).
 
-Use the dimensioned config when you want a typed interface with:
+The call always returns `{ className, attrs, props }`. `String(button())` and `cx(button(), className)` use that class string. When `slots` is set, the call returns one result per slot, and each slot name is also a class string on the function (`tabs.root`).
 
-- `base` styles
-- `variants` dimensions
-- `compoundVariants` for combinations
-- `defaultVariants`
+For one-off rules with no variants, see [Styles](/docs/styles).
 
 ```ts
 import { createTypeStyles } from 'typestyles';
@@ -31,24 +31,32 @@ The live example defines a dimensioned `button` with `intent` and `size` variant
 Use `compoundVariants` for styles that should apply only when multiple variant values match.
 
 ```ts
-const badge = recipe('badge', {
+import { variant } from 'typestyles';
+const badge = recipe({
+  name: 'badge',
   variants: {
-    tone: {
-      success: { color: '#166534' },
-      warning: { color: '#92400e' },
-      danger: { color: '#991b1b' },
-    },
-    size: {
-      sm: { fontSize: '12px' },
-      lg: { fontSize: '14px' },
+    tone: variant.enum(['success', 'warning', 'danger'], { default: 'success' }),
+    size: variant.enum(['sm', 'lg'], { default: 'sm' }),
+  },
+  styles: {
+    compoundVariants: [
+      {
+        variants: { tone: ['success', 'warning'], size: 'lg' },
+        style: { fontWeight: 700 },
+      },
+    ],
+    variants: {
+      tone: {
+        success: { color: '#166534' },
+        warning: { color: '#92400e' },
+        danger: { color: '#991b1b' },
+      },
+      size: {
+        sm: { fontSize: '12px' },
+        lg: { fontSize: '14px' },
+      },
     },
   },
-  compoundVariants: [
-    {
-      variants: { tone: ['success', 'warning'], size: 'lg' },
-      style: { fontWeight: 700 },
-    },
-  ],
 });
 
 badge({ tone: 'success', size: 'lg' }); // "badge badge--tone-success badge--size-lg"
@@ -62,84 +70,93 @@ badge({ tone: 'danger', size: 'lg' }); // no matching compound rule
 
 ## Boolean variants
 
-Boolean variant dimensions are represented with `"true"` / `"false"` option keys.
+Declare a boolean axis with `variant.boolean`. The callable prop is a `boolean`. The style map still uses `"true"` / `"false"` keys, one per CSS branch.
 
 ```ts
-const input = recipe('input', {
-  base: { border: '1px solid #d1d5db' },
-  variants: {
-    invalid: {
-      true: { borderColor: '#ef4444' },
-      false: { borderColor: '#d1d5db' },
+import { variant } from 'typestyles';
+const input = recipe({
+  name: 'input',
+  variants: { invalid: variant.boolean({ default: false }) },
+  styles: {
+    base: { border: '1px solid #d1d5db' },
+    variants: {
+      invalid: {
+        true: { borderColor: '#ef4444' },
+        false: { borderColor: '#d1d5db' },
+      },
     },
-  },
-  defaultVariants: {
-    invalid: false,
   },
 });
 
-input(); // "input input--invalid-false"
-input({ invalid: true }); // "input input--invalid-true"
+input().className; // "input input--invalid-false"
+input({ invalid: true }).className; // "input input--invalid-true"
 ```
 
 ## Multipart `slots`
 
-Pass a `slots` array for components with multiple parts (for example root, trigger, and panel). `base`, `variants`, `compoundVariants`, and `defaultVariants` can each target specific slot keys.
+Pass a `slots` array for components with multiple parts (for example root, trigger, and panel). Slot styles nest under `styles.base`. Variant option styles and `compoundVariants` target those same slot keys.
 
-TypeScript infers each slot name from the array literal, so the return value is typed with those keys (for example `tabs.root`, `tabs.trigger`) and unknown keys are errors. You do not need `as const` on `slots` when you pass an inline array inside `recipe(...)`.
+An inline `slots` array is inferred as a tuple, so `tabs.root` is a class string and an unknown slot is an error. `as const` is for a slots array that lives in its own variable.
 
 ```ts
-const tabs = recipe('tabs', {
-  slots: ['root', 'trigger', 'content'],
-  base: {
-    root: { display: 'grid' },
-    trigger: { cursor: 'pointer' },
-  },
-  variants: {
-    size: {
-      sm: {
-        trigger: { fontSize: '12px' },
-        content: { padding: '8px' },
-      },
-      lg: {
-        trigger: { fontSize: '16px' },
-        content: { padding: '12px' },
+import { variant } from 'typestyles';
+const tabs = recipe({
+  name: 'tabs',
+  slots: ['root', 'trigger', 'content'] as const,
+  variants: { size: variant.enum(['sm', 'lg'], { default: 'sm' }) },
+  styles: {
+    base: {
+      root: { display: 'grid' },
+      trigger: { cursor: 'pointer' },
+    },
+    variants: {
+      size: {
+        sm: {
+          trigger: { fontSize: '12px' },
+          content: { padding: '8px' },
+        },
+        lg: {
+          trigger: { fontSize: '16px' },
+          content: { padding: '12px' },
+        },
       },
     },
   },
-  defaultVariants: { size: 'sm' },
 });
 
 const c = tabs();
-c.root; // class string for the root element
-c.trigger;
-c.content;
+c.root.className; // class string for the root element
+tabs.root; // the same class, without calling
+c.trigger.className;
+c.content.className;
 ```
 
-When inference still needs help (for example a config built in a helper that returns a widened object), pin the slot overload with explicit type parameters — **slots first, then variant definitions**:
+A slots array stored in a variable needs `as const` so the names stay a tuple. Axes are declared on `variants`, not inferred from `styles`:
 
 ```ts
-const APP_SHELL_SLOTS = ['root', 'header', 'main'] as const;
-type AppShellVariantDefs = {
-  density: {
-    compact: { root: { gap: string } };
-    comfortable: { root: { gap: string } };
-  };
-};
+import { variant } from 'typestyles';
 
-export const appShell = recipe<typeof APP_SHELL_SLOTS, AppShellVariantDefs>('app-shell', {
+const APP_SHELL_SLOTS = ['root', 'header', 'main'] as const;
+
+export const appShell = recipe({
+  name: 'app-shell',
   slots: APP_SHELL_SLOTS,
-  base: { root: { display: 'grid' } },
   variants: {
-    density: {
-      compact: { root: { gap: '4px' } },
-      comfortable: { root: { gap: '12px' } },
+    density: variant.enum(['compact', 'comfortable'], { default: 'compact' }),
+  },
+  styles: {
+    base: { root: { display: 'grid' } },
+    variants: {
+      density: {
+        compact: { root: { gap: '4px' } },
+        comfortable: { root: { gap: '12px' } },
+      },
     },
   },
 });
 ```
 
-Callback configs `(ctx) => ({ slots, base, variants })` use the same slot overload as object literals — `slots` is not a valid key on flat or dimensioned configs.
+`slots`, `variants`, and `vars` are not inferred from the `styles` callback. A selector such as `'& > *'` belongs inside a slot's style object, not beside the slot names.
 
 For **class-based** modes (`semantic` / `bem` / `template`), a `compoundVariants` entry whose `style` targets a slot only includes dimensions that actually emitted a modifier class for that slot. If a dimension option never styles the slot, that constraint is omitted from the chained selector and the compound can apply more broadly than the `variants` object suggests. Give every compounded dimension a style on that slot, or prefer `mode: 'attribute'` (attrs land on every slot).
 
@@ -148,10 +165,13 @@ For **class-based** modes (`semantic` / `bem` / `template`), a `compoundVariants
 `recipe` supports all CSS selectors:
 
 ```ts
-const accordionTrigger = recipe('accordion-trigger', {
-  base: {
-    '&[data-state="open"]': { fontWeight: 600 },
-    '&[aria-expanded="true"]': { color: '#1d4ed8' },
+const accordionTrigger = recipe({
+  name: 'accordion-trigger',
+  styles: {
+    base: {
+      '&[data-state="open"]': { fontWeight: 600 },
+      '&[aria-expanded="true"]': { color: '#1d4ed8' },
+    },
   },
 });
 ```
@@ -165,21 +185,28 @@ markup) rather than as discrete classes. Set `mode: 'attribute'` on
 option to a selector on its single semantic base class:
 
 ```ts
+import { variant } from 'typestyles';
 const { recipe, style } = createTypeStyles({ mode: 'attribute' });
 
-const button = recipe('button', {
-  base: { padding: '8px 16px', borderRadius: '6px' },
+const button = recipe({
+  name: 'button',
   variants: {
-    variant: {
-      primary: { backgroundColor: '#0066ff', color: '#fff' },
-      secondary: { backgroundColor: '#6b7280', color: '#fff' },
-    },
-    size: {
-      small: { fontSize: '14px' },
-      large: { fontSize: '18px' },
+    variant: variant.enum(['primary', 'secondary'], { default: 'primary' }),
+    size: variant.enum(['small', 'large'], { default: 'small' }),
+  },
+  styles: {
+    base: { padding: '8px 16px', borderRadius: '6px' },
+    variants: {
+      variant: {
+        primary: { backgroundColor: '#0066ff', color: '#fff' },
+        secondary: { backgroundColor: '#6b7280', color: '#fff' },
+      },
+      size: {
+        small: { fontSize: '14px' },
+        large: { fontSize: '18px' },
+      },
     },
   },
-  defaultVariants: { variant: 'primary', size: 'small' },
 });
 
 const b = button({ variant: 'primary', size: 'small' });
@@ -218,21 +245,26 @@ with the rest of the condition.
 - No per-option class hooks — `button['variant-primary']` doesn't exist in attribute
   mode, since there is no discrete class to expose. `button.base` exposes the stable
   base class.
-- Attribute slot recipes are supported. Each declared slot receives a
-  `{ className, attrs, props }` result, so spread that slot's `.props` on the matching
-  element. A multi-slot config without variants still returns its ordinary string map.
+- Attribute slot recipes are supported. The call returns
+  `{ className, attrs, props }` for every declared slot, so spread that slot's `.props`
+  on the matching element. `dialog.root` is the slot's class string.
 - Attribute names are kebab-cased. For example, `fontWeight` becomes
   `data-font-weight`, which also round-trips through `element.dataset.fontWeight`.
 
 ### Attribute slots
 
 ```ts
-const dialog = recipe('dialog', {
-  slots: ['root', 'content'],
-  base: { root: { display: 'grid' }, content: { padding: '8px' } },
-  variants: {
-    size: {
-      lg: { content: { padding: '16px' } },
+import { variant } from 'typestyles';
+const dialog = recipe({
+  name: 'dialog',
+  slots: ['root', 'content'] as const,
+  variants: { size: variant.enum(['lg'], { default: 'lg' }) },
+  styles: {
+    base: { root: { display: 'grid' }, content: { padding: '8px' } },
+    variants: {
+      size: {
+        lg: { content: { padding: '16px' } },
+      },
     },
   },
 });
@@ -251,24 +283,31 @@ a descendant selector.
 Some design systems author class names as BEM (Block Element Modifier). Set `mode: 'bem'` and dimensioned/slot `recipe()` variants compile to BEM modifier classes instead of the default `{namespace}-{dimension}-{option}` naming:
 
 ```ts
+import { variant } from 'typestyles';
 const { recipe, style } = createTypeStyles({ mode: 'bem' });
 
-const button = recipe('button', {
-  base: { padding: '8px 16px', borderRadius: '6px' },
+const button = recipe({
+  name: 'button',
   variants: {
-    variant: {
-      primary: { backgroundColor: '#0066ff', color: '#fff' },
-      secondary: { backgroundColor: '#6b7280', color: '#fff' },
-    },
-    size: {
-      small: { fontSize: '14px' },
-      large: { fontSize: '18px' },
+    variant: variant.enum(['primary', 'secondary'], { default: 'primary' }),
+    size: variant.enum(['small', 'large'], { default: 'small' }),
+  },
+  styles: {
+    base: { padding: '8px 16px', borderRadius: '6px' },
+    compoundVariants: [
+      { variants: { variant: 'primary', size: 'large' }, style: { fontWeight: 700 } },
+    ],
+    variants: {
+      variant: {
+        primary: { backgroundColor: '#0066ff', color: '#fff' },
+        secondary: { backgroundColor: '#6b7280', color: '#fff' },
+      },
+      size: {
+        small: { fontSize: '14px' },
+        large: { fontSize: '18px' },
+      },
     },
   },
-  compoundVariants: [
-    { variants: { variant: 'primary', size: 'large' }, style: { fontWeight: 700 } },
-  ],
-  defaultVariants: { variant: 'primary', size: 'small' },
 });
 
 button({ variant: 'primary', size: 'large' });
@@ -283,19 +322,26 @@ Compound variants compile to a chained modifier-class selector (`.button--primar
 **Multi-part components** work via `slots`, mapping onto the `root`/`trigger`/`content` convention already used elsewhere in this doc: the `root` slot is the bare block class; every other slot is a BEM element (`block__element`):
 
 ```ts
-const dialog = recipe('dialog', {
-  slots: ['root', 'trigger', 'content'],
-  base: { root: { display: 'grid' }, trigger: { cursor: 'pointer' } },
-  variants: {
-    size: {
-      sm: { trigger: { fontSize: '12px' }, content: { padding: '8px' } },
-      lg: { trigger: { fontSize: '16px' }, content: { padding: '12px' } },
+import { variant } from 'typestyles';
+const dialog = recipe({
+  name: 'dialog',
+  slots: ['root', 'trigger', 'content'] as const,
+  variants: { size: variant.enum(['sm', 'lg'], { default: 'sm' }) },
+  styles: {
+    base: { root: { display: 'grid' }, trigger: { cursor: 'pointer' } },
+    variants: {
+      size: {
+        sm: { trigger: { fontSize: '12px' }, content: { padding: '8px' } },
+        lg: { trigger: { fontSize: '16px' }, content: { padding: '12px' } },
+      },
     },
   },
 });
 
-dialog({ size: 'lg' });
-// { root: "dialog", trigger: "dialog__trigger dialog__trigger--lg", content: "dialog__content dialog__content--lg" }
+const d = dialog({ size: 'lg' });
+d.root.className; // "dialog"
+d.trigger.className; // "dialog__trigger dialog__trigger--lg"
+d.content.className; // "dialog__content dialog__content--lg"
 ```
 
 **The collision caveat:** BEM has no dimension namespace, so two _different_ dimensions producing the same option string collide on the identical class name (e.g. `intent: 'primary'` and `theme: 'primary'` both want `button--primary`). This is inherent to BEM, not a typestyles limitation — `recipe()` warns in dev when it happens, rather than silently letting one CSS rule clobber the other in the cascade. Choose non-colliding option names across a component's dimensions.
@@ -334,6 +380,7 @@ configs, which retain their historical hyphen naming in template mode. It receiv
 ### SUIT CSS
 
 ```ts
+import { variant } from 'typestyles';
 const { recipe, style } = createTypeStyles({
   mode: 'template',
   classNameTemplate: ({ scope, namespace, element, modifier }) => {
@@ -343,9 +390,13 @@ const { recipe, style } = createTypeStyles({
   },
 });
 
-const button = recipe('button', {
-  base: { padding: '8px' },
-  variants: { intent: { primary: { color: '#0066ff' } } },
+const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+  styles: {
+    base: { padding: '8px' },
+    variants: { intent: { primary: { color: '#0066ff' } } },
+  },
 });
 button.base; // "Button"
 button['intent-primary']; // "Button--primary"
@@ -388,7 +439,9 @@ Like `mode: 'bem'` and `mode: 'attribute'`, `mode: 'template'` is an instance-wi
 CVA config maps directly:
 
 - `cva(base, { variants, compoundVariants, defaultVariants })`
-- to `recipe(name, { base, variants, compoundVariants, defaultVariants })`
+- to `recipe({ name, variants: axes, styles: { base, variants, compoundVariants } })`
+
+Axis defaults replace `defaultVariants`. `variant.enum` / `variant.boolean` declare the options; the style map under `styles.variants` supplies the CSS.
 
 The main difference is class generation/injection is handled by typestyles.
 
@@ -396,26 +449,25 @@ See the [Migration Guide](/docs/migration) for library-specific examples.
 
 ## Expose themeable properties as vars
 
-If you expect a property to vary by theme region, expose it as a component-scoped CSS
-custom property instead of hard-coding the value in `base` or variant styles. Call
-`c.vars()` in the recipe callback — definitions are registered once and auto-stamped on
-the component return for override typing. Use the returned ref tree in styles and pass
-`vars: v` when you want `OverrideConfigFor<typeof recipe>` to infer theme keys.
+If you expect a property to vary by theme region, declare it on `vars` instead of
+hard-coding the value in `styles`. The style callback receives `{ vars }`, a ref tree
+with `.var` and `.name`. `.vars` is on the recipe function only when `vars` was declared,
+and `OverrideConfigFor<typeof recipe>` reads those keys.
 
 ```ts
-export const sideNav = recipe('side-nav', (c) => {
-  const v = c.vars({
+export const sideNav = recipe({
+  name: 'side-nav',
+  slots: ['root', 'heading'] as const,
+  vars: {
     border: { value: '1px solid #ccc', syntax: '<color>' as const },
     headingColor: { value: '#111', syntax: '<color>' as const },
-  });
-  return {
-    vars: v,
-    slots: ['root', 'heading'] as const,
+  },
+  styles: ({ vars }) => ({
     base: {
-      root: { borderColor: v.border.var },
-      heading: { color: v.headingColor.var },
+      root: { borderColor: vars.border.var },
+      heading: { color: vars.headingColor.var },
     },
-  };
+  }),
 });
 
 // After creation — same logical tree as override `vars`, but `.var` / `.name` refs:
@@ -431,75 +483,45 @@ export const sideNavVarDefinitions = {
   headingColor: { value: '#111', syntax: '<color>' as const },
 } as const;
 
-export const sideNav = recipe('side-nav', (c) => {
-  const v = c.vars(sideNavVarDefinitions);
-  return {
-    vars: v,
-    slots: ['root', 'heading'] as const,
+export const sideNav = recipe({
+  name: 'side-nav',
+  slots: ['root', 'heading'] as const,
+  vars: sideNavVarDefinitions,
+  styles: ({ vars }) => ({
     base: {
-      root: { borderColor: v.border.var },
-      heading: { color: v.headingColor.var },
+      root: { borderColor: vars.border.var },
+      heading: { color: vars.headingColor.var },
     },
-  };
+  }),
 });
 ```
 
-`c.vars()` alone is enough at runtime (refs on `sideNav.vars`, `__varDefinitions`
-auto-stamped). Add `vars: v` when you want typed `override({ vars })` without a
-second generic on `OverrideConfigFor`.
-
-Object configs work too when you wire styles with `var(--…)` literals or register
-matching defs in a callback:
+Object `styles` can also refer to the custom properties with `var(--…)` literals:
 
 ```ts
-const chip = recipe('chip', {
+const chip = recipe({
+  name: 'chip',
   vars: {
     background: { value: '#fff', syntax: '<color>' as const },
     foreground: { value: '#111', syntax: '<color>' as const },
   },
-  base: {
-    backgroundColor: 'var(--chip-background)',
-    color: 'var(--chip-foreground)',
+  styles: {
+    base: {
+      backgroundColor: 'var(--chip-background)',
+      color: 'var(--chip-foreground)',
+    },
   },
 });
 
 chip.vars.background.var; // "var(--chip-background)"
 ```
 
-Inside a callback, `c.vars()` registers paths and auto-stamps override typing.
-Pass **`vars: v`** (the ref tree from `c.vars()`, not a second copy of the definition
-object) when you want `OverrideConfigFor<typeof recipe>` to infer allowed keys. Object
-configs can still declare a top-level **`vars`** key when you wire styles with
-`var(--…)` literals instead of `c.vars()` refs:
-
 The [design-system example](/docs/design-system) uses this pattern throughout
 (`examples/design-system/src/components/button.ts`).
 
-When defaults live only in variants — or you want `@property` without a dummy value in the descriptor — use `ctx.vars.declare`:
-
-```ts
-const badge = recipe('badge', (c) => {
-  const v = c.vars.declare({
-    textColor: { syntax: '<color>', inherits: false },
-    borderWidth: true,
-  });
-  return {
-    base: {
-      [v.borderWidth.name]: '1px',
-      color: v.textColor.var,
-      borderStyle: 'solid',
-      borderWidth: v.borderWidth.var,
-    },
-    variants: {
-      tone: {
-        neutral: { [v.textColor.name]: '#333' },
-        danger: { [v.textColor.name]: '#900' },
-      },
-    },
-    defaultVariants: { tone: 'neutral' },
-  };
-});
-```
+When a custom property should exist without an initial value in the recipe, register it
+with [`property.declare`](/docs/css-primitives) and read the ref from there. Recipe `vars`
+are the declarations that belong to the component and show up on `.vars`.
 
 See [CSS primitives](/docs/css-primitives) for the full progressive-disclosure ladder.
 
@@ -509,25 +531,24 @@ Theme consumers use the same top-level **`vars`** key on `override()` — assign
 leaves instead of descriptor leaves.
 
 ```ts
-override(
-  sideNav,
-  {
-    vars: {
-      border: 'transparent',
-      headingColor: tokens.color.text.primary,
-      padding: { outer: { x: '24px', y: '16px' } },
-    },
+override({
+  recipe: sideNav,
+  layer: 'overrides',
+  selectorPrefix: '.theme-forest',
+  vars: {
+    border: 'transparent',
+    headingColor: tokens.color.text.primary,
+    padding: { outer: { x: '24px', y: '16px' } },
+  },
+  styles: {
     base: {
       root: { margin: tokens.space[2].var, borderRadius: tokens.radius.lg.var },
     },
   },
-  { selectorPrefix: '.theme-forest', layer: 'overrides' },
-);
+});
 ```
 
-**Typing:** when the recipe uses `vars: v` (`v` from `c.vars()`), or declares top-level
-`vars` on an object config, `OverrideConfigFor<typeof sideNav>` infers allowed keys
-automatically.
+**Typing:** a recipe that declares `vars` makes `OverrideConfigFor<typeof sideNav>` infer the allowed keys.
 
 ```ts
 import type { OverrideConfigFor } from 'typestyles';
@@ -540,7 +561,7 @@ Notes:
 - **`vars` always targets the var host slot** — `base` for dimensioned/flat recipes,
   `root` (or the first slot when there is no `root`) for slotted recipes. Layout
   overrides stay in `base` / slot blocks.
-- **Nested paths** flatten with the same rules as `c.vars()` (`padding.outer.x` →
+- **Nested paths** flatten to dashed custom properties (`padding.outer.x` →
   `padding-outer-x`). Dotted keys (`'padding.outer.x'`) are also accepted.
 - **Values:** strings, numbers, `var(--…)` refs, and `{ light, dark }` when
   `colorModes` is configured — same as other override style blocks.
@@ -566,17 +587,20 @@ const { recipe } = createTypeStyles({
   },
 });
 
-const container = recipe('container', {
-  base: {
-    width: '100%',
-    paddingLeft: { base: '1rem', md: '1.5rem' },
-    paddingRight: { base: '1rem', md: '1.5rem' },
-    maxWidth: {
-      base: '100%',
-      sm: '640px',
-      md: '768px',
-      lg: '1024px',
-      xl: '1280px',
+const container = recipe({
+  name: 'container',
+  styles: {
+    base: {
+      width: '100%',
+      paddingLeft: { base: '1rem', md: '1.5rem' },
+      paddingRight: { base: '1rem', md: '1.5rem' },
+      maxWidth: {
+        base: '100%',
+        sm: '640px',
+        md: '768px',
+        lg: '1024px',
+        xl: '1280px',
+      },
     },
   },
 });

@@ -1,3 +1,4 @@
+import { variant } from 'typestyles';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTypeStyles, reset, getRegisteredCss, flushSync } from 'typestyles';
 import { defineProperties, createProps } from './index';
@@ -36,28 +37,31 @@ describe('real-world example', () => {
     );
 
     // Define component styles using recipe
-    const button = recipe('button', {
-      base: {
-        borderRadius: '0.375rem',
-        cursor: 'pointer',
-        transition: 'all 0.2s',
-        '&:hover': { opacity: 0.9 },
-      },
-      variants: {
-        intent: {
-          primary: {
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            '&:hover': { backgroundColor: '#2563eb' },
-          },
-          secondary: {
-            backgroundColor: '#e5e7eb',
-            color: '#1f2937',
-            '&:hover': { backgroundColor: '#d1d5db' },
+    const button = recipe({
+      name: 'button',
+      variants: { intent: variant.enum(['primary', 'secondary'], { default: 'primary' }) },
+      styles: {
+        base: {
+          borderRadius: '0.375rem',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          '&:hover': { opacity: 0.9 },
+        },
+        variants: {
+          intent: {
+            primary: {
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              '&:hover': { backgroundColor: '#2563eb' },
+            },
+            secondary: {
+              backgroundColor: '#e5e7eb',
+              color: '#1f2937',
+              '&:hover': { backgroundColor: '#d1d5db' },
+            },
           },
         },
       },
-      defaultVariants: { intent: 'primary' },
     });
 
     // Compose button with atomic utilities

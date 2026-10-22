@@ -63,10 +63,13 @@ describe('colorModes serialization', () => {
 
   it('serializes mode values on styles.component() definitions', () => {
     const styles = createStyles({ colorModes: registeredColorModes });
-    styles.component('mode-comp-card', {
-      base: {
-        color: { light: '#111', dark: '#eee' },
-        borderColor: { light: 'red', dark: 'blue' },
+    styles.component({
+      name: 'mode-comp-card',
+      styles: {
+        base: {
+          color: { light: '#111', dark: '#eee' },
+          borderColor: { light: 'red', dark: 'blue' },
+        },
       },
     });
 

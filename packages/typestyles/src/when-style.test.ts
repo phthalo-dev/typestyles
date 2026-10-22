@@ -89,13 +89,16 @@ describe('whenStyle / styles.when', () => {
 
   it('styles.when emits nested CSS from a recipe base slot', () => {
     const styles = createStyles({ scopeId: 'app' });
-    styles.component('badge', {
-      base: {
-        color: '#111',
-        ...styles.when(when.prefersDark, { color: '#eee' }),
-        ...styles.when(when.attr('data-mode', 'dark', { scope: 'ancestor' }), {
-          '&::after': { content: '""', opacity: '0.8' },
-        }),
+    styles.component({
+      name: 'badge',
+      styles: {
+        base: {
+          color: '#111',
+          ...styles.when(when.prefersDark, { color: '#eee' }),
+          ...styles.when(when.attr('data-mode', 'dark', { scope: 'ancestor' }), {
+            '&::after': { content: '""', opacity: '0.8' },
+          }),
+        },
       },
     });
 

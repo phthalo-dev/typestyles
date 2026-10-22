@@ -200,9 +200,12 @@ describe('createStyles integration', () => {
 
   it('serializes responsive component styles when breakpoints are configured', () => {
     const styles = createStyles({ scopeId: 'test', breakpoints });
-    styles.component('container', {
-      base: {
-        padding: { base: '8px', md: '16px' },
+    styles.component({
+      name: 'container',
+      styles: {
+        base: {
+          padding: { base: '8px', md: '16px' },
+        },
       },
     });
 
@@ -218,9 +221,7 @@ describe('createStyles integration', () => {
     process.env.NODE_ENV = 'development';
 
     expect(() =>
-      styles.component('bad', {
-        base: { padding: { base: '8px', md: '16px' } },
-      }),
+      styles.component({ name: 'bad', styles: { base: { padding: { base: '8px', md: '16px' } } } }),
     ).toThrow(/requires `breakpoints`/);
 
     process.env.NODE_ENV = originalEnv;
@@ -311,10 +312,13 @@ describe('production behavior', () => {
 
   it('silently omits responsive objects when breakpoints are unset', () => {
     const styles = createStyles({ scopeId: 'prod-no-bp' });
-    styles.component('quiet', {
-      base: {
-        padding: { base: '8px', md: '16px' },
-        color: 'red',
+    styles.component({
+      name: 'quiet',
+      styles: {
+        base: {
+          padding: { base: '8px', md: '16px' },
+          color: 'red',
+        },
       },
     });
 

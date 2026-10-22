@@ -142,7 +142,7 @@ Even with a convention entry present, this keeps `<style>` injection in producti
 
 **Extraction:** On `vite build`, matching entry modules are bundled and executed in Node via `@typestyles/build-runner`. The collected CSS is emitted as a static asset. In dev, the same extraction runs on demand when the browser requests `/typestyles.css` so your `<link>` href works without SPA fallback returning HTML.
 
-**Duplicate detection:** The plugin scans every source file for namespace strings (`recipe('button', …)` → `.button-`). Collisions across files fail the build with a clear error.
+**Duplicate detection:** The plugin scans every source file for namespace strings (`recipe({ name: 'button' })` → `.button-`). Collisions across files fail the build with a clear error.
 
 ## Verify production output
 

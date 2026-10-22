@@ -406,18 +406,24 @@ Create documentation for your tokens:
 // Always use tokens, never hardcode values
 
 // ❌ Bad
-const button = recipe('button', {
-  base: {
-    padding: '8px 16px', // Hardcoded
-    backgroundColor: '#3b82f6', // Hardcoded
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      padding: '8px 16px', // Hardcoded
+      backgroundColor: '#3b82f6', // Hardcoded
+    },
   },
 });
 
 // ✅ Good
-const button = recipe('button', {
-  base: {
-    padding: `${buttonToken.paddingHorizontalMd} ${buttonToken.paddingVerticalMd}`,
-    backgroundColor: buttonToken.primaryBackground,
+const button = recipe({
+  name: 'button',
+  styles: {
+    base: {
+      padding: `${buttonToken.paddingHorizontalMd} ${buttonToken.paddingVerticalMd}`,
+      backgroundColor: buttonToken.primaryBackground,
+    },
   },
 });
 ```

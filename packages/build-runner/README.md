@@ -164,7 +164,7 @@ Parses a file for typestyles registration calls. Returns `{ keys, prefixes }` fo
 import { extractNamespaces } from '@typestyles/build-runner';
 
 const { prefixes } = extractNamespaces(source);
-// recipe('button', ...) → prefixes includes '.button-'
+// recipe({ name: 'button', ... }) → prefixes includes '.button-'
 ```
 
 ### `reportDuplicateNamespaces(map, fileId, prefixes, reporter)`

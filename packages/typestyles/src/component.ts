@@ -234,77 +234,38 @@ function finishComponentResult<T extends object>(
 // ---------------------------------------------------------------------------
 
 /**
- * Create a multi-variant component style.
+ * Runtime engine behind `recipe({ name, styles, … })`.
  *
- * Returns an object that is **both callable and destructurable**:
- * - Call it as a function with variant selections → class string (base always included)
- * - Destructure it to access individual class strings
+ * The public call declares `slots`, axes, and `vars` on the object and puts CSS in
+ * `styles`. Calling the result returns `{ className, attrs, props }` (`String(result)`
+ * is the class name). Static slot classes stay on the function (`layout.stack`).
  *
- * Supports two config styles:
- *
- * **Dimensioned variants** (recommended for multi-axis variants):
  * ```ts
- * const button = recipe('button', {
- *   base: { padding: '8px 16px' },
+ * const button = recipe({
+ *   name: 'button',
  *   variants: {
- *     intent: {
- *       primary: { backgroundColor: '#0066ff', color: '#fff' },
- *       ghost: { backgroundColor: 'transparent' },
- *     },
- *     size: {
- *       sm: { fontSize: '14px' },
- *       lg: { fontSize: '18px', padding: '12px 24px' },
- *     },
+ *     intent: variant.enum(['primary', 'ghost'], { default: 'primary' }),
+ *     size: variant.enum(['sm', 'lg'], { default: 'sm' }),
  *   },
- *   compoundVariants: [
- *     { variants: { intent: 'primary', size: 'lg' }, style: { fontWeight: 700 } },
- *   ],
- *   defaultVariants: { intent: 'primary', size: 'sm' },
- * });
- *
- * // Function call — base always included, defaults applied
- * button()                                    // "button button--intent-primary button--size-sm"
- * button({ intent: 'ghost' })                 // "button button--intent-ghost button--size-sm"
- * button({ intent: 'primary', size: 'lg' })   // includes compound class
- *
- * // Destructure individual class strings
- * const { base, 'intent-primary': primary } = button;
- * ```
- *
- * **Flat variants** (simple boolean-style toggles):
- * ```ts
- * const card = recipe('card', {
- *   base: { padding: '16px', borderRadius: '8px' },
- *   elevated: { boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
- *   compact: { padding: '8px' },
- * });
- *
- * // Function call
- * card()                        // "card-base"
- * card({ elevated: true })      // "card-base card-elevated"
- *
- * // Destructure
- * const { base, elevated } = card;
- * ```
- *
- * **Function config** — declare internal custom properties for variant-driven styling:
- * ```ts
- * const badge = recipe('badge', (c) => {
- *   const v = c.vars({
- *     textColor: '#333',
- *     borderColor: { value: '#ccc', syntax: '<color>' },
- *   });
- *   return {
- *     base: { color: v.textColor.var, borderColor: v.borderColor.var, borderWidth: '1px' },
+ *   styles: {
+ *     base: { padding: '8px 16px' },
  *     variants: {
- *       tone: {
- *         neutral: {},
- *         danger: { [v.textColor.name]: '#900', [v.borderColor.name]: '#f00' },
+ *       intent: {
+ *         primary: { backgroundColor: '#0066ff', color: '#fff' },
+ *         ghost: { backgroundColor: 'transparent' },
+ *       },
+ *       size: {
+ *         sm: { fontSize: '14px' },
+ *         lg: { fontSize: '18px', padding: '12px 24px' },
  *       },
  *     },
- *     defaultVariants: { tone: 'neutral' },
- *   };
+ *     compoundVariants: [
+ *       { variants: { intent: 'primary', size: 'lg' }, style: { fontWeight: 700 } },
+ *     ],
+ *   },
  * });
+ *
+ * button({ intent: 'ghost' }).className
  * ```
  */
 /**
@@ -316,15 +277,18 @@ function finishComponentResult<T extends object>(
  *
  * ```ts
  * const styles = createStyles({ mode: 'attribute' });
- * const button = recipe('button', {
- *   base: { padding: '8px 16px' },
- *   variants: {
- *     variant: {
- *       primary: { backgroundColor: '#0066ff', color: '#fff' },
- *       secondary: { backgroundColor: '#6b7280', color: '#fff' },
+ * const button = styles.component({
+ *   name: 'button',
+ *   variants: { variant: variant.enum(['primary', 'secondary'], { default: 'primary' }) },
+ *   styles: {
+ *     base: { padding: '8px 16px' },
+ *     variants: {
+ *       variant: {
+ *         primary: { backgroundColor: '#0066ff', color: '#fff' },
+ *         secondary: { backgroundColor: '#6b7280', color: '#fff' },
+ *       },
  *     },
  *   },
- *   defaultVariants: { variant: 'primary' },
  * });
  *
  * const b = button({ variant: 'primary' });
@@ -392,10 +356,10 @@ export function createComponent(
           : undefined;
     if (emitLayer == null || emitLayer === '') {
       throw new Error(
-        `[typestyles] \`layer\` is required for recipe('${namespace}', …) when using cascade layers without a factory \`layers.style\` / \`styleLayer\` default.`,
+        `[typestyles] \`layer\` is required for recipe({ name: '${namespace}', … }) when using cascade layers without a factory \`layers.style\` / \`styleLayer\` default.`,
       );
     }
-    assertOwnLayer(classNaming.cascadeLayers, emitLayer, `recipe('${namespace}', …)`);
+    assertOwnLayer(classNaming.cascadeLayers, emitLayer, `recipe({ name: '${namespace}' })`);
   }
 
   const {
@@ -533,7 +497,7 @@ export function isSchemaRecipeDefinition(value: unknown): value is RecipeDefinit
 /** Build docs metadata (slots, axis kind, options, defaults) from a schema definition. */
 export function buildRecipeSchemaMeta(definition: RecipeDefinition): RecipeSchemaMeta {
   const variants: Record<string, RecipeSchemaAxis> = {};
-  for (const [name, axis] of Object.entries(definition.variants)) {
+  for (const [name, axis] of Object.entries(definition.variants ?? {})) {
     const typed = axis as VariantAxis;
     variants[name] =
       typed.kind === 'boolean'
@@ -559,7 +523,7 @@ export function createSchemaComponent(
   buildOptions?: ComponentBuildOptions | string,
 ): object {
   const defaultVariants: Record<string, unknown> = {};
-  for (const [axis, value] of Object.entries(definition.variants)) {
+  for (const [axis, value] of Object.entries(definition.variants ?? {})) {
     defaultVariants[axis] = (value as VariantAxis).default;
   }
 
@@ -1151,9 +1115,9 @@ function createAttributeDimensionedComponent<V extends VariantDefinitions>(
   return result;
 }
 
-function createComponentAttrsResult(
+export function createComponentAttrsResult(
   className: string,
-  attrs: Record<string, string>,
+  attrs: Record<string, string> = {},
 ): ComponentAttrsResult {
   const props = { className, ...attrs };
   return {

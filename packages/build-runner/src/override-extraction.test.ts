@@ -24,32 +24,32 @@ describe('runTypestylesBuild (styles.override extraction)', () => {
     await writeFile(
       libFile,
       `
-import { createStyles } from 'typestyles';
+import { createStyles, variant } from 'typestyles';
 
 const styles = createStyles({
   layers: ['components', 'overrides'],
 });
 
-export const FixtureOverrideButton = styles.component(
-  'fixture-override-btn',
-  {
+export const FixtureOverrideButton = styles.component({
+  name: 'fixture-override-btn',
+  layer: 'components',
+  variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+  styles: {
     base: { borderRadius: '6px' },
-    variants: {
-      intent: { primary: { backgroundColor: 'blue' } },
-    },
+    variants: { intent: { primary: { backgroundColor: 'blue' } } },
   },
-  { layer: 'components' },
-);
+});
 
 // Theme/app override — side-effect registration like createDesignTheme({ components })
-styles.override(
-  FixtureOverrideButton,
-  {
+styles.override({
+  recipe: FixtureOverrideButton,
+  selectorPrefix: '.theme-acme',
+  layer: 'overrides',
+  styles: {
     base: { borderRadius: '999px' },
     variants: { intent: { primary: { textTransform: 'uppercase' } } },
   },
-  { selectorPrefix: '.theme-acme', layer: 'overrides' },
-);
+});
 `,
       'utf8',
     );
@@ -110,7 +110,7 @@ globalThis.__typestylesOverrideExtractMarker = true;
     await writeFile(
       libFile,
       `
-import { createStyles, colorModes, conditional } from 'typestyles';
+import { createStyles, colorModes, conditional, variant } from 'typestyles';
 import { when } from 'typestyles';
 
 const styles = createStyles({
@@ -118,22 +118,23 @@ const styles = createStyles({
   layers: ['components', 'overrides'],
 });
 
-export const FixtureCondButton = styles.component(
-  'fixture-cond-btn',
-  { base: { borderRadius: '6px' } },
-  { layer: 'components' },
-);
+export const FixtureCondButton = styles.component({
+  name: 'fixture-cond-btn',
+  layer: 'components',
+  styles: { base: { borderRadius: '6px' } },
+});
 
-styles.override(
-  FixtureCondButton,
-  {
+styles.override({
+  recipe: FixtureCondButton,
+  selectorPrefix: '.theme-acme',
+  layer: 'overrides',
+  styles: {
     base: {
       color: { light: '#111', dark: '#eee' },
       conditions: [conditional(when.prefersDark, { opacity: 0.9 })],
     },
   },
-  { selectorPrefix: '.theme-acme', layer: 'overrides' },
-);
+});
 `,
       'utf8',
     );

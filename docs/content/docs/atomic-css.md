@@ -281,11 +281,14 @@ const atoms = createProps(
   }),
 );
 
-const card = recipe('card', {
-  base: {
-    borderRadius: '8px',
-    border: '1px solid #e5e5e5',
-    background: 'white',
+const card = recipe({
+  name: 'card',
+  styles: {
+    base: {
+      borderRadius: '8px',
+      border: '1px solid #e5e5e5',
+      background: 'white',
+    },
   },
 });
 
@@ -341,7 +344,7 @@ const atoms = createProps(
       py: ['paddingTop', 'paddingBottom'],
       m: ['margin'],
     },
-  })
+  }),
 );
 
 // Use in components

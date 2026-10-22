@@ -10,9 +10,7 @@ describe('integration with typestyles', () => {
   });
 
   it('works with compose()', () => {
-    const base = recipe('base', {
-      base: { padding: '8px' },
-    });
+    const base = recipe({ name: 'base', styles: { base: { padding: '8px' } } });
 
     const atoms = createProps(
       'atoms',
@@ -52,9 +50,7 @@ describe('integration with typestyles', () => {
   });
 
   it('handles responsive props with compose()', () => {
-    const layout = recipe('layout', {
-      base: { maxWidth: '1200px' },
-    });
+    const layout = recipe({ name: 'layout', styles: { base: { maxWidth: '1200px' } } });
 
     const responsive = createProps(
       'responsive',

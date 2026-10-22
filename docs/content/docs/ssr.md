@@ -263,7 +263,10 @@ export default function handleRequest(
     documentHtml = `<!DOCTYPE html>${documentHtml}`;
   }
 
-  return new Response(documentHtml, { status: responseStatusCode, headers: responseHeaders });
+  return new Response(documentHtml, {
+    status: responseStatusCode,
+    headers: responseHeaders,
+  });
 }
 ```
 

@@ -68,16 +68,14 @@ export default function Home(): JSX.Element {
 
   return (
     <DesignSystemProvider theme={providerTheme} customThemeClassName={customThemeClassName}>
-      <main className={`${site.page} ${layout({ stack: true })}`}>
-        <header className={`${site.header} ${layout({ stack: true })}`}>
-          <h1 className={text({ title: true })}>
-            Next.js consuming shared typestyles design system
-          </h1>
-          <p className={text({ subtitle: true })}>
+      <main className={`${site.page} ${layout.stack}`}>
+        <header className={`${site.header} ${layout.stack}`}>
+          <h1 className={text.title}>Next.js consuming shared typestyles design system</h1>
+          <p className={text.subtitle}>
             This example consumes the same React library as Vite and applies app-level custom
             theming.
           </p>
-          <div className={layout({ row: true })}>
+          <div className={layout.row}>
             <Button
               intent={themeMode === 'light' ? 'primary' : 'secondary'}
               onPress={() => setThemeMode('light')}
@@ -99,9 +97,9 @@ export default function Home(): JSX.Element {
           </div>
         </header>
 
-        <section className={layout({ section: true })}>
-          <h2 className={text({ sectionTitle: true })}>10 Common Components</h2>
-          <div className={layout({ row: true })}>
+        <section className={layout.section}>
+          <h2 className={text.sectionTitle}>10 Common Components</h2>
+          <div className={layout.row}>
             <Button intent="primary">Button</Button>
             <Link href="https://react-spectrum.adobe.com/react-aria/">Link</Link>
             <Dialog
@@ -110,7 +108,7 @@ export default function Home(): JSX.Element {
               description="Underlying accessibility behavior comes from react-aria-components."
             />
           </div>
-          <div className={layout({ row: true })}>
+          <div className={layout.row}>
             <TextField
               label="Repository name"
               placeholder="design-system"
@@ -132,7 +130,7 @@ export default function Home(): JSX.Element {
             placeholder="Document brand token overrides..."
             description="Token customization still uses typestyles vars under the hood."
           />
-          <div className={layout({ row: true })}>
+          <div className={layout.row}>
             <Checkbox isSelected={accepted} onChange={setAccepted}>
               Checkbox
             </Checkbox>

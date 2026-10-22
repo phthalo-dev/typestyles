@@ -13,14 +13,14 @@ const chatGptUrl = `https://chatgpt.com/?q=${encodeURIComponent(`Read ${markdown
 ---
 
 <div class={docAiActions.root} data-doc-ai-actions data-md-url={markdownUrl}>
-  <button type="button" class:list={[linkButton.base, linkButton.ghost, docAiActions.button]} data-doc-copy-md>
+  <button type="button" class:list={[linkButton({ intent: 'ghost' }).className, docAiActions.button]} data-doc-copy-md>
     Copy as Markdown
   </button>
-  <a class:list={[linkButton.base, linkButton.ghost, docAiActions.button]} href={markdownUrl}>
+  <a class:list={[linkButton({ intent: 'ghost' }).className, docAiActions.button]} href={markdownUrl}>
     View as Markdown
   </a>
   <details class={docAiActions.menu}>
-    <summary class:list={[linkButton.base, linkButton.ghost, docAiActions.button, docAiActions.menuSummary]}>
+    <summary class:list={[linkButton({ intent: 'ghost' }).className, docAiActions.button, docAiActions.menuSummary]}>
       Open in AI
     </summary>
     <div class={docAiActions.menuPanel} role="menu">

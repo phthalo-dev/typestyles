@@ -18,6 +18,10 @@ describe('no-duplicate-namespace', () => {
         filename: 'b.ts',
       },
       {
+        code: `recipe({ name: 'button', styles: { base: { color: 'red' } } })`,
+        filename: 'recipe.ts',
+      },
+      {
         code: `tokens.create('color', { primary: '#00f' })`,
         filename: 'tokens.ts',
       },
@@ -41,7 +45,7 @@ describe('no-duplicate-namespace / cross file', () => {
   ruleTester.run('no-duplicate-namespace-seed', noDuplicateNamespace, {
     valid: [
       {
-        code: `recipe('button', { base: { color: 'red' } })`,
+        code: `recipe({ name: 'button', styles: { base: { color: 'red' } } })`,
         filename: 'first.ts',
       },
     ],

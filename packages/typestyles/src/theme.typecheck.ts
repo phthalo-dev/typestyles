@@ -78,3 +78,22 @@ defaultTheme.override({
     space: { sm: '4px' },
   },
 });
+
+defaultTheme.override({
+  name: 'component-callback',
+  components: {
+    button: {
+      styles: ({ tokens: themeTokens }) => ({
+        base: { color: themeTokens.color.border.default.var },
+      }),
+    },
+  },
+});
+
+defaultTheme.override({
+  name: 'component-fn',
+  components: {
+    // @ts-expect-error — a component patch is `{ styles, vars }`, not a function
+    button: () => ({ base: { color: 'red' } }),
+  },
+});

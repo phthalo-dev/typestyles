@@ -28,10 +28,7 @@ describe('no-removed-public-classname', () => {
   ruleTester.run('no-removed-public-classname-valid', noRemovedPublicClassname, {
     valid: [
       {
-        code: `recipe('button', {
-          base: { color: 'red' },
-          variants: { intent: { primary: { backgroundColor: 'blue' } } },
-        });`,
+        code: `recipe({ name: 'button', variants: { intent: variant.enum(["primary"], { default: "primary" }) }, styles: { base: { color: 'red' }, variants: { intent: { primary: { backgroundColor: 'blue' } } } } });`,
         filename: path.join(validFixtureRoot, 'button.ts'),
         options: [{ rootDir: validFixtureRoot }],
       },
@@ -49,10 +46,7 @@ describe('no-removed-public-classname / invalid', () => {
     valid: [],
     invalid: [
       {
-        code: `recipe('btn', {
-          base: { color: 'red' },
-          variants: { intent: { primary: { backgroundColor: 'blue' } } },
-        });`,
+        code: `recipe({ name: 'btn', variants: { intent: variant.enum(["primary"], { default: "primary" }) }, styles: { base: { color: 'red' }, variants: { intent: { primary: { backgroundColor: 'blue' } } } } });`,
         filename: path.join(invalidFixtureRoot, 'renamed.ts'),
         options: [{ rootDir: invalidFixtureRoot }],
         errors: [{ messageId: 'removed' }, { messageId: 'removed' }],
@@ -70,10 +64,7 @@ describe('no-removed-public-classname / removed variant', () => {
     valid: [],
     invalid: [
       {
-        code: `recipe('button', {
-          base: { color: 'red' },
-          variants: { intent: { primary: { backgroundColor: 'blue' } } },
-        });`,
+        code: `recipe({ name: 'button', variants: { intent: variant.enum(["primary"], { default: "primary" }) }, styles: { base: { color: 'red' }, variants: { intent: { primary: { backgroundColor: 'blue' } } } } });`,
         filename: path.join(removedVariantFixtureRoot, 'button.ts'),
         options: [{ rootDir: removedVariantFixtureRoot }],
         errors: [{ messageId: 'removed' }],

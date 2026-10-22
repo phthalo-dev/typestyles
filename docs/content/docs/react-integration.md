@@ -12,55 +12,59 @@ TypeStyles works seamlessly with React. This guide shows common patterns for int
 ### Simple button component
 
 ```tsx
+import { variant } from 'typestyles';
 // components/Button/Button.tsx
 import { createTypeStyles } from 'typestyles';
 import { color, space } from '../../tokens';
 
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
-const button = recipe('button', {
-  base: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '6px',
-    fontWeight: 500,
-    cursor: 'pointer',
-    border: 'none',
-    transition: 'background-color 150ms ease',
-  },
+const button = recipe({
+  name: 'button',
   variants: {
-    intent: {
-      primary: {
-        backgroundColor: color.primary,
-        color: '#fff',
-        '&:hover': { backgroundColor: color.primaryHover },
-      },
-      secondary: {
-        backgroundColor: color.secondary,
-        color: '#fff',
-        '&:hover': { backgroundColor: color.secondaryHover },
-      },
-    },
-    size: {
-      small: { padding: `${space.xs} ${space.sm}`, fontSize: '12px' },
-      medium: { padding: `${space.sm} ${space.md}`, fontSize: '14px' },
-      large: { padding: `${space.md} ${space.lg}`, fontSize: '16px' },
-    },
-    disabled: {
-      on: { opacity: 0.5, cursor: 'not-allowed' },
-      off: {},
-    },
-    loading: {
-      on: { cursor: 'wait' },
-      off: {},
-    },
+    intent: variant.enum(['primary', 'secondary'], { default: 'primary' }),
+    size: variant.enum(['small', 'medium', 'large'], { default: 'medium' }),
+    disabled: variant.enum(['on', 'off'], { default: 'off' }),
+    loading: variant.enum(['on', 'off'], { default: 'off' }),
   },
-  defaultVariants: {
-    intent: 'primary',
-    size: 'medium',
-    disabled: 'off',
-    loading: 'off',
+  styles: {
+    base: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: '6px',
+      fontWeight: 500,
+      cursor: 'pointer',
+      border: 'none',
+      transition: 'background-color 150ms ease',
+    },
+    variants: {
+      intent: {
+        primary: {
+          backgroundColor: color.primary,
+          color: '#fff',
+          '&:hover': { backgroundColor: color.primaryHover },
+        },
+        secondary: {
+          backgroundColor: color.secondary,
+          color: '#fff',
+          '&:hover': { backgroundColor: color.secondaryHover },
+        },
+      },
+      size: {
+        small: { padding: `${space.xs} ${space.sm}`, fontSize: '12px' },
+        medium: { padding: `${space.sm} ${space.md}`, fontSize: '14px' },
+        large: { padding: `${space.md} ${space.lg}`, fontSize: '16px' },
+      },
+      disabled: {
+        on: { opacity: 0.5, cursor: 'not-allowed' },
+        off: {},
+      },
+      loading: {
+        on: { cursor: 'wait' },
+        off: {},
+      },
+    },
   },
 });
 
@@ -122,6 +126,7 @@ function App() {
 ### Creating a polymorphic Box component
 
 ```tsx
+import { variant } from 'typestyles';
 // components/Box/Box.tsx
 import { createTypeStyles, cx } from 'typestyles';
 
@@ -129,31 +134,61 @@ const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 import { space } from '../../tokens';
 import type { ElementType, ComponentPropsWithoutRef } from 'react';
 
-const box = recipe('box', {
-  base: {},
-  flex: { display: 'flex' },
-  block: { display: 'block' },
-  inline: { display: 'inline' },
-  hidden: { display: 'none' },
-  gap1: { gap: space[1] },
-  gap2: { gap: space[2] },
-  gap3: { gap: space[3] },
-  gap4: { gap: space[4] },
-  row: { flexDirection: 'row' },
-  column: { flexDirection: 'column' },
-  wrap: { flexWrap: 'wrap' },
-  center: {
-    justifyContent: 'center',
-    alignItems: 'center',
+const box = recipe({
+  name: 'box',
+  variants: {
+    flex: variant.boolean({ default: false }),
+    block: variant.boolean({ default: false }),
+    inline: variant.boolean({ default: false }),
+    hidden: variant.boolean({ default: false }),
+    gap1: variant.boolean({ default: false }),
+    gap2: variant.boolean({ default: false }),
+    gap3: variant.boolean({ default: false }),
+    gap4: variant.boolean({ default: false }),
+    row: variant.boolean({ default: false }),
+    column: variant.boolean({ default: false }),
+    wrap: variant.boolean({ default: false }),
+    center: variant.boolean({ default: false }),
+    p1: variant.boolean({ default: false }),
+    p2: variant.boolean({ default: false }),
+    p3: variant.boolean({ default: false }),
+    p4: variant.boolean({ default: false }),
+    m1: variant.boolean({ default: false }),
+    m2: variant.boolean({ default: false }),
+    m3: variant.boolean({ default: false }),
+    m4: variant.boolean({ default: false }),
   },
-  p1: { padding: space[1] },
-  p2: { padding: space[2] },
-  p3: { padding: space[3] },
-  p4: { padding: space[4] },
-  m1: { margin: space[1] },
-  m2: { margin: space[2] },
-  m3: { margin: space[3] },
-  m4: { margin: space[4] },
+  styles: {
+    base: {},
+    variants: {
+      flex: { true: { display: 'flex' }, false: {} },
+      block: { true: { display: 'block' }, false: {} },
+      inline: { true: { display: 'inline' }, false: {} },
+      hidden: { true: { display: 'none' }, false: {} },
+      gap1: { true: { gap: space[1] }, false: {} },
+      gap2: { true: { gap: space[2] }, false: {} },
+      gap3: { true: { gap: space[3] }, false: {} },
+      gap4: { true: { gap: space[4] }, false: {} },
+      row: { true: { flexDirection: 'row' }, false: {} },
+      column: { true: { flexDirection: 'column' }, false: {} },
+      wrap: { true: { flexWrap: 'wrap' }, false: {} },
+      center: {
+        true: {
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        false: {},
+      },
+      p1: { true: { padding: space[1] }, false: {} },
+      p2: { true: { padding: space[2] }, false: {} },
+      p3: { true: { padding: space[3] }, false: {} },
+      p4: { true: { padding: space[4] }, false: {} },
+      m1: { true: { margin: space[1] }, false: {} },
+      m2: { true: { margin: space[2] }, false: {} },
+      m3: { true: { margin: space[3] }, false: {} },
+      m4: { true: { margin: space[4] }, false: {} },
+    },
+  },
 });
 
 const {
@@ -266,6 +301,7 @@ export function Box<T extends ElementType = 'div'>({
 ### Card component with multiple parts
 
 ```tsx
+import { variant } from 'typestyles';
 // components/Card/Card.tsx
 import { createTypeStyles, cx } from 'typestyles';
 
@@ -273,45 +309,69 @@ const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 import { color, space } from '../../tokens';
 import { createContext, useContext, type ReactNode } from 'react';
 
-const card = recipe('card', {
-  base: {
-    borderRadius: '8px',
-    backgroundColor: color.surface,
-    border: `1px solid ${color.border}`,
-    overflow: 'hidden',
+const card = recipe({
+  name: 'card',
+  variants: {
+    elevated: variant.boolean({ default: false }),
+    interactive: variant.boolean({ default: false }),
   },
-  elevated: {
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-  },
-  interactive: {
-    cursor: 'pointer',
-    transition: 'box-shadow 200ms ease',
-    '&:hover': {
-      boxShadow: '0 8px 12px rgba(0, 0, 0, 0.15)',
+  styles: {
+    base: {
+      borderRadius: '8px',
+      backgroundColor: color.surface,
+      border: `1px solid ${color.border}`,
+      overflow: 'hidden',
+    },
+    variants: {
+      elevated: {
+        true: {
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        },
+        false: {},
+      },
+      interactive: {
+        true: {
+          cursor: 'pointer',
+          transition: 'box-shadow 200ms ease',
+          '&:hover': {
+            boxShadow: '0 8px 12px rgba(0, 0, 0, 0.15)',
+          },
+        },
+        false: {},
+      },
     },
   },
 });
 
 const { elevated, interactive } = card;
 
-const cardHeader = recipe('card-header', {
-  base: {
-    padding: `${space.md} ${space.lg}`,
-    borderBottom: `1px solid ${color.border}`,
+const cardHeader = recipe({
+  name: 'card-header',
+  styles: {
+    base: {
+      padding: `${space.md} ${space.lg}`,
+      borderBottom: `1px solid ${color.border}`,
+    },
   },
 });
 
-const cardBody = recipe('card-body', {
-  base: {
-    padding: space.lg,
+const cardBody = recipe({
+  name: 'card-body',
+  styles: {
+    base: {
+      padding: space.lg,
+    },
   },
 });
 
-const cardFooter = recipe('card-footer', {
-  base: {
-    padding: `${space.md} ${space.lg}`,
-    borderTop: `1px solid ${color.border}`,
-    backgroundColor: color.surfaceRaised,
+const cardFooter = recipe({
+  name: 'card-footer',
+  styles: {
+    base: {
+      padding: `${space.md} ${space.lg}`,
+      borderTop: `1px solid ${color.border}`,
+      backgroundColor: color.surfaceRaised,
+    },
   },
 });
 
@@ -388,6 +448,7 @@ function Example() {
 ### Input with validation states
 
 ```tsx
+import { variant } from 'typestyles';
 // components/Input/Input.tsx
 import { createTypeStyles, cx } from 'typestyles';
 
@@ -395,84 +456,100 @@ const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 import { color, space } from '../../tokens';
 import { forwardRef } from 'react';
 
-const inputWrapper = recipe('input-wrapper', {
-  base: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: space.sm,
+const inputWrapper = recipe({
+  name: 'input-wrapper',
+  styles: {
+    base: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: space.sm,
+    },
   },
 });
 
-const inputLabel = recipe('input-label', {
-  base: {
-    fontSize: '14px',
-    fontWeight: 500,
-    color: color.text,
+const inputLabel = recipe({
+  name: 'input-label',
+  styles: {
+    base: {
+      fontSize: '14px',
+      fontWeight: 500,
+      color: color.text,
+    },
   },
 });
 
-const inputHelper = recipe('input-helper', {
-  base: {
-    fontSize: '12px',
-    color: color.textMuted,
-  },
+const inputHelper = recipe({
+  name: 'input-helper',
   variants: {
-    tone: {
-      neutral: {},
-      error: { color: color.danger },
-      success: { color: color.success },
-    },
+    tone: variant.enum(['neutral', 'error', 'success'], { default: 'neutral' }),
   },
-  defaultVariants: { tone: 'neutral' },
-});
-
-const input = recipe('input', {
-  base: {
-    width: '100%',
-    padding: `${space.sm} ${space.md}`,
-    borderRadius: '6px',
-    border: `1px solid ${color.border}`,
-    fontSize: '14px',
-    lineHeight: '1.5',
-    backgroundColor: color.surface,
-    color: color.text,
-    transition: 'border-color 150ms ease, box-shadow 150ms ease',
-
-    '&:focus': {
-      outline: 'none',
-      borderColor: color.primary,
-      boxShadow: `0 0 0 3px ${color.alpha(color.primary, 0.1)}`,
-    },
-
-    '&::placeholder': {
+  styles: {
+    base: {
+      fontSize: '12px',
       color: color.textMuted,
     },
+    variants: {
+      tone: {
+        neutral: {},
+        error: { color: color.danger },
+        success: { color: color.success },
+      },
+    },
+  },
+});
 
-    '&:disabled': {
-      backgroundColor: color.surfaceSunken,
-      cursor: 'not-allowed',
-    },
-  },
+const input = recipe({
+  name: 'input',
   variants: {
-    validation: {
-      none: {},
-      error: {
-        borderColor: color.danger,
-        '&:focus': {
-          borderColor: color.danger,
-          boxShadow: `0 0 0 3px ${color.alpha(color.danger, 0.1)}`,
-        },
+    validation: variant.enum(['none', 'error', 'success'], { default: 'none' }),
+  },
+  styles: {
+    base: {
+      width: '100%',
+      padding: `${space.sm} ${space.md}`,
+      borderRadius: '6px',
+      border: `1px solid ${color.border}`,
+      fontSize: '14px',
+      lineHeight: '1.5',
+      backgroundColor: color.surface,
+      color: color.text,
+      transition: 'border-color 150ms ease, box-shadow 150ms ease',
+
+      '&:focus': {
+        outline: 'none',
+        borderColor: color.primary,
+        boxShadow: `0 0 0 3px ${color.alpha(color.primary, 0.1)}`,
       },
-      success: {
-        borderColor: color.success,
-        '&:focus': {
+
+      '&::placeholder': {
+        color: color.textMuted,
+      },
+
+      '&:disabled': {
+        backgroundColor: color.surfaceSunken,
+        cursor: 'not-allowed',
+      },
+    },
+    variants: {
+      validation: {
+        none: {},
+        error: {
+          borderColor: color.danger,
+          '&:focus': {
+            borderColor: color.danger,
+            boxShadow: `0 0 0 3px ${color.alpha(color.danger, 0.1)}`,
+          },
+        },
+        success: {
           borderColor: color.success,
-          boxShadow: `0 0 0 3px ${color.alpha(color.success, 0.1)}`,
+          '&:focus': {
+            borderColor: color.success,
+            boxShadow: `0 0 0 3px ${color.alpha(color.success, 0.1)}`,
+          },
         },
       },
     },
   },
-  defaultVariants: { validation: 'none' },
 });
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -505,6 +582,7 @@ Input.displayName = 'Input';
 ### Responsive grid component
 
 ```tsx
+import { variant } from 'typestyles';
 // components/Grid/Grid.tsx
 import { createTypeStyles } from 'typestyles';
 
@@ -512,25 +590,31 @@ const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 import { space } from '../../tokens';
 import type { ReactNode } from 'react';
 
-const grid = recipe('grid', {
-  base: { display: 'grid' },
+const grid = recipe({
+  name: 'grid',
   variants: {
-    columns: {
-      1: { gridTemplateColumns: 'repeat(1, 1fr)' },
-      2: { gridTemplateColumns: 'repeat(2, 1fr)' },
-      3: { gridTemplateColumns: 'repeat(3, 1fr)' },
-      4: { gridTemplateColumns: 'repeat(4, 1fr)' },
-      6: { gridTemplateColumns: 'repeat(6, 1fr)' },
-      12: { gridTemplateColumns: 'repeat(12, 1fr)' },
-    },
-    gap: {
-      none: { gap: 0 },
-      sm: { gap: space.sm },
-      md: { gap: space.md },
-      lg: { gap: space.lg },
+    columns: variant.enum(['1', '2', '3', '4', '6', '12'], { default: '1' }),
+    gap: variant.enum(['none', 'sm', 'md', 'lg'], { default: 'md' }),
+  },
+  styles: {
+    base: { display: 'grid' },
+    variants: {
+      columns: {
+        1: { gridTemplateColumns: 'repeat(1, 1fr)' },
+        2: { gridTemplateColumns: 'repeat(2, 1fr)' },
+        3: { gridTemplateColumns: 'repeat(3, 1fr)' },
+        4: { gridTemplateColumns: 'repeat(4, 1fr)' },
+        6: { gridTemplateColumns: 'repeat(6, 1fr)' },
+        12: { gridTemplateColumns: 'repeat(12, 1fr)' },
+      },
+      gap: {
+        none: { gap: 0 },
+        sm: { gap: space.sm },
+        md: { gap: space.md },
+        lg: { gap: space.lg },
+      },
     },
   },
-  defaultVariants: { columns: 1, gap: 'md' },
 });
 
 interface GridProps {

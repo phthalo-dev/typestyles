@@ -11,15 +11,10 @@ describe('no-shorthand-longhand-conflict', () => {
           padding: 8,
           '&:hover': { paddingTop: 12 },
         })`,
-      `recipe('button', {
-          base: { color: 'red' },
-          variants: {
-            size: {
+      `recipe({ name: 'button', variants: { size: variant.enum(["sm", "lg"], { default: "sm" }) }, styles: { base: { color: 'red' }, variants: { size: {
               sm: { padding: 4 },
               lg: { paddingTop: 12 },
-            },
-          },
-        })`,
+            } } } })`,
     ],
     invalid: [
       {

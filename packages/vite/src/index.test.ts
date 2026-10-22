@@ -1,3 +1,4 @@
+import { variant } from 'typestyles';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,9 +32,7 @@ describe('extractNamespaces', () => {
     const code = `
       import { createTypeStyles } from 'typestyles';
       const { recipe } = createTypeStyles();
-      const button = recipe('button', {
-        base: { color: 'red' },
-      });
+      const button = recipe({ name: 'button', styles: { base: { color: 'red' } } });
     `;
     const result = extractNamespaces(code);
     expect(result.prefixes).toEqual(['.button-']);
@@ -100,8 +99,8 @@ describe('extractNamespaces', () => {
       const { recipe, tokens } = createTypeStyles();
       const color = tokens.create('color', { primary: '#0066ff' });
       const fadeIn = keyframes.create('fadeIn', { from: { opacity: 0 }, to: { opacity: 1 } });
-      const button = recipe('button', { base: { color: color.primary } });
-      const card = recipe('card', { base: { animation: fadeIn } });
+      const button = recipe({ name: 'button', styles: { base: { color: color.primary } } });
+      const card = recipe({ name: 'card', styles: { base: { animation: fadeIn } } });
     `;
     const result = extractNamespaces(code);
     expect(result.keys).toEqual(['tokens:color', 'keyframes:fadeIn']);
@@ -110,7 +109,7 @@ describe('extractNamespaces', () => {
 
   it('handles double-quoted strings', () => {
     const code = `
-      const button = styles.component("button", { base: { color: 'red' } });
+      const button = styles.component({ name: "button", styles: { base: { color: 'red' } } });
     `;
     const result = extractNamespaces(code);
     expect(result.prefixes).toEqual(['.button-']);
@@ -120,9 +119,7 @@ describe('extractNamespaces', () => {
     const code = `
       import { createStyles } from 'typestyles';
 const styles = createStyles();
-      const button = styles.component('button', {
-        base: { color: 'red' },
-      });
+      const button = styles.component({ name: 'button', styles: { base: { color: 'red' } } });
     `;
     const result = extractNamespaces(code);
     expect(result.prefixes).toEqual(['.button-']);
@@ -269,7 +266,7 @@ describe('typestyles vite plugin', () => {
     const plugin = mod.default();
     viteHookFn(plugin.configResolved)?.({ command: 'serve' } as ResolvedConfig);
     const code = `import { styles } from './typestyles';
-styles.component('docs-sidebar', { base: { color: 'red' } });`;
+styles.component({ name: 'docs-sidebar', styles: { base: { color: 'red' } } });`;
     const ctx = { warn: () => {} };
     const transform = viteHookFn(plugin.transform);
     if (transform == null) throw new Error('expected plugin.transform');
@@ -350,22 +347,24 @@ export const acme = cdt({
       mode: 'attribute',
       layers: ['components', 'overrides'] as const,
     });
-    const button = styles.component(
-      'vite-hmr-btn',
-      {
-        base: { color: 'black' },
-        variants: { intent: { primary: { color: 'blue' } } },
-      },
-      { layer: 'components' },
-    );
+    const button = styles.component({
+      name: 'vite-hmr-btn',
+      layer: 'components',
+      variants: { intent: variant.enum(['primary'], { default: 'primary' }) },
+      styles: { base: { color: 'black' }, variants: { intent: { primary: { color: 'blue' } } } },
+    });
 
     const slot = createOverrideHmrSlot();
     slot.activate();
-    styles.override(
-      button,
-      { base: { borderRadius: '4px' }, variants: { intent: { primary: { fontWeight: 700 } } } },
-      { selectorPrefix: '.theme-acme', layer: 'overrides' },
-    );
+    styles.override({
+      recipe: button,
+      layer: 'overrides',
+      selectorPrefix: '.theme-acme',
+      styles: {
+        base: { borderRadius: '4px' },
+        variants: { intent: { primary: { fontWeight: 700 } } },
+      },
+    });
     slot.deactivate();
     flushSync();
     expect(getRegisteredCss()).toContain('border-radius: 4px');
@@ -375,14 +374,15 @@ export const acme = cdt({
     slot.dispose();
     const slot2 = createOverrideHmrSlot();
     slot2.activate();
-    styles.override(
-      button,
-      {
+    styles.override({
+      recipe: button,
+      layer: 'overrides',
+      selectorPrefix: '.theme-acme',
+      styles: {
         base: { borderRadius: '999px' },
         variants: { intent: { primary: { textTransform: 'uppercase' } } },
       },
-      { selectorPrefix: '.theme-acme', layer: 'overrides' },
-    );
+    });
     slot2.deactivate();
     flushSync();
 
@@ -403,10 +403,10 @@ export const acme = cdt({
     if (transform == null) throw new Error('expected plugin.transform');
     const codeA = `import { createStyles } from 'typestyles';
 const styles = createStyles();
-styles.component('shared-ns', { base: { color: 'red' } });`;
+styles.component({ name: 'shared-ns', styles: { base: { color: 'red' } } });`;
     const codeB = `import { createStyles } from 'typestyles';
 const styles = createStyles();
-styles.component('shared-ns', { base: { color: 'blue' } });`;
+styles.component({ name: 'shared-ns', styles: { base: { color: 'blue' } } });`;
 
     const ctx = {
       error(message: string) {
@@ -463,7 +463,7 @@ createTheme('vite-dark', { base: { 'vite-color': { primary: '#66aaff' } } });`,
     viteHookFn(plugin.configResolved)?.({ command: 'build' } as ResolvedConfig);
     const code = `import { createStyles } from 'typestyles';
 const styles = createStyles();
-styles.component('x', { base: {} });`;
+styles.component({ name: 'x', styles: { base: {} } });`;
     const transform = viteHookFn(plugin.transform);
     if (transform == null) throw new Error('expected plugin.transform');
     const result = await transform.call({ warn: () => {} } as never, code, '/src/a.ts');

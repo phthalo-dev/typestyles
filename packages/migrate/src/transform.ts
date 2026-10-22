@@ -13,7 +13,7 @@ import {
   toVarDebugName,
 } from './interpolations';
 import type { FileMigrationResult, MigrationWarning } from './types';
-import { buildVariantComponentConfig } from './variants';
+import { buildVariantRecipeInput } from './variants';
 
 type StyledTarget =
   | { kind: 'intrinsic'; jsxName: t.JSXIdentifier }
@@ -167,6 +167,7 @@ function ensureTypestylesRuntime(
   needs: { style: boolean; recipe: boolean; vars: boolean },
 ): void {
   const requiredSpecifiers = new Set<string>(['createTypeStyles']);
+  if (needs.recipe) requiredSpecifiers.add('variant');
   if (needs.vars) {
     requiredSpecifiers.add('createVar');
     requiredSpecifiers.add('assignVars');
@@ -366,16 +367,17 @@ function buildComponentClassNameExpression(
   componentConstName: string,
   variantProps: string[],
   propValues: Map<string, t.Expression>,
-): t.CallExpression {
+): t.MemberExpression {
   const properties = variantProps
     .filter((propName) => propValues.has(propName))
     .map((propName) => t.objectProperty(t.identifier(propName), propValues.get(propName)!));
 
-  if (properties.length === 0) {
-    return t.callExpression(t.identifier(componentConstName), []);
-  }
+  const call =
+    properties.length === 0
+      ? t.callExpression(t.identifier(componentConstName), [])
+      : t.callExpression(t.identifier(componentConstName), [t.objectExpression(properties)]);
 
-  return t.callExpression(t.identifier(componentConstName), [t.objectExpression(properties)]);
+  return t.memberExpression(call, t.identifier('className'));
 }
 
 function migrateBooleanVariantTemplate(
@@ -399,7 +401,11 @@ function migrateBooleanVariantTemplate(
   const componentConstName = path.scope.generateUidIdentifier(
     toComponentConstName(variableName),
   ).name;
-  const componentConfig = buildVariantComponentConfig(baseObject, booleanInterpolations);
+  const recipeInput = buildVariantRecipeInput(
+    toKebabCase(variableName),
+    baseObject,
+    booleanInterpolations,
+  );
   const variantProps = [
     ...new Set(booleanInterpolations.map((interpolation) => interpolation.propName)),
   ];
@@ -410,10 +416,7 @@ function migrateBooleanVariantTemplate(
   declaration.node.declarations = [
     t.variableDeclarator(
       t.identifier(componentConstName),
-      t.callExpression(t.identifier('recipe'), [
-        t.stringLiteral(toKebabCase(variableName)),
-        componentConfig,
-      ]),
+      t.callExpression(t.identifier('recipe'), [recipeInput]),
     ),
   ];
 

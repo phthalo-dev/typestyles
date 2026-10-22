@@ -214,10 +214,13 @@ const themeColor = tokens.create('color', {
   secondary: '#6b7280',
 });
 
-const card = recipe('card', {
-  base: {
-    backgroundColor: colorFn.mix(themeColor.primary, 'white', 10),
-    borderColor: colorFn.alpha(themeColor.secondary, 0.3),
+const card = recipe({
+  name: 'card',
+  styles: {
+    base: {
+      backgroundColor: colorFn.mix(themeColor.primary, 'white', 10),
+      borderColor: colorFn.alpha(themeColor.secondary, 0.3),
+    },
   },
 });
 ```

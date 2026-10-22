@@ -10,6 +10,7 @@ import { createTokens } from './tokens';
 import type { TokensApi } from './tokens';
 import type { CascadeLayersObjectInput } from './layers';
 import type { OverrideFn } from './override';
+import { createThemeTokenContext } from './theme-token-context';
 import type { ScopeOptions } from './scope';
 import type { StylesPropertyFn } from './types';
 import type { ContainerNameRef } from './container';
@@ -166,7 +167,21 @@ function flattenTypeStylesApi<Recipe = unknown>(
     tokens,
     global,
     compose: s.compose,
-    override: s.override,
+    override: ((input: { recipe?: { vars?: object }; styles?: unknown }) => {
+      if (input && typeof input.styles === 'function') {
+        const tokenContext = createThemeTokenContext((namespace: string) => tokens.use(namespace));
+        return s.override({
+          ...input,
+          styles: (
+            input.styles as (ctx: { vars: object; tokens: object }) => Record<string, unknown>
+          )({
+            vars: input.recipe?.vars ?? {},
+            tokens: tokenContext,
+          }),
+        } as Parameters<OverrideFn>[0]);
+      }
+      return s.override(input as Parameters<OverrideFn>[0]);
+    }) as OverrideFn,
     scope: s.scope,
     property: s.property,
     container: s.container,
@@ -187,16 +202,8 @@ function flattenTypeStylesApi<Recipe = unknown>(
 
 /** Unified factory: one `scopeId`, shared cascade layer stack, flat public surface. */
 export function createTypeStyles<const L extends string>(
-  options: CreateTypeStylesOptionsBase & { mode: 'attribute'; layers: TypeStylesLayersConfig<L> },
-): TypeStylesApi<RecipeFn<L, true, 'optional'>, L>;
-
-export function createTypeStyles(
-  options: CreateTypeStylesOptionsBase & { mode: 'attribute' },
-): TypeStylesApi<RecipeFn<undefined, true>>;
-
-export function createTypeStyles<const L extends string>(
   options: CreateTypeStylesOptionsBase & { layers: TypeStylesLayersConfig<L> },
-): TypeStylesApi<RecipeFn<L, false, 'optional'>, L>;
+): TypeStylesApi<RecipeFn<L, 'optional'>, L>;
 
 export function createTypeStyles(options?: CreateTypeStylesOptionsBase): TypeStylesApi<RecipeFn>;
 

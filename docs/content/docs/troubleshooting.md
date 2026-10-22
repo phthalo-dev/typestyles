@@ -75,10 +75,10 @@ This means you've created two different styles with the same namespace:
 
 ```ts
 // File A
-const button = recipe('button', { ... });
+const button = recipe({ name: 'button' });
 
 // File B
-const button = recipe('button', { ... }); // Same namespace!
+const button = recipe({ name: 'button' }); // Same namespace!
 ```
 
 ### How to fix
@@ -87,13 +87,13 @@ Use unique, descriptive namespaces:
 
 ```ts
 // ✅ Good - descriptive names
-const iconButton = recipe('icon-button', { ... });
-const textButton = recipe('text-button', { ... });
-const submitButton = recipe('submit-button', { ... });
+const iconButton = recipe({ name: 'icon-button' });
+const textButton = recipe({ name: 'text-button' });
+const submitButton = recipe({ name: 'submit-button' });
 
 // ❌ Bad - generic names that collide
-const button = recipe('button', { ... });
-const button2 = recipe('button', { ... }); // Collision!
+const button = recipe({ name: 'button' });
+const button2 = recipe({ name: 'button' }); // Collision!
 ```
 
 ## TypeScript errors
@@ -128,10 +128,8 @@ No overload matches this call.
 You're passing an invalid variant:
 
 ```ts
-const button = recipe('button', {
-  base: { ... },
-  primary: { ... },
-});
+import { variant } from 'typestyles';
+const button = recipe({ name: 'button', variants: { primary: variant.boolean({ default: false }) }, styles: { base: { ... }, variants: { primary: { true: { ... }, false: {} } } } });
 
 button({ secondary: true }); // Error! 'secondary' is not a valid flat flag on this recipe
 ```
@@ -159,12 +157,14 @@ Cannot find module 'typestyles' or its corresponding type declarations.
    import { createTypeStyles } from 'typestyles';
    ```
 
+```
+
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
 // ❌ Incorrect
 import { recipe } from './typestyles';
 
-````
+```
 
 3. Restart TypeScript server in your editor
 
@@ -188,7 +188,7 @@ const html = renderToString(<App />);
 // ✅ Correct
 const { html, css } = collectStyles(() => renderToString(<App />));
 // Include css in your HTML response
-````
+```
 
 For Next.js, follow the [SSR guide](/docs/ssr) and use `@typestyles/next` (`getRegisteredCss`, `TypestylesStylesheet`, or `@typestyles/next/server` helpers) so the document matches what App Router streams.
 
@@ -216,9 +216,11 @@ For Next.js, follow the [SSR guide](/docs/ssr) and use `@typestyles/next` (`getR
    ```tsx
    // ❌ Don't do this on client
    document.head.innerHTML += `<style id="typestyles">...</style>`;
-
-   // ✅ TypeStyles handles this automatically
    ```
+
+// ✅ TypeStyles handles this automatically
+
+````
 
 ### Empty CSS in SSR
 
@@ -238,10 +240,10 @@ const { css } = collectStyles(() =>
   renderToString(
     <App>
       <Button /> {/* Button uses typestyles */}
-    </App>
-  )
+    </App>,
+  ),
 );
-```
+````
 
 ## Build issues
 
@@ -353,16 +355,21 @@ button {
 1. Use more specific selectors:
 
    ```ts
-   const button = recipe('button', {
-     base: {
-       color: 'blue',
-       // Increase specificity
-       '&.button': {
+   const button = recipe({
+     name: 'button',
+     styles: {
+       base: {
          color: 'blue',
+         // Increase specificity
+         '&.button': {
+           color: 'blue',
+         },
        },
      },
    });
    ```
+
+````
 
 2. Load typestyles CSS after other CSS
 
@@ -371,16 +378,20 @@ button {
    base: {
      color: 'blue !important',
    }
-   ```
+
+````
 
 ### Cascade issues
 
 Styles from parent components affecting children:
 
 ```ts
-const parent = recipe('parent', {
-  base: {
-    '& button': { color: 'red' }, // Affects ALL buttons inside
+const parent = recipe({
+  name: 'parent',
+  styles: {
+    base: {
+      '& button': { color: 'red' }, // Affects ALL buttons inside
+    },
   },
 });
 ```
@@ -388,15 +399,21 @@ const parent = recipe('parent', {
 **Fix:** Be more specific or avoid nesting:
 
 ```ts
-const parent = recipe('parent', {
-  base: {
-    // Don't use & button, style specific class instead
+const parent = recipe({
+  name: 'parent',
+  styles: {
+    base: {
+      // Don't use & button, style specific class instead
+    },
   },
 });
 
-const childButton = recipe('child-button', {
-  base: {
-    color: 'red',
+const childButton = recipe({
+  name: 'child-button',
+  styles: {
+    base: {
+      color: 'red',
+    },
   },
 });
 ```
@@ -404,10 +421,13 @@ const childButton = recipe('child-button', {
 ### Media queries not working
 
 ```ts
-const responsive = recipe('responsive', {
-  base: {
-    '@media (max-width: 768px)': {
-      display: 'none',
+const responsive = recipe({
+  name: 'responsive',
+  styles: {
+    base: {
+      '@media (max-width: 768px)': {
+        display: 'none',
+      },
     },
   },
 });
@@ -453,7 +473,10 @@ const darkTheme = tokens.createTheme({
        color: { ... }, // Must match 'color' namespace
      },
    });
+
    ```
+
+````
 
 4. If you're using `tokens.declare()` with typed schema leaves (`{ syntax: ... }`), those
    registered `@property` tokens inherit by default so values set on `.theme-*` surfaces
@@ -476,7 +499,7 @@ const darkTheme = tokens.createTheme({
     }
   </script>
 </head>
-```
+````
 
 ## Vite plugin issues
 
@@ -487,11 +510,13 @@ const darkTheme = tokens.createTheme({
    ```ts
    // vite.config.ts
    import typestyles from '@typestyles/vite';
-
-   export default {
-     plugins: [typestyles()],
-   };
    ```
+
+export default {
+plugins: [typestyles()],
+};
+
+````
 
 2. Ensure files import from `'typestyles'` (not relative paths)
 
@@ -511,7 +536,7 @@ const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
 // ❌ This file won't be transformed
 import { recipe } from '../path/to/typestyles';
-```
+````
 
 ## Performance issues
 

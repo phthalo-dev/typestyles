@@ -1,3 +1,4 @@
+import { variant } from './variant';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 import { createTypeStyles } from './create-type-styles';
@@ -9,9 +10,10 @@ describe('createTypeStyles', () => {
 
   it('createTypeStyles({ mode: "attribute" }) returns an attrs-returning recipe API', () => {
     const { recipe } = createTypeStyles({ mode: 'attribute', scopeId: 'cts-attr' });
-    const btn = recipe('tbtn', {
-      base: { padding: '8px' },
-      variants: { variant: { primary: { color: 'blue' } } },
+    const btn = recipe({
+      name: 'tbtn',
+      variants: { variant: variant.enum(['primary'], { default: 'primary' }) },
+      styles: { base: { padding: '8px' }, variants: { variant: { primary: { color: 'blue' } } } },
     });
     expect(btn({ variant: 'primary' }).attrs).toEqual({ 'data-variant': 'primary' });
   });
@@ -29,7 +31,7 @@ describe('createTypeStyles', () => {
     style('card', { padding: '1rem' });
     const hashed = hash({ color: 'blue' }, { label: 'chip' });
     expect(hashed).toMatch(/^ts-chip-/);
-    recipe('btn', { base: { color: 'red' } });
+    recipe({ name: 'btn', styles: { base: { color: 'red' } } });
     global.rules({ body: { margin: 0 } });
     flushSync();
     const css = getRegisteredCss();

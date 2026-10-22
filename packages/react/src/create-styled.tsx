@@ -95,7 +95,17 @@ export function createStyled(api: StyledApi): StyledFactory {
       namespace,
       config,
     } = resolveStyledArgs(tag, configOrNamespace, maybeConfig);
-    const recipe = makeRecipe(namespace, config as ComponentConfigInput<VariantDefinitions>);
+    // `styled` still takes the legacy config object (`base`, `variants`, flat keys).
+    // The engine accepts that shape as `styles`; axes stay on `recipe()` itself.
+    const recipe = (
+      makeRecipe as (input: {
+        name: string;
+        styles: unknown;
+      }) => (selections?: Record<string, unknown>) => { toString(): string }
+    )({
+      name: namespace,
+      styles: config,
+    });
     const variantKeys = getVariantKeysFromConfig(
       config as Record<string, unknown> | ((ctx: unknown) => Record<string, unknown>),
     );
@@ -107,10 +117,7 @@ export function createStyled(api: StyledApi): StyledFactory {
           propsWithoutClassName as Record<string, unknown>,
           variantKeys,
         );
-        const mergedClassName = cx(
-          (recipe as (selections?: Record<string, unknown>) => string)(variants),
-          className,
-        );
+        const mergedClassName = cx(recipe(variants), className);
         const Element = element;
 
         return <Element {...rest} ref={ref} className={mergedClassName} />;

@@ -55,9 +55,7 @@ Styles aren't injected until they're used. This means:
 
 ```ts
 // This is defined but no CSS is injected yet
-const button = recipe('button', {
-  base: { padding: '8px' },
-});
+const button = recipe({ name: 'button', styles: { base: { padding: '8px' } } });
 
 // CSS is only injected when the component renders
 function App() {
@@ -77,9 +75,9 @@ CSS rules are batched and inserted on the next frame:
 
 ```ts
 // Multiple style definitions
-const button = recipe('button', { ... });
-const card = recipe('card', { ... });
-const input = recipe('input', { ... });
+const button = recipe({ name: 'button' });
+const card = recipe({ name: 'card' });
+const input = recipe({ name: 'input' });
 
 // All queued together, inserted in one operation
 // Uses requestAnimationFrame or microtask for batching
@@ -97,7 +95,7 @@ const input = recipe('input', { ... });
 
 ```ts
 // ✅ Good - defined once
-const button = recipe('button', { ... });
+const button = recipe({ name: 'button' });
 
 function Button() {
   return <button className={button()} />;
@@ -105,7 +103,7 @@ function Button() {
 
 // ❌ Bad - redefined on every render
 function Button() {
-  const button = recipe('button', { ... }); // Don't do this!
+  const button = recipe({ name: 'button' }); // Don't do this!
   return <button className={button()} />;
 }
 ```
@@ -120,24 +118,18 @@ import { createTypeStyles, createVar, assignVars } from 'typestyles';
 const { recipe } = createTypeStyles({ scopeId: 'app' });
 
 // ❌ Bad - creates styles for every possible value
-const box = recipe('box', {
-  base: { width: props.width }, // Dynamic values in styles
-});
+const box = recipe({ name: 'box', styles: { base: { width: props.width } } });
 
 // ✅ Good — use CSS custom properties for dynamic values (see Dynamic styling guide)
 const widthVar = createVar('boxWidth');
 
-const box = recipe('box', {
-  base: { display: 'block', width: widthVar },
+const box = recipe({
+  name: 'box',
+  styles: { base: { display: 'block', width: widthVar } },
 });
 
 function Box({ width }) {
-  return (
-    <div
-      className={box()}
-      style={assignVars({ [widthVar]: width })}
-    />
-  );
+  return <div className={box()} style={assignVars({ [widthVar]: width })} />;
 }
 ```
 
@@ -151,22 +143,14 @@ const color = tokens.create('color', {
   primary: '#0066ff',
 });
 
-const button = recipe('button', {
-  base: { color: color.primary },
-});
+const button = recipe({ name: 'button', styles: { base: { color: color.primary } } });
 
-const link = recipe('link', {
-  base: { color: color.primary }, // Same reference
-});
+const link = recipe({ name: 'link', styles: { base: { color: color.primary } } });
 
 // ❌ Bad - recreate values
-const button = recipe('button', {
-  base: { color: '#0066ff' },
-});
+const button = recipe({ name: 'button', styles: { base: { color: '#0066ff' } } });
 
-const link = recipe('link', {
-  base: { color: '#0066ff' }, // Duplicated value
-});
+const link = recipe({ name: 'link', styles: { base: { color: '#0066ff' } } });
 ```
 
 Tokens ensure consistency and reduce memory usage.
@@ -174,25 +158,12 @@ Tokens ensure consistency and reduce memory usage.
 ### 4. Minimize variants
 
 ```ts
+import { variant } from 'typestyles';
 // ❌ Bad - too many variants for rarely used combinations
-const button = recipe('button', {
-  base: { ... },
-  primary: { ... },
-  secondary: { ... },
-  primarySmall: { ... },      // Redundant
-  primaryLarge: { ... },      // Redundant
-  secondarySmall: { ... },    // Redundant
-  secondaryLarge: { ... },    // Redundant
-});
+const button = recipe({ name: 'button', variants: { primary: variant.boolean({ default: false }), secondary: variant.boolean({ default: false }), primarySmall: variant.boolean({ default: false }), primaryLarge: variant.boolean({ default: false }), secondarySmall: variant.boolean({ default: false }), secondaryLarge: variant.boolean({ default: false }) }, styles: { base: { ... }, variants: { primary: { true: { ... }, false: {} }, secondary: { true: { ... }, false: {} }, primarySmall: { true: { ... }, false: {} }, primaryLarge: { true: { ... }, false: {} }, secondarySmall: { true: { ... }, false: {} }, secondaryLarge: { true: { ... }, false: {} } } } });
 
 // ✅ Good - compose smaller variants
-const button = recipe('button', {
-  base: { ... },
-  primary: { ... },
-  secondary: { ... },
-  small: { ... },
-  large: { ... },
-});
+const button = recipe({ name: 'button', variants: { primary: variant.boolean({ default: false }), secondary: variant.boolean({ default: false }), small: variant.boolean({ default: false }), large: variant.boolean({ default: false }) }, styles: { base: { ... }, variants: { primary: { true: { ... }, false: {} }, secondary: { true: { ... }, false: {} }, small: { true: { ... }, false: {} }, large: { true: { ... }, false: {} } } } });
 
 // Usage: button({ primary: true, small: true }) with flat keys, or cx(base, primary, small)
 ```
@@ -214,8 +185,7 @@ Since styles are co-located with components, code splitting works automatically.
 
 ```ts
 // ❌ Bad - deep nesting increases selector complexity
-const card = recipe('card', {
-  base: {
+const card = recipe({ name: 'card', styles: { base: {
     '& .header': {
       '& .title': {
         '& span': { // Too deep!
@@ -223,17 +193,12 @@ const card = recipe('card', {
         },
       },
     },
-  },
-});
+  } } });
 
 // ✅ Good - flatter structure, separate styles
-const card = recipe('card', {
-  base: { ... },
-});
+const card = recipe({ name: 'card', styles: { base: { ... } } });
 
-const cardTitle = recipe('card-title', {
-  base: { fontWeight: 'bold' },
-});
+const cardTitle = recipe({ name: 'card-title', styles: { base: { fontWeight: 'bold' } } });
 ```
 
 Deep nesting makes CSS harder to maintain and can impact selector matching performance.
@@ -274,14 +239,10 @@ import { createTypeStyles } from 'typestyles';
 const { style, recipe } = createTypeStyles({ scopeId: 'app' });
 
 performance.mark('styles-component-start');
-const button = recipe('button', { ... });
+const button = recipe({ name: 'button' });
 performance.mark('styles-component-end');
 
-performance.measure(
-  'styles-component',
-  'styles-component-start',
-  'styles-component-end'
-);
+performance.measure('styles-component', 'styles-component-start', 'styles-component-end');
 
 // Check in DevTools > Performance > Timings
 ```
@@ -295,7 +256,7 @@ performance.measure(
 ```ts
 // ❌ Bad - creates styles on every click
 function handleClick() {
-  const button = recipe('dynamic-button', { ... });
+  const button = recipe({ name: 'dynamic-button' });
   // This accumulates in memory!
 }
 ```

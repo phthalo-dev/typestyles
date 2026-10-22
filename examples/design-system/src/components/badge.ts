@@ -1,3 +1,4 @@
+import { variant } from 'typestyles';
 import { recipe } from '../runtime';
 import { designTokens as t } from '../tokens';
 import { badgeTonePaint } from './semanticTone';
@@ -10,8 +11,14 @@ import { badgeTonePaint } from './semanticTone';
  *
  * **Shared:** `semanticTone.ts` holds the semantic palette + subtle `color-mix` recipe (same as alert).
  */
-export const badge = recipe('badge', (c) => {
-  const v = c.vars({
+export const badge = recipe({
+  name: 'badge',
+  variants: {
+    tone: variant.enum(['neutral', 'accent', 'success', 'warning', 'danger', 'tip'], {
+      default: 'neutral',
+    }),
+  },
+  vars: {
     borderColor: {
       value: `${t.color.border.default}`,
       syntax: '<color>',
@@ -27,8 +34,8 @@ export const badge = recipe('badge', (c) => {
       syntax: '<color>',
       inherits: false,
     },
-  });
-  return {
+  },
+  styles: ({ vars: v }) => ({
     base: {
       display: 'inline-flex',
       alignItems: 'center',
@@ -51,6 +58,5 @@ export const badge = recipe('badge', (c) => {
         tip: badgeTonePaint(v, 'info'),
       },
     },
-    defaultVariants: { tone: 'neutral' },
-  };
+  }),
 });

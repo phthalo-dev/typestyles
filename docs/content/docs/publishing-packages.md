@@ -5,7 +5,7 @@ description: Safe defaults and collision-proof patterns for npm-published librar
 
 If you publish a package that ships TypeStyles components, you need class-name
 isolation out of the box. Two npm packages that both call
-`recipe('button', …)` without a `scopeId` will silently overwrite each
+`recipe({ name: 'button' })` without a `scopeId` will silently overwrite each
 other's CSS in the consuming app.
 
 This guide covers the setup that prevents that.
@@ -13,7 +13,7 @@ This guide covers the setup that prevents that.
 ## The problem
 
 Calling `createTypeStyles()` without a `scopeId` (or importing unscoped helpers) uses an empty scope. In semantic
-mode (the default), `recipe('button', …)` emits class names like
+mode (the default), `recipe({ name: 'button' })` emits class names like
 `button`. If a consumer installs two packages that both define a `'button'`
 namespace, the later import wins — no error, no warning, just broken styles.
 
@@ -41,22 +41,26 @@ export const { style, recipe, tokens, global } = createTypeStyles({
 Then import `recipe`, `style`, and `tokens` from this module throughout your package:
 
 ```ts
+import { variant } from 'typestyles';
 // src/components/Button.styles.ts
 import { recipe } from '../styles';
 
-export const button = recipe('button', {
-  base: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    cursor: 'pointer',
-  },
-  variants: {
-    intent: {
-      primary: { backgroundColor: '#0066ff', color: '#fff' },
-      secondary: { backgroundColor: '#e5e7eb', color: '#111' },
+export const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary', 'secondary'], { default: 'primary' }) },
+  styles: {
+    base: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      cursor: 'pointer',
+    },
+    variants: {
+      intent: {
+        primary: { backgroundColor: '#0066ff', color: '#fff' },
+        secondary: { backgroundColor: '#e5e7eb', color: '#111' },
+      },
     },
   },
-  defaultVariants: { intent: 'primary' },
 });
 ```
 
@@ -168,26 +172,30 @@ export const color = tokens.create('color', {
 ```
 
 ```ts
+import { variant } from 'typestyles';
 // src/components/Button.styles.ts
 import { recipe } from '../styles';
 import { color } from '../tokens/color';
 
-export const button = recipe('button', {
-  base: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 500,
-  },
-  variants: {
-    intent: {
-      primary: { backgroundColor: color.primary, color: '#fff' },
-      secondary: { backgroundColor: 'transparent', border: '1px solid currentColor' },
+export const button = recipe({
+  name: 'button',
+  variants: { intent: variant.enum(['primary', 'secondary'], { default: 'primary' }) },
+  styles: {
+    base: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      border: 'none',
+      cursor: 'pointer',
+      fontWeight: 500,
+    },
+    variants: {
+      intent: {
+        primary: { backgroundColor: color.primary, color: '#fff' },
+        secondary: { backgroundColor: 'transparent', border: '1px solid currentColor' },
+      },
     },
   },
-  defaultVariants: { intent: 'primary' },
 });
 ```
 
