@@ -1,6 +1,6 @@
 {
   "name": "@typestyles/eslint-plugin",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "ESLint rules for TypeStyles style objects and namespace usage",
   "type": "module",
   "main": "./dist/index.cjs",
