@@ -54,7 +54,13 @@ async function removeDirectory(target) {
   }
 
   try {
-    await fs.rm(resolved, { recursive: true, force: false });
+    const realRoot = await fs.realpath(workspaceRoot);
+    const realParent = await fs.realpath(path.dirname(resolved));
+    const canonicalTarget = path.join(realParent, path.basename(resolved));
+    if (!canonicalTarget.startsWith(realRoot + path.sep)) {
+      throw new Error(`Refusing to delete outside the repo: ${canonicalTarget}`);
+    }
+    await fs.rm(canonicalTarget, { recursive: true, force: false });
     return true;
   } catch (error) {
     if (error && error.code === 'ENOENT') return false;
