@@ -1,6 +1,6 @@
 {
   "name": "@typestyles/webpack",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "webpack plugin for typestyles build extraction",
   "type": "module",
   "main": "./dist/index.cjs",

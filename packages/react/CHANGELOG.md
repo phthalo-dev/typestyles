@@ -1,5 +1,11 @@
 # @typestyles/react
 
+## 0.3.1
+
+### Patch Changes
+
+- [#276](https://github.com/type-styles/typestyles/pull/276) [`31872bc`](https://github.com/type-styles/typestyles/commit/31872bc1ed7b284c36534d8fcc2b2f6c5f6c14e0) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - `createStyled` calls `recipe({ name, styles })`. Requires `typestyles` >=0.32.0, where the positional recipe call is removed.
+
 ## 0.3.0
 
 ### Minor Changes
