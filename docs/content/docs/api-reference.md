@@ -63,7 +63,7 @@ const button = recipe({
 button.defaults; // { size: 'md', elevated: false }
 ```
 
-**Related types:** `VariantAxis`, `EnumVariantAxis`, `BooleanVariantAxis`, `VariantOptions`, `RecipeDefinition`, `RecipeStyles`, `ExactRecipeStyles`, `RecipeHandle`, `RecipeVariants`, `RecipeDefaults`, `RecipeDefaultsOf`, `RecipeVarsOf`, `RecipeVariantSelections`, `ComponentCreateOptions`, `RecipeFn`. Also `recipeAxisBrand` (runtime brand).
+**Related types:** `VariantAxis`, `EnumVariantAxis`, `BooleanVariantAxis`, `VariantOptions`, `RecipeDefinition`, `RecipeStyles`, `ExactRecipeStyles`, `RecipeHandle`, `RecipeCallResult`, `RecipeVariants`, `RecipeDefaults`, `RecipeDefaultsOf`, `RecipeVarsOf`, `RecipeVariantSelections`, `ComponentCreateOptions`, `RecipeFn`. `RecipeCallResult` is the type of a `recipe()` value, so library `.d.ts` files can name it. Also `recipeAxisBrand` (runtime brand).
 
 ### `tokens` (from `createTypeStyles` / `createTokens`)
 
