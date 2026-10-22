@@ -135,6 +135,8 @@ function writeProject(dir: string, files: Record<string, string>, fileNames: str
 }
 
 describe('recipe() declaration emit', () => {
+  // Two cold `tsc` runs over the published typestyles program. Locally this is
+  // under a second; GitHub runners exceed Vitest's 5s default.
   it('names RecipeCallResult in consumer .d.ts files and keeps override inference', () => {
     const dir = mkdtempSync(join(tmpdir(), 'typestyles-recipe-dts-'));
     writeProject(dir, { 'lib.ts': librarySource }, ['lib.ts']);
@@ -155,5 +157,5 @@ describe('recipe() declaration emit', () => {
     writeProject(downstream, { 'use.ts': downstreamSource }, ['use.ts']);
     writeFileSync(join(downstream, 'lib.d.ts'), emitted);
     emitDeclarations(downstream);
-  });
+  }, 60_000);
 });
