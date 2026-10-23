@@ -720,7 +720,10 @@ export type CSSVarRef = `var(--${string})` | `var(--${string}, ${string})`;
  *
  * @deprecated Prefer {@link PropertyOptions} for registration fields. `slots` stays here so it does not leak onto `styles.property`.
  */
-export type ComponentVarDescriptor = PropertyOptions & {
+export type ComponentVarDescriptor = (
+  | PropertyOptions
+  | (ComponentVarOptions & { value: string | number })
+) & {
   /** Extra recipe slots that receive this var's default and theme overrides, in addition to the host. */
   slots?: readonly string[];
 };
