@@ -1,6 +1,6 @@
 # @typestyles/props
 
-Type-safe atomic CSS utilities for [typestyles](https://github.com/type-styles/typestyles) — Tailwind-style ergonomics with full TypeScript inference, readable class names, and CSS you can inspect in DevTools.
+Type-safe atomic CSS utilities for [typestyles](https://github.com/phthalo-dev/typestyles) — Tailwind-style ergonomics with full TypeScript inference, readable class names, and CSS you can inspect in DevTools.
 
 Define a design-system scale once; get autocomplete, compile-time errors on invalid combinations, and class strings like `atom-display-flex atom-padding-2` instead of hashed atoms.
 

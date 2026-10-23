@@ -330,7 +330,7 @@ in var-ui's own roadmap, not here.
     `@typestyles/no-removed-public-classname` guard semantic renames; theming/components/publishing
     docs cover the two-tier override model and public class name contract.
     Spec: `specs/component-override-contract.md`.
-    PR: https://github.com/type-styles/typestyles/pull/119.
+    PR: https://github.com/phthalo-dev/typestyles/pull/119.
 
 - [x] **P5.4 — `descendant` scope on the theme condition engine**
   - Shipped in `packages/typestyles/src/theme.ts` / `types.ts`: `'descendant'` as

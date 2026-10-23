@@ -39,7 +39,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/type-styles/typestyles",
+    "url": "https://github.com/phthalo-dev/typestyles",
     "directory": "packages/props"
   }
 }

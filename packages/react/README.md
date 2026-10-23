@@ -1,6 +1,6 @@
 # @typestyles/react
 
-React integration for [typestyles](https://github.com/type-styles/typestyles) — migration-friendly **`styled`** API and **`css` prop** for teams coming from Emotion or styled-components.
+React integration for [typestyles](https://github.com/phthalo-dev/typestyles) — migration-friendly **`styled`** API and **`css` prop** for teams coming from Emotion or styled-components.
 
 ## Installation
 

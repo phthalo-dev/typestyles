@@ -1,6 +1,6 @@
 # @typestyles/cli
 
-Command-line tools for [typestyles](https://github.com/type-styles/typestyles).
+Command-line tools for [typestyles](https://github.com/phthalo-dev/typestyles).
 
 ## Install
 

@@ -588,7 +588,7 @@ To verify what the runtime has registered (for example in a route handler or tes
 If you're still stuck:
 
 1. **Check the documentation:** Review the relevant guide for your use case
-2. **Search issues:** Look for similar problems in [GitHub issues](https://github.com/type-styles/typestyles/issues)
+2. **Search issues:** Look for similar problems in [GitHub issues](https://github.com/phthalo-dev/typestyles/issues)
 3. **Create a minimal reproduction:**
    - Create the smallest possible example that shows the issue
    - Share the code and expected vs actual behavior

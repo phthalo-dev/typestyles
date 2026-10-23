@@ -17,12 +17,12 @@ The same `recipe()`, `tokens.create()`, and `keyframes.create()` APIs work ident
 
 | Bundler / app     | Command                 | README                                                                                                     |
 | ----------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Vite + React      | `pnpm vite-app dev`     | [examples/vite-app](https://github.com/type-styles/typestyles/blob/main/examples/vite-app/README.md)       |
-| Next.js + verify  | `pnpm next-app build`   | [examples/next-app](https://github.com/type-styles/typestyles/blob/main/examples/next-app/README.md)       |
-| esbuild           | `pnpm esbuild-app test` | [examples/esbuild-app](https://github.com/type-styles/typestyles/blob/main/examples/esbuild-app/README.md) |
-| Rollup / Rolldown | `pnpm rollup-app build` | [examples/rollup-app](https://github.com/type-styles/typestyles/blob/main/examples/rollup-app/README.md)   |
+| Vite + React      | `pnpm vite-app dev`     | [examples/vite-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/vite-app/README.md)       |
+| Next.js + verify  | `pnpm next-app build`   | [examples/next-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/next-app/README.md)       |
+| esbuild           | `pnpm esbuild-app test` | [examples/esbuild-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/esbuild-app/README.md) |
+| Rollup / Rolldown | `pnpm rollup-app build` | [examples/rollup-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/rollup-app/README.md)   |
 
-See also [examples/README.md](https://github.com/type-styles/typestyles/blob/main/examples/README.md) and the [doc ↔ example map](https://github.com/type-styles/typestyles/blob/main/docs/README.md#doc-pages-and-runnable-examples).
+See also [examples/README.md](https://github.com/phthalo-dev/typestyles/blob/main/examples/README.md) and the [doc ↔ example map](https://github.com/phthalo-dev/typestyles/blob/main/docs/README.md#doc-pages-and-runnable-examples).
 
 ---
 

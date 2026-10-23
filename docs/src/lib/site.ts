@@ -1,9 +1,9 @@
 /** Base URL for “edit this page” links (markdown under `docs/content/docs/`). */
 export const DOCS_GITHUB_EDIT_BASE =
-  'https://github.com/type-styles/typestyles/edit/main/docs/content/docs';
+  'https://github.com/phthalo-dev/typestyles/edit/main/docs/content/docs';
 
 /** Base for repository files outside `docs/content/docs/` (e.g. package changelogs). */
-export const REPO_GITHUB_EDIT_BASE = 'https://github.com/type-styles/typestyles/edit/main';
+export const REPO_GITHUB_EDIT_BASE = 'https://github.com/phthalo-dev/typestyles/edit/main';
 
 export function editUrlForDocSlug(slug: string): string {
   return `${DOCS_GITHUB_EDIT_BASE}/${slug}.md`;

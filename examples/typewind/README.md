@@ -1,6 +1,6 @@
 # @examples/typewind (Typewind)
 
-**Typewind** recreates a **Tailwind-style utility workflow** using [typestyles](https://github.com/type-styles/typestyles) only — no Tailwind CSS, PostCSS plugin, or JIT compiler.
+**Typewind** recreates a **Tailwind-style utility workflow** using [typestyles](https://github.com/phthalo-dev/typestyles) only — no Tailwind CSS, PostCSS plugin, or JIT compiler.
 
 Utilities are plain `style('utility-name', { … })` calls. Class names match familiar Tailwind strings (`flex`, `gap-4`, `text-slate-600`, …). Spacing and palette values live in `tokens.create` so you can override them with `tokens.createTheme` (see the light/dark toggle in the demo).
 

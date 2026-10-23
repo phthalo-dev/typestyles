@@ -1,6 +1,6 @@
 # @typestyles/migrate
 
-CLI codemods for migrating from **styled-components** and **Emotion** to [typestyles](https://github.com/type-styles/typestyles).
+CLI codemods for migrating from **styled-components** and **Emotion** to [typestyles](https://github.com/phthalo-dev/typestyles).
 
 Moving off runtime CSS-in-JS is often the hardest part of adopting typestyles. This package automates the boring, safe transforms so you can focus on prop-based dynamics (`createVar` / `assignVars`) and design tokens — the parts that need human judgment.
 

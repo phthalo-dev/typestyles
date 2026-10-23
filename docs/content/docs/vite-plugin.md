@@ -5,7 +5,7 @@ description: Enhance your Vite development experience with HMR and style validat
 
 The optional `@typestyles/vite` plugin enhances your development experience with Hot Module Replacement (HMR) and helpful warnings.
 
-**Runnable examples:** [examples/vite-app](https://github.com/type-styles/typestyles/blob/main/examples/vite-app/README.md) (React), [examples/vue-app](https://github.com/type-styles/typestyles/blob/main/examples/vue-app/README.md), [examples/svelte-app](https://github.com/type-styles/typestyles/blob/main/examples/svelte-app/README.md), and [examples/typewind](https://github.com/type-styles/typestyles/blob/main/examples/typewind/README.md). Each includes a convention entry and production extraction.
+**Runnable examples:** [examples/vite-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/vite-app/README.md) (React), [examples/vue-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/vue-app/README.md), [examples/svelte-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/svelte-app/README.md), and [examples/typewind](https://github.com/phthalo-dev/typestyles/blob/main/examples/typewind/README.md). Each includes a convention entry and production extraction.
 
 ## Installation
 
@@ -300,4 +300,4 @@ Planned enhancements (not yet implemented):
 - **Dead style detection**: Warn when styles are defined but never used
 - **Source maps**: Map generated CSS back to your style definitions
 
-Stay tuned to the [GitHub repository](https://github.com/type-styles/typestyles) for updates.
+Stay tuned to the [GitHub repository](https://github.com/phthalo-dev/typestyles) for updates.
