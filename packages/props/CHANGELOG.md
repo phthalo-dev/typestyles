@@ -1,5 +1,14 @@
 # @typestyles/props
 
+## 0.4.40
+
+### Patch Changes
+
+- [#287](https://github.com/phthalo-dev/typestyles/pull/287) [`7979a45`](https://github.com/phthalo-dev/typestyles/commit/7979a45cf72a141f011bebb5f63d053be46f7fe9) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Build with tsdown (via Vite+) instead of tsup. Public exports and types are unchanged; the output no longer includes JSDoc comments, and `@typestyles/next` now shares code between its entry points instead of duplicating it.
+
+- Updated dependencies [[`7979a45`](https://github.com/phthalo-dev/typestyles/commit/7979a45cf72a141f011bebb5f63d053be46f7fe9)]:
+  - typestyles@0.32.3
+
 ## 0.4.39
 
 ### Patch Changes
@@ -368,27 +377,27 @@ Type-safe atomic CSS utility generator for typestyles.
 **Example:**
 
 ```typescript
-import { defineProperties, createProps } from '@typestyles/props';
+import { defineProperties, createProps } from "@typestyles/props";
 
 const responsiveProps = defineProperties({
   conditions: {
-    mobile: { '@media': '(min-width: 768px)' },
-    desktop: { '@media': '(min-width: 1024px)' },
+    mobile: { "@media": "(min-width: 768px)" },
+    desktop: { "@media": "(min-width: 1024px)" },
   },
   properties: {
-    display: ['flex', 'block', 'grid', 'none'],
-    padding: { 0: '0', 1: '4px', 2: '8px', 3: '16px' },
+    display: ["flex", "block", "grid", "none"],
+    padding: { 0: "0", 1: "4px", 2: "8px", 3: "16px" },
   },
   shorthands: {
-    p: ['padding'],
+    p: ["padding"],
   },
 });
 
-const props = createProps('atoms', responsiveProps);
+const props = createProps("atoms", responsiveProps);
 
 // Type-safe usage with full autocomplete
 props({
-  display: 'flex',
+  display: "flex",
   padding: 2,
   p: { mobile: 3, desktop: 4 },
 });

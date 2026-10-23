@@ -1,5 +1,11 @@
 # typestyles
 
+## 0.32.3
+
+### Patch Changes
+
+- [#287](https://github.com/phthalo-dev/typestyles/pull/287) [`7979a45`](https://github.com/phthalo-dev/typestyles/commit/7979a45cf72a141f011bebb5f63d053be46f7fe9) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Build with tsdown (via Vite+) instead of tsup. Public exports and types are unchanged; the output no longer includes JSDoc comments, and `@typestyles/next` now shares code between its entry points instead of duplicating it.
+
 ## 0.32.2
 
 ### Patch Changes
@@ -375,6 +381,7 @@
 - [#52](https://github.com/type-styles/typestyles/pull/52): Add built-in `cx()` utility for joining class names with falsy-value filtering
 - [#63](https://github.com/type-styles/typestyles/pull/63): Add first-class container query helpers: `container()` for typed `@container` keys, readable `containerRef()` / `createContainerRef()` for `container-name`, and `atRuleBlock()` / `styles.atRuleBlock()` so computed `@…` nests type-check without casting. Documentation and design-system example updated.
 - [#62](https://github.com/type-styles/typestyles/pull/62): Add **opt-in CSS cascade layers** (`@layer`) and a unified **`createTypeStyles`** factory.
+
   - **`createStyles({ layers })`** — Pass a layer tuple (`as const`) or `{ order, prependFrameworkLayers? }`. Emits a single `@layer …;` preamble (once per stack) and wraps rules in `@layer name { … }`. When enabled, every **`class`**, **`hashClass`**, and **`component`** call must pass a third argument **`{ layer: … }`** (with `hashClass`, use **`{ layer, label? }`** instead of a positional label).
   - **`createTokens({ layers, tokenLayer })`** — When `layers` is set, `tokenLayer` is required; `:root` and theme CSS are emitted into that layer.
   - **`createTypeStyles(options)`** — Returns **`{ styles, tokens }`** with one shared `scopeId` and optional `layers` / `tokenLayer` for both class and token output.
@@ -394,6 +401,7 @@
   **@typestyles/next:** README examples use `styles.component` and default variant calls; add **Fonts and local files** guidance for Next extraction (`public/fonts/`, root-relative URLs) versus Vite asset URLs.
 
 - [#72](https://github.com/type-styles/typestyles/pull/72): Add **`createGlobal`** for scoped global CSS (optional cascade **`layers`** and default **`globalLayer`**), wire **`global`** into **`createTypeStyles`**, and ship a **`typestyles/globals`** entry with Josh Comeau’s **`reset`** (plus **`layer`** support for layered stacks) and small selector recipes.
+
   - **`createTypeStyles`** now returns **`{ styles, tokens, global }`**. With **`layers`**, pass optional **`globalLayer`** so `global.style` / **`global.apply`** defaults match your stack; **`tokenLayer`** remains required when layers are enabled.
   - **`global.style`** accepts **`GlobalStyleTuple`** recipes (from **`typestyles/globals`**) in addition to selector + properties; root **`global`** ignores per-call **`layer`** (dev warning) — use **`createGlobal`** / layered **`createTypeStyles`** for `@layer`.
   - **`global.apply(...tuples)`** applies multiple tuples in one call.
@@ -472,24 +480,29 @@
 - [#25](https://github.com/type-styles/typestyles/pull/25): Updating bundler integrations and adding examples
 - [#27](https://github.com/type-styles/typestyles/pull/27): Add a new `styles.withUtils(utils)` API for defining typed style shorthands (for example `marginX`, `paddingY`, and `size`) and using them with `styles.class`, `styles.create`, and `styles.hashClass`.
 - [#33](https://github.com/type-styles/typestyles/pull/33): Add configurable class naming modes for gradual adoption across packages:
+
   - `configureClassNaming({ mode, prefix?, scopeId? })` with modes `semantic` (default), `hashed`, and `atomic`.
   - Applies to `styles.create`, `styles.class`, `styles.component` (including slot recipes), and affects `prefix` / optional `scopeId` mixing for `styles.hashClass`.
   - Export `getClassNamingConfig` and `resetClassNaming` (for tests).
 
   Documentation:
+
   - New site page `docs/content/docs/class-naming.md` (sidebar: Class naming) describing modes, `scopeId`, SSR, and testing.
   - Cross-links from Getting Started, Styles, Recipes, Atomic CSS utilities, API Reference, and Testing.
 
 - [#31](https://github.com/type-styles/typestyles/pull/31): Unify variant APIs around `styles.component` and add first-class multipart slot support via `slots`.
 
   Breaking changes:
+
   - Remove `styles.recipe` in favor of `styles.component`.
   - Remove recipe type aliases (`RecipeConfig`, `RecipeFunction`, `RecipeVariants`) and replace with component terminology (`ComponentVariants`, plus new slot component types).
 
   New capability:
+
   - `styles.component(name, { slots, base, variants, compoundVariants, defaultVariants })` now returns per-slot class maps for multipart components.
 
   Naming update for slot mode:
+
   - Slot base classes now use `{namespace}-{slot}` (without `-base`).
 
 - [#23](https://github.com/type-styles/typestyles/pull/23): Add `styles.class()` for single-class definitions and a three-argument `styles.create(name, base, variants)` API that automatically includes base styles, then updated the Next.js example to use the new DX without affecting published packages.
@@ -502,10 +515,10 @@
 - [#9](https://github.com/type-styles/typestyles/pull/9): Add support for attribute selectors in nested styles. You can now use `[data-variant]`, `[disabled]`, `[data-size="lg"]` and other attribute selectors directly in style definitions:
 
   ```typescript
-  styles.create('button', {
-    padding: '8px',
-    '[data-variant="primary"]': { backgroundColor: 'blue' },
-    '[disabled]': { opacity: 0.5 },
+  styles.create("button", {
+    padding: "8px",
+    '[data-variant="primary"]': { backgroundColor: "blue" },
+    "[disabled]": { opacity: 0.5 },
   });
   ```
 
@@ -542,6 +555,7 @@
 - [#1](https://github.com/type-styles/typestyles/pull/1): Initial release of typestyles - CSS-in-TypeScript that embraces CSS instead of hiding from it.
 
   Features:
+
   - Core typestyles library with type-safe CSS styling
   - Server-side rendering support
   - Vite plugin for HMR support
