@@ -1,5 +1,14 @@
 # @typestyles/vite
 
+## 0.5.3
+
+### Patch Changes
+
+- [#287](https://github.com/phthalo-dev/typestyles/pull/287) [`7979a45`](https://github.com/phthalo-dev/typestyles/commit/7979a45cf72a141f011bebb5f63d053be46f7fe9) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Build with tsdown (via Vite+) instead of tsup. Public exports and types are unchanged; the output no longer includes JSDoc comments, and `@typestyles/next` now shares code between its entry points instead of duplicating it.
+
+- Updated dependencies [[`7979a45`](https://github.com/phthalo-dev/typestyles/commit/7979a45cf72a141f011bebb5f63d053be46f7fe9)]:
+  - @typestyles/build-runner@0.6.3
+
 ## 0.5.2
 
 ### Patch Changes
@@ -145,6 +154,7 @@
 - [#1](https://github.com/type-styles/typestyles/pull/1): Initial release of typestyles - CSS-in-TypeScript that embraces CSS instead of hiding from it.
 
   Features:
+
   - Core typestyles library with type-safe CSS styling
   - Server-side rendering support
   - Vite plugin for HMR support

@@ -1,5 +1,12 @@
 # typestyles-parcel-example
 
+## 0.0.39
+
+### Patch Changes
+
+- Updated dependencies [[`7979a45`](https://github.com/phthalo-dev/typestyles/commit/7979a45cf72a141f011bebb5f63d053be46f7fe9)]:
+  - typestyles@0.32.3
+
 ## 0.0.38
 
 ### Patch Changes

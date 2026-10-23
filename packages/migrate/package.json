@@ -1,6 +1,6 @@
 {
   "name": "@typestyles/migrate",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "CLI codemods for migrating codebases to typestyles",
   "type": "module",
   "main": "./dist/index.cjs",
