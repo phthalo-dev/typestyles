@@ -1,3 +1,8 @@
+# CI runs the changesets release, which commits and pushes; hooks are for local work.
+if [ -n "$CI" ]; then
+  exit 0
+fi
+
 branch=$(git symbolic-ref --short HEAD 2>/dev/null)
 
 if [ "$branch" = "main" ]; then
@@ -6,7 +11,7 @@ fi
 
 changed_files=$(git diff --name-only origin/main...HEAD 2>/dev/null || true)
 
-if [ -n "$changed_files" ] && [ -z "$(echo "$changed_files" | grep -Ev '^(\.github/|\.husky/|\.changeset/|\.vscode/|\.npmrc|AGENTS\.md|README\.md|specs/)' || true)" ]; then
+if [ -n "$changed_files" ] && [ -z "$(echo "$changed_files" | grep -Ev '^(\.github/|\.husky/|\.changeset/|\.vscode/|\.npmrc|\.nvmrc|AGENTS\.md|README\.md|specs/)' || true)" ]; then
   exit 0
 fi
 

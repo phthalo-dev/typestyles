@@ -1,3 +1,8 @@
+# CI runs the changesets release, which commits and pushes; hooks are for local work.
+if [ -n "$CI" ]; then
+  exit 0
+fi
+
 branch=$(git symbolic-ref --short HEAD 2>/dev/null)
 
 if [ "$branch" = "main" ]; then
