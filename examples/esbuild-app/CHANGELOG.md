@@ -1,5 +1,12 @@
 # typestyles-esbuild-example
 
+## 0.0.38
+
+### Patch Changes
+
+- Updated dependencies [[`612537e`](https://github.com/phthalo-dev/typestyles/commit/612537ef6e3c0297c5627c855e3289825873ea30)]:
+  - typestyles@0.32.2
+
 ## 0.0.37
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @typestyles/vite
 
+## 0.5.2
+
+### Patch Changes
+
+- [#282](https://github.com/phthalo-dev/typestyles/pull/282) [`612537e`](https://github.com/phthalo-dev/typestyles/commit/612537ef6e3c0297c5627c855e3289825873ea30) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Point the repository metadata at the phthalo-dev GitHub organization.
+
+- Updated dependencies [[`612537e`](https://github.com/phthalo-dev/typestyles/commit/612537ef6e3c0297c5627c855e3289825873ea30)]:
+  - @typestyles/build-runner@0.6.2
+
 ## 0.5.1
 
 ### Patch Changes

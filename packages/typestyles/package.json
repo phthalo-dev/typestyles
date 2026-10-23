@@ -1,6 +1,6 @@
 {
   "name": "typestyles",
-  "version": "0.32.1",
+  "version": "0.32.2",
   "description": "CSS-in-TypeScript that embraces CSS instead of hiding from it",
   "type": "module",
   "main": "./dist/index.cjs",
