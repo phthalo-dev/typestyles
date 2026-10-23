@@ -1,4 +1,4 @@
-import { describe } from 'vitest';
+import { describe } from 'vite-plus/test';
 import { noShorthandLonghandConflict } from './no-shorthand-longhand-conflict';
 import { ruleTester } from '../test/rule-tester';
 

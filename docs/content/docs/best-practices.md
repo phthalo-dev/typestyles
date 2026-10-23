@@ -491,21 +491,15 @@ document.body.classList.add(darkTheme.className);
 ```ts
 const brandLight = tokens.createTheme({
   name: 'brand-light',
-  tokens: {
-    /* … */
-  },
+  tokens: {/* … */},
 });
 const brandDark = tokens.createTheme({
   name: 'brand-dark',
-  tokens: {
-    /* … */
-  },
+  tokens: {/* … */},
 });
 const highContrast = tokens.createTheme({
   name: 'high-contrast',
-  tokens: {
-    /* … */
-  },
+  tokens: {/* … */},
 });
 ```
 

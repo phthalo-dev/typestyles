@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { decomposeAtomicStyle } from './atomic-decompose';
 import { mergeClassNaming } from './class-naming';
 import { createStyles } from './styles';

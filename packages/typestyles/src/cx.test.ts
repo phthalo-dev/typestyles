@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 import { cx } from './cx';
 import { resetBindingDevWarnings } from './cx';
 
@@ -8,7 +8,7 @@ describe('cx', () => {
   });
 
   it('filters out false', () => {
-    // eslint-disable-next-line no-constant-binary-expression
+    // oxlint-disable-next-line no-constant-binary-expression
     expect(cx('a', false && 'b', 'c')).toBe('a c');
   });
 

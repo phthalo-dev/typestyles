@@ -1,7 +1,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import typestylesRollupPlugin, { extractNamespaces } from './index';
 
 /** Rollup plugin hooks may be a function or `{ handler }`. */

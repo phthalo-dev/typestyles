@@ -2,7 +2,7 @@ import { variant } from 'typestyles';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import type { ResolvedConfig } from 'vite';
 import {
   discoverDefaultExtractModules,

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, expectTypeOf } from 'vitest';
+import { describe, it, expect, beforeEach, expectTypeOf } from 'vite-plus/test';
 import { createTokens } from './tokens';
 import { createTheme, when } from './theme';
 import { createTypeStyles } from './create-type-styles';

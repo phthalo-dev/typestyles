@@ -1,4 +1,4 @@
-import { beforeEach, describe } from 'vitest';
+import { beforeEach, describe } from 'vite-plus/test';
 import { noDuplicateNamespace, resetNamespaceRegistry } from './no-duplicate-namespace';
 import { ruleTester } from '../test/rule-tester';
 

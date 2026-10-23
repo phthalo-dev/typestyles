@@ -1,4 +1,4 @@
-import { describe } from 'vitest';
+import { describe } from 'vite-plus/test';
 import { noInvalidUnitlessValue } from './no-invalid-unitless-value';
 import { ruleTester } from '../test/rule-tester';
 

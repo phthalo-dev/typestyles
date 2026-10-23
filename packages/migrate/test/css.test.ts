@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import * as t from '@babel/types';
 import { cssToObjectExpression } from '../src/css';
 import type { MigrationWarning } from '../src/types';

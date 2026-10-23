@@ -96,11 +96,11 @@ function scope(
 ```
 
 - `overrides` is compiled via the **existing** `serializeStyle('.' + className,
-overrides)` (`css.ts`) — the same serializer `style`/`recipe`
+  overrides)` (`css.ts`) — the same serializer `style`/`recipe`
   already use. It already recurses through pseudo-selectors and nested at-rules,
   so `:hover`, `@media`, etc. inside `overrides` work with no new logic.
 - Each resulting rule is wrapped: ``@scope (${opts.root})${opts.to ? ` to
-(${opts.to})` : ''} { ${rule.css} }``.
+  (${opts.to})` : ''} { ${rule.css} }``.
 - If `opts.layer` is passed, the `@scope`-wrapped rule is further wrapped via
   the **existing** `applyLayerToRules` (`layers.ts`) — the identical function
   `createTheme` already calls — so a scoped override participates in a
@@ -163,7 +163,7 @@ detection, scopeId guardrails).
 ## Testing
 
 - **`scope.test.ts`**: `scope()` produces the expected `@scope (...) to
-(...) { .class { ... } }` string for a plain properties object and for one
+  (...) { .class { ... } }` string for a plain properties object and for one
   containing a pseudo-selector (confirms `serializeStyle`'s existing recursion
   is reused correctly, not reimplemented); the `layer` option nests `@layer`
   outside `@scope`, matching `applyLayerToRules`'s existing wrapping

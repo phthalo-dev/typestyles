@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 import { createGlobal } from './create-global';
 import { createTypeStyles } from './create-type-styles';

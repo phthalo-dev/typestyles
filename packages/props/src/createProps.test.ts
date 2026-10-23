@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { reset, flushSync, getRegisteredCss } from 'typestyles';
 import { defineProperties } from './defineProperties';
 import { createProps } from './createProps';

@@ -22,18 +22,16 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
-    "lint": "eslint .",
+    "build": "vp pack",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "typestyles": "workspace:*"
   },
   "devDependencies": {
-    "eslint": "^9.39.2",
-    "tsup": "^8.0.0",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "vite-plus": "catalog:"
   },
   "license": "Apache-2.0",
   "repository": {

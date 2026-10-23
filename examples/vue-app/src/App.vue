@@ -9,11 +9,7 @@ const ghost = ref(false);
   <main class="page">
     <h1>typestyles + Vue</h1>
     <p>Typed component styles with ordinary <code>class</code> bindings.</p>
-    <button
-      type="button"
-      :class="button({ ghost: ghost }).className"
-      @click="ghost = !ghost"
-    >
+    <button type="button" :class="button({ ghost: ghost }).className" @click="ghost = !ghost">
       {{ ghost ? 'Ghost' : 'Primary' }}
     </button>
   </main>

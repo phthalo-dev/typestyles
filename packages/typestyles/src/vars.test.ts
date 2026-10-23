@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, expectTypeOf } from 'vitest';
+import { describe, it, expect, beforeEach, expectTypeOf } from 'vite-plus/test';
 import { createVar, assignVars, __resetVarCounter } from './vars';
 import type { CSSVarRef, ComponentVariants, ComponentFunction } from './types';
 

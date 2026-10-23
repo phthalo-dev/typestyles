@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, expectTypeOf } from 'vitest';
+import { describe, it, expect, beforeEach, vi, expectTypeOf } from 'vite-plus/test';
 import { createComponent } from './component';
 import { defaultClassNamingConfig, mergeClassNaming } from './class-naming';
 import { reset, flushSync, getRegisteredCss } from './sheet';

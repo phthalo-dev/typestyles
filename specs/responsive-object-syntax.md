@@ -368,8 +368,8 @@ Include before/after replacing the reference-app container pattern.
   adds implicit ordering magic; revisit only if users ask after object syntax
   ships.
 - **Panda-style grouped `@media` object** (`{ '@media': { '(min-width: 640px)':
-{ … } } }`) — different sugar; authors can already write `'@media
-(min-width: 640px)'` keys. Could be a separate spec if grouped nesting is
+  { … } } }`) — different sugar; authors can already write `'@media
+  (min-width: 640px)'` keys. Could be a separate spec if grouped nesting is
   still too verbose after per-property syntax lands.
 - **Container-query breakpoint registry** — v1 is `@media` only. Container
   conditions continue to use explicit `'@container (…)'` keys or

@@ -93,5 +93,5 @@ type LayerNames<O> = O extends { layers: infer L extends readonly string[] }
  * `StylesApi<{ mode: 'attribute'; layers: readonly ['components'] }>`.
  */
 // `{}` is the empty options bag (no utils, no layers, semantic mode), not a value type.
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+// oxlint-disable-next-line @typescript-eslint/no-empty-object-type
 export type StylesApi<O = {}> = StylesSurface<HasUtils<O>, LayerNames<O>>;

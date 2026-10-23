@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { css } from './css';
 import { atProperty } from './at-property';
 import { getRegisteredCss, reset, flushSync } from './sheet';

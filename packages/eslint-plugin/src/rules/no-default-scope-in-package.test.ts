@@ -1,4 +1,4 @@
-import { describe } from 'vitest';
+import { describe } from 'vite-plus/test';
 import { noDefaultScopeInPackage } from './no-default-scope-in-package';
 import { ruleTester } from '../test/rule-tester';
 

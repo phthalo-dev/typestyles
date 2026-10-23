@@ -744,11 +744,9 @@ export type InferVarDefinitions<C> = C extends {
 type SchemaAxes<Def extends RecipeDefinition> =
   Def['variants'] extends Record<string, VariantAxis>
     ? {
-        [K in keyof Def['variants'] as string extends K
-          ? never
-          : number extends K
-            ? never
-            : K]: Def['variants'][K];
+        [
+          K in keyof Def['variants'] as string extends K ? never : number extends K ? never : K
+        ]: Def['variants'][K];
       }
     : Record<never, VariantAxis>;
 
@@ -851,7 +849,7 @@ export interface OverrideTokenNode {
   readonly name: string;
   readonly var: string;
   /** Nested token bags. `any` keeps `tokens.color.border.default.var` reachable. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line @typescript-eslint/no-explicit-any
   readonly [key: string]: any;
 }
 

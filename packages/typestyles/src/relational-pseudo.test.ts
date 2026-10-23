@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { serializeStyle } from './serialize-style';
 import { has, is, where } from './relational-pseudo';
 

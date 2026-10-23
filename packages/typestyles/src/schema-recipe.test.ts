@@ -4,7 +4,7 @@
  * Covers attribute-mode slot/boolean behavior, `.defaults`, `meta.schema`, shared
  * axes, and the rejection of style maps passed as `variants`.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { createStyles } from './styles';
 import { createTypeStyles } from './create-type-styles';
 import { getComponentMeta } from './component-meta';

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { buildTokenNameContext, defaultTokenNameTemplate, resolveTokenName } from './token-naming';
 import { flattenTokenPaths } from './types';
 

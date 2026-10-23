@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { atProperty } from './at-property';
 import { createTokens } from './tokens';
 const tokens = createTokens();

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { atan2, calc, clamp, cos, hypot, pow, sin, sqrt, tan } from './css-math';
 
 describe('calc', () => {

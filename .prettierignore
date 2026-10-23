@@ -1,7 +1,0 @@
-node_modules
-dist
-coverage
-pnpm-lock.yaml
-*.tsbuildinfo
-.turbo
-**/__snapshots__/**

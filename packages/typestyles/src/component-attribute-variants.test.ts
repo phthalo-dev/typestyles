@@ -1,5 +1,5 @@
 import { variant } from './variant';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test';
 import { createComponent } from './component';
 import { mergeClassNaming } from './class-naming';
 import { createStyles } from './styles';

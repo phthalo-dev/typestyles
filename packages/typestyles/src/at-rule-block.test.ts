@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { atRuleBlock } from './at-rule-block';
 import { container } from './container';
 import type { CSSProperties } from './types';

@@ -4,11 +4,10 @@
   "version": "0.0.38",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "test": "vite build && node scripts/verify-build.mjs",
-    "preview": "vite preview",
-    "lint": "eslint ."
+    "dev": "vp dev",
+    "build": "vp build",
+    "test": "vp build && node scripts/verify-build.mjs",
+    "preview": "vp preview"
   },
   "dependencies": {
     "typestyles": "workspace:*",
@@ -17,9 +16,9 @@
   "devDependencies": {
     "@typestyles/vite": "workspace:*",
     "@vitejs/plugin-vue": "^5.2.1",
-    "eslint": "^9.39.2",
     "typescript": "catalog:",
-    "vite": "^6.0.0",
-    "vue-tsc": "^2.2.0"
+    "vite": "catalog:",
+    "vue-tsc": "^2.2.0",
+    "vite-plus": "catalog:"
   }
 }

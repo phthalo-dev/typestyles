@@ -182,7 +182,8 @@ export namespace JSX {
 }
 `;
 
-  const jsxRuntime = (await readFile(join(reactDist, 'jsx-runtime.d.ts'), 'utf8')) + jsxRuntimeAugmentation;
+  const jsxRuntime =
+    (await readFile(join(reactDist, 'jsx-runtime.d.ts'), 'utf8')) + jsxRuntimeAugmentation;
   manifest['file:///node_modules/@typestyles/react/jsx-runtime.d.ts'] = jsxRuntime;
   const jsxDevRuntime =
     (await readFile(join(reactDist, 'jsx-dev-runtime.d.ts'), 'utf8')) + jsxRuntimeAugmentation;

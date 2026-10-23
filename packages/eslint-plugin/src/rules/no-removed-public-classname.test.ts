@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { beforeEach, describe } from 'vitest';
+import { beforeEach, describe } from 'vite-plus/test';
 import {
   noRemovedPublicClassname,
   resetRemovedPublicClassnameState,

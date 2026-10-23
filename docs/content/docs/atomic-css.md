@@ -248,12 +248,7 @@ CSS is automatically injected and available for SSR:
 import { getRegisteredCss } from 'typestyles';
 
 // Define and create your atoms
-const atoms = createProps(
-  'atom',
-  defineProperties({
-    /* ... */
-  }),
-);
+const atoms = createProps('atom', defineProperties({/* ... */}));
 
 // CSS is automatically registered
 const css = getRegisteredCss();

@@ -5,15 +5,13 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "test": "node build.mjs && node scripts/verify-build.mjs",
-    "lint": "eslint ."
+    "test": "node build.mjs && node scripts/verify-build.mjs"
   },
   "dependencies": {
     "typestyles": "workspace:*"
   },
   "devDependencies": {
     "@typestyles/esbuild": "workspace:*",
-    "esbuild": "^0.27.3",
-    "eslint": "^9.39.2"
+    "esbuild": "^0.27.3"
   }
 }

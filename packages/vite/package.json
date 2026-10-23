@@ -22,9 +22,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean --external typestyles,@typestyles/build-runner",
-    "test": "vitest run",
-    "lint": "eslint .",
+    "build": "vp pack",
+    "test": "vp test run",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
@@ -44,12 +43,10 @@
     "vite": ">=5.0.0"
   },
   "devDependencies": {
-    "eslint": "^9.39.2",
-    "tsup": "^8.0.0",
     "typescript": "catalog:",
     "typestyles": "workspace:*",
-    "vite": "^6.0.0",
-    "vitest": "catalog:"
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   },
   "dependencies": {
     "@typestyles/build-runner": "workspace:*"

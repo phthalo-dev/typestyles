@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite';
+import { defineConfig, lazyPlugins } from 'vite-plus';
 import react from '@vitejs/plugin-react';
 import typestyles from '@typestyles/vite';
 
 export default defineConfig({
-  plugins: [
+  plugins: lazyPlugins(() => [
     react(),
     typestyles({
       extract: {
@@ -11,5 +11,5 @@ export default defineConfig({
         fileName: 'typestyles.css',
       },
     }),
-  ],
+  ]),
 });

@@ -42,11 +42,9 @@ export type RecipeDefinition = {
 type DefinitionAxes<Def extends RecipeDefinition> =
   Def['variants'] extends Record<string, VariantAxis>
     ? {
-        [K in keyof Def['variants'] as string extends K
-          ? never
-          : number extends K
-            ? never
-            : K]: Def['variants'][K];
+        [
+          K in keyof Def['variants'] as string extends K ? never : number extends K ? never : K
+        ]: Def['variants'][K];
       }
     : Record<never, VariantAxis>;
 

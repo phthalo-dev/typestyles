@@ -4,11 +4,10 @@
   "version": "0.0.38",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "test": "vite build && node scripts/verify-build.mjs",
-    "preview": "vite preview",
-    "lint": "eslint ."
+    "dev": "vp dev",
+    "build": "vp build",
+    "test": "vp build && node scripts/verify-build.mjs",
+    "preview": "vp preview"
   },
   "dependencies": {
     "typestyles": "workspace:*"
@@ -16,9 +15,9 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@typestyles/vite": "workspace:*",
-    "eslint": "^9.39.2",
     "svelte": "^5.19.0",
     "typescript": "catalog:",
-    "vite": "^6.0.0"
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

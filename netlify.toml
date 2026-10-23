@@ -1,15 +1,15 @@
 # Production deploys and PR previews run via .github/workflows/ci.yml (Netlify CLI).
 # Skip Netlify Git-triggered builds to avoid duplicate deploys.
 [build]
-  ignore = "exit 0"
-  command = "pnpm exec turbo run build --filter docs"
-  publish = "docs/dist"
+ignore = "exit 0"
+command = "vp run -F \"docs...\" build"
+publish = "docs/dist"
 
 [functions]
-  directory = "docs/netlify/functions"
-  node_bundler = "esbuild"
+directory = "docs/netlify/functions"
+node_bundler = "esbuild"
 
 [[redirects]]
-  from = "/mcp"
-  to = "/.netlify/functions/mcp"
-  status = 200
+from = "/mcp"
+to = "/.netlify/functions/mcp"
+status = 200

@@ -55,11 +55,11 @@ examples/design-system/src/tokens/create-color-theme.ts   (the opinion)
 
 - **v1 scope: hex only** (`#rgb`, `#rrggbb`, `#rrggbbaa`). Throws a clear dev-mode
   error (`[typestyles] parseColor: unsupported color format "…". Only hex colors
-are supported today.`) for anything else. Named CSS colors, `rgb()`, `hsl()`,
+  are supported today.`) for anything else. Named CSS colors, `rgb()`, `hsl()`,
   `oklch()` input are explicitly out of scope for v1 — note as a follow-up, not a
   blocker.
 - Algorithm: hex → sRGB 0–1 floats → linearize (`c <= 0.04045 ? c/12.92 :
-((c+0.055)/1.055)^2.4`) → linear sRGB → OKLab via the standard two 3×3 matrices
+  ((c+0.055)/1.055)^2.4`) → linear sRGB → OKLab via the standard two 3×3 matrices
   (Björn Ottosson's published constants — LMS cone response matrix, then the
   nonlinear LMS′ → OKLab matrix) → OKLab → OKLCH polar form (`C = √(a²+b²)`,
   `H = atan2(b,a)` normalized to `[0, 360)`).
@@ -122,7 +122,7 @@ export function createColorTheme(input: CreateColorThemeInput): CreateColorTheme
    `[12, 99]`.
 4. `neutralRamp = generateRamp({ hue: neutralHue, chroma: 0.015, lightnessRange })`.
 5. `accentRamp = generateRamp({ hue: accentOklch.h, chroma: max(accentOklch.c,
-0.08), lightnessRange })` — clamp chroma to a visible minimum so a
+   0.08), lightnessRange })` — clamp chroma to a visible minimum so a
    near-gray input accent doesn't produce a washed-out ramp. **Validate this
    clamp value empirically during implementation** — it's a tuning constant, not
    a locked design decision.
