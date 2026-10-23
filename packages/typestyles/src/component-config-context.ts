@@ -1,6 +1,6 @@
 import { sanitizeClassSegment, scopedTokenNamespace, type ClassNamingConfig } from './class-naming';
 import type { ComponentVarRegistry, RegisteredComponentVar } from './component-meta';
-import { finalizeVarRegistry } from './component-var-overrides';
+import { finalizeVarRegistry, resolveVarHostSlot } from './component-var-overrides';
 import {
   createRegisteredPropertyRef,
   registerAtPropertyRule,
@@ -37,7 +37,18 @@ export type FlatComponentVarEntry = {
   syntax?: string;
   inherits?: boolean;
   initial?: string | number;
+  /** Extra slots that receive this default, in addition to the host. */
+  slots?: readonly string[];
 };
+
+function readVarSlots(value: { slots?: unknown }): readonly string[] | undefined {
+  if (!Array.isArray(value.slots)) return undefined;
+  const slots: string[] = [];
+  for (const slot of value.slots) {
+    if (typeof slot === 'string' && slot !== '' && !slots.includes(slot)) slots.push(slot);
+  }
+  return slots.length > 0 ? slots : undefined;
+}
 
 /**
  * Flatten nested var definitions (same nesting rules as tokens) into dashed paths.
@@ -60,6 +71,7 @@ export function flattenComponentVars(
         syntax: value.syntax,
         inherits: value.inherits,
         initial: value.initial,
+        slots: readVarSlots(value),
       });
     } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       out.push(...flattenComponentVars(value as Record<string, ComponentVarNode>, path));
@@ -255,30 +267,76 @@ function declareVarSchema(
   }
 }
 
+export type ComponentVarDefaultDecl = {
+  name: string;
+  value: string;
+  /** Extra slots that receive this default, in addition to the host. */
+  slots?: readonly string[];
+};
+
+/** Slot+variant recipes keep slot style blocks under `base`. Multi-slot recipes keep them on the config. */
+function usesBaseSlotContainer(config: Record<string, unknown>): boolean {
+  const s = config.slots;
+  return (
+    Array.isArray(s) &&
+    s.length > 0 &&
+    ('variants' in config || 'compoundVariants' in config || 'defaultVariants' in config)
+  );
+}
+
+function mergeDeclarationsIntoBlock(
+  existing: unknown,
+  declarations: Record<string, string>,
+): Record<string, unknown> {
+  if (existing && typeof existing === 'object' && !Array.isArray(existing)) {
+    return { ...declarations, ...(existing as Record<string, unknown>) };
+  }
+  return { ...declarations };
+}
+
+function writeSlotDeclarations(
+  config: Record<string, unknown>,
+  key: string,
+  declarations: Record<string, string>,
+): Record<string, unknown> {
+  if (Object.keys(declarations).length === 0) return config;
+  if (usesBaseSlotContainer(config)) {
+    const base = (config.base ?? {}) as Record<string, unknown>;
+    return {
+      ...config,
+      base: { ...base, [key]: mergeDeclarationsIntoBlock(base[key], declarations) },
+    };
+  }
+  return { ...config, [key]: mergeDeclarationsIntoBlock(config[key], declarations) };
+}
+
 export function mergeComponentVarDefaultsInto(
   config: Record<string, unknown>,
-  defaults: Record<string, string>,
+  defaults: readonly ComponentVarDefaultDecl[],
 ): Record<string, unknown> {
-  if (Object.keys(defaults).length === 0) return config;
+  if (defaults.length === 0) return config;
 
-  let key = 'base';
-  let src: Record<string, unknown> = config;
-  const s = config.slots;
-  if (Array.isArray(s) && s.length) {
-    key = s.includes('root') ? 'root' : String(s[0]);
-    if ('variants' in config || 'compoundVariants' in config || 'defaultVariants' in config) {
-      src = (config.base ?? {}) as Record<string, unknown>;
+  const hostDeclarations: Record<string, string> = {};
+  const bySlot = new Map<string, Record<string, string>>();
+  for (const decl of defaults) {
+    hostDeclarations[decl.name] = decl.value;
+    for (const slot of decl.slots ?? []) {
+      const bucket = bySlot.get(slot) ?? {};
+      bucket[decl.name] = decl.value;
+      bySlot.set(slot, bucket);
     }
   }
 
-  const block = src[key];
-  const merged =
-    block && typeof block === 'object' && !Array.isArray(block)
-      ? { ...defaults, ...(block as Record<string, string>) }
-      : { ...defaults };
-  return src === config
-    ? { ...config, [key]: merged }
-    : { ...config, base: { ...src, [key]: merged } };
+  const hostKey = resolveVarHostSlot(config);
+  let next = writeSlotDeclarations(config, hostKey, hostDeclarations);
+
+  const recipeSlots = Array.isArray(config.slots) ? config.slots.map(String) : [];
+  for (const [slot, declarations] of bySlot) {
+    if (slot === hostKey) continue;
+    if (!recipeSlots.includes(slot)) continue;
+    next = writeSlotDeclarations(next, slot, declarations);
+  }
+  return next;
 }
 
 export function createComponentConfigContextPair(
@@ -297,7 +355,7 @@ export function createComponentConfigContextPair(
     sanitizeClassSegment(namespace),
   );
 
-  const varBaseDefaults: Record<string, string> = {};
+  const varBaseDefaults = new Map<string, { value: string; slots?: readonly string[] }>();
   const registeredVars: RegisteredComponentVar[] = [];
   const byPath = new Map<string, RegisteredComponentVar>();
   const varRefByPath = new Map<string, ComponentInternalVarRef>();
@@ -317,13 +375,14 @@ export function createComponentConfigContextPair(
   function trackRegisteredVar(
     logicalPath: string,
     name: string,
-    entry?: { syntax?: string; defaultValue?: string },
+    entry?: { syntax?: string; defaultValue?: string; slots?: readonly string[] },
   ): void {
     const reg: RegisteredComponentVar = {
       path: logicalPath,
       name,
       syntax: entry?.syntax,
       defaultValue: entry?.defaultValue,
+      slots: entry?.slots,
     };
     if (!byPath.has(logicalPath)) {
       registeredVars.push(reg);
@@ -347,12 +406,19 @@ export function createComponentConfigContextPair(
   function mergeVarValueOntoExisting(
     logicalPath: string,
     name: string,
-    entry: { value: string; syntax?: string; inherits?: boolean; initial?: string | number },
+    entry: {
+      value: string;
+      syntax?: string;
+      inherits?: boolean;
+      initial?: string | number;
+      slots?: readonly string[];
+    },
   ): void {
-    varBaseDefaults[name] = entry.value;
+    varBaseDefaults.set(name, { value: entry.value, slots: entry.slots });
     const reg = byPath.get(logicalPath);
     if (reg) {
       reg.defaultValue = entry.value;
+      reg.slots = entry.slots;
       if (entry.syntax != null) reg.syntax = entry.syntax;
     }
     if (entry.syntax != null) {
@@ -367,7 +433,13 @@ export function createComponentConfigContextPair(
 
   function registerVarValue(
     logicalPath: string,
-    entry: { value: string; syntax?: string; inherits?: boolean; initial?: string | number },
+    entry: {
+      value: string;
+      syntax?: string;
+      inherits?: boolean;
+      initial?: string | number;
+      slots?: readonly string[];
+    },
   ): ComponentInternalVarRef {
     const safeId = sanitizeClassSegment(logicalPath);
     const name = `--${ns}-${safeId}`;
@@ -380,10 +452,11 @@ export function createComponentConfigContextPair(
 
     trackSeen(safeId, `internal var path "${logicalPath}"`);
 
-    varBaseDefaults[name] = entry.value;
+    varBaseDefaults.set(name, { value: entry.value, slots: entry.slots });
     trackRegisteredVar(logicalPath, name, {
       syntax: entry.syntax,
       defaultValue: entry.value,
+      slots: entry.slots,
     });
 
     if (entry.syntax != null) {
@@ -480,10 +553,50 @@ export function createComponentConfigContextPair(
   const varsCallable = Object.assign(varsFn, { declare: varsDeclareFn });
   const ctx: ComponentConfigContext = { var: varCallable, vars: varsCallable };
 
+  function retainKnownVarSlots(
+    config: Record<string, unknown>,
+    slots: readonly string[] | undefined,
+    report: boolean,
+  ): readonly string[] | undefined {
+    if (!slots?.length) return undefined;
+    const recipeSlots = Array.isArray(config.slots) ? config.slots.map(String) : [];
+    const host = resolveVarHostSlot(config);
+    const accepted: string[] = [];
+    for (const slot of slots) {
+      if (slot === host) continue;
+      if (!recipeSlots.includes(slot)) {
+        if (report && process.env.NODE_ENV !== 'production') {
+          const known =
+            recipeSlots.length > 0
+              ? `expected one of: ${recipeSlots.map((name) => `"${name}"`).join(', ')}`
+              : 'this recipe has no slots';
+          console.warn(
+            `[typestyles] Component var slot "${slot}" is not a slot on "${namespace}" (${known}). ` +
+              `The var stays on the host.`,
+          );
+        }
+        continue;
+      }
+      if (!accepted.includes(slot)) accepted.push(slot);
+    }
+    return accepted.length > 0 ? accepted : undefined;
+  }
+
   return {
     ctx,
-    mergeVarDefaultsInto: (config: Record<string, unknown>) =>
-      mergeComponentVarDefaultsInto(config, varBaseDefaults),
+    mergeVarDefaultsInto: (config: Record<string, unknown>) => {
+      for (const reg of registeredVars) {
+        reg.slots = retainKnownVarSlots(config, reg.slots, false);
+      }
+      return mergeComponentVarDefaultsInto(
+        config,
+        [...varBaseDefaults.entries()].map(([name, entry]) => ({
+          name,
+          value: entry.value,
+          slots: retainKnownVarSlots(config, entry.slots, true),
+        })),
+      );
+    },
     buildVarRegistry: (config: Record<string, unknown>) =>
       finalizeVarRegistry(registeredVars, byPath, config),
     buildVarRefTree: () => buildVarRefTreeFromRegistry(varRefByPath),

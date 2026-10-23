@@ -714,8 +714,16 @@ export type CSSVarRef = `var(--${string})` | `var(--${string}, ${string})`;
 // Dimensioned variant config (has `variants: { ... }`)
 // ---------------------------------------------------------------------------
 
-/** @deprecated Use {@link PropertyOptions} */
-export type ComponentVarDescriptor = PropertyOptions;
+/**
+ * Recipe var leaf. Registration fields match {@link PropertyOptions}.
+ * `slots` names extra recipe slots that receive this var's default and theme overrides.
+ *
+ * @deprecated Prefer {@link PropertyOptions} for registration fields. `slots` stays here so it does not leak onto `styles.property`.
+ */
+export type ComponentVarDescriptor = PropertyOptions & {
+  /** Extra recipe slots that receive this var's default and theme overrides, in addition to the host. */
+  slots?: readonly string[];
+};
 
 /**
  * Nested map of component internal vars (same nesting as `tokens.create` / theme token trees).
@@ -815,7 +823,7 @@ export type ComponentConfigContext = {
  */
 export type ComponentConfig<V extends VariantDefinitions> = {
   base?: CSSProperties;
-  /** Component-internal custom properties — registered on the var host slot; exposed on the return as `.vars`. */
+  /** Component-internal custom properties — registered on the var host slot (and any `slots` named on a var); exposed on the return as `.vars`. */
   vars?: ComponentVarConfigInput;
   variants?: V;
   compoundVariants?: Array<{
@@ -847,7 +855,7 @@ export type ComponentConfig<V extends VariantDefinitions> = {
  */
 export type FlatComponentConfig<K extends string> = {
   base?: CSSProperties;
-  /** Component-internal custom properties — registered on the var host slot; exposed on the return as `.vars`. */
+  /** Component-internal custom properties — registered on the var host slot (and any `slots` named on a var); exposed on the return as `.vars`. */
   vars?: ComponentVarConfigInput;
   variants?: never;
   defaultVariants?: never;
@@ -937,7 +945,7 @@ export type FlatComponentReturn<K extends string> = {
 
 export type MultiSlotConfig<Slots extends readonly string[]> = {
   slots: Slots;
-  /** Component-internal custom properties — registered on the var host slot; exposed on the return as `.vars`. */
+  /** Component-internal custom properties — registered on the var host slot (and any `slots` named on a var); exposed on the return as `.vars`. */
   vars?: ComponentVarConfigInput;
   /**
    * Forbidden recipe keys — same idea as {@link FlatComponentConfig}. Without these, a
@@ -974,7 +982,7 @@ export type SlotComponentConfig<
   V extends SlotVariantDefinitions<Slots[number]>,
 > = {
   slots: Slots;
-  /** Component-internal custom properties — registered on the var host slot; exposed on the return as `.vars`. */
+  /** Component-internal custom properties — registered on the var host slot (and any `slots` named on a var); exposed on the return as `.vars`. */
   vars?: ComponentVarConfigInput;
   base?: SlotStyles<Slots[number]>;
   variants?: V;

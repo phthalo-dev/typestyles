@@ -556,10 +556,40 @@ import type { OverrideConfigFor } from 'typestyles';
 export type SideNavThemeOverride = OverrideConfigFor<typeof sideNav>;
 ```
 
+A var can name extra slots that must carry it. The default and every theme override
+are still emitted on the host, and also on each named slot. That is what a portaled
+popover needs: it is not a descendant of the host, so it never inherits a custom
+property set only there. Omitting `slots` keeps the host-only behavior.
+
+```ts
+const menu = recipe({
+  name: 'menu',
+  slots: ['root', 'popover'] as const,
+  vars: {
+    popoverBackground: {
+      value: 'var(--color-background-surface)',
+      syntax: '<color>' as const,
+      slots: ['popover'],
+    },
+    anchorX: { value: '0px', syntax: '<length>' as const },
+  },
+  styles: ({ vars }) => ({
+    base: {
+      popover: { backgroundColor: vars.popoverBackground.var },
+    },
+  }),
+});
+```
+
+`anchorX` stays on the host. `popoverBackground` is declared on `.menu` and on
+`.menu__popover`, and a theme override for it is emitted on both selectors. A slot
+name that the recipe does not declare logs a dev warning and is ignored.
+
 Notes:
 
-- **`vars` always targets the var host slot** — `base` for dimensioned/flat recipes,
-  `root` (or the first slot when there is no `root`) for slotted recipes. Layout
+- **`vars` target the var host slot** — `base` for dimensioned/flat recipes,
+  `root` (or the first slot when there is no `root`) for slotted recipes. A var's
+  `slots` list copies that declaration onto those slots as well. Layout
   overrides stay in `base` / slot blocks.
 - **Nested paths** flatten to dashed custom properties (`padding.outer.x` →
   `padding-outer-x`). Dotted keys (`'padding.outer.x'`) are also accepted.

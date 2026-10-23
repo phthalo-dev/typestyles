@@ -48,6 +48,49 @@ describe('createTheme({ components })', () => {
     expect(getRegisteredCss()).toMatch(/rebeccapurple/);
   });
 
+  it('emits component var overrides on the host and on named slots', () => {
+    const { recipe, tokens } = createTypeStyles({ scopeId: 'tc' });
+    recipe({
+      name: 'menu',
+      slots: ['root', 'popover'] as const,
+      vars: {
+        popoverBackground: {
+          value: 'var(--color-surface)',
+          syntax: '<color>' as const,
+          slots: ['popover'],
+        },
+        anchorX: '0px',
+      },
+      styles: ({ vars }) => ({
+        base: {
+          popover: { backgroundColor: vars.popoverBackground.var },
+        },
+      }),
+    });
+
+    tokens.createTheme({
+      name: 'forest',
+      components: {
+        menu: {
+          vars: {
+            popoverBackground: 'var(--color-app)',
+            anchorX: '4px',
+          },
+        },
+      },
+    });
+    flushSync();
+
+    const css = getRegisteredCss();
+    expect(css).toContain(
+      '.theme-tc-forest .tc-menu { --tc-menu-popoverbackground: var(--color-app); --tc-menu-anchorx: 4px; }',
+    );
+    expect(css).toContain(
+      '.theme-tc-forest .tc-menu__popover { --tc-menu-popoverbackground: var(--color-app); }',
+    );
+    expect(css).not.toContain('.theme-tc-forest .tc-menu__popover { --tc-menu-anchorx');
+  });
+
   it('throws in dev for unknown namespace', () => {
     const { tokens } = createTypeStyles({ scopeId: 'tc2' });
     expect(() =>

@@ -2,6 +2,7 @@ import type { ClassNamingConfig } from './class-naming';
 import {
   getComponentMeta,
   type ComponentMeta,
+  type ComponentVarRegistry,
   type DimensionedComponentMeta,
   type FlatComponentMeta,
   type MultiSlotComponentMeta,
@@ -12,6 +13,7 @@ import {
   expandVarOverrideDeclarations,
   resolveVarHostClass,
   resolveVarOverrides,
+  resolveVarSlotClass,
 } from './component-var-overrides';
 import { serializeStyle } from './serialize-style';
 import { applyLayerToRules, assertOwnLayer } from './layers';
@@ -436,28 +438,82 @@ function emitVarOverrides(
   const declarations = resolveVarOverrides(registry, varsInput as Record<string, unknown>);
   if (Object.keys(declarations).length === 0) return;
 
+  emitVarOverrideDeclarations(classNaming, `.${hostClass}`, declarations, options, 'vars');
+
+  for (const slot of extraVarSlots(registry, declarations)) {
+    const slotClass = resolveVarSlotClass(meta, slot);
+    if (!slotClass || slotClass === hostClass) {
+      if (!slotClass) {
+        warnDev(
+          `override() vars slot "${slot}" is not a slot on this recipe — ` +
+            `the override stays on the host.`,
+        );
+      }
+      continue;
+    }
+    emitVarOverrideDeclarations(
+      classNaming,
+      `.${slotClass}`,
+      declarationsForSlot(registry, declarations, slot),
+      options,
+      `vars-${slot}`,
+    );
+  }
+}
+
+function extraVarSlots(
+  registry: ComponentVarRegistry,
+  declarations: Record<string, string | { light: string; dark: string }>,
+): string[] {
+  const slots: string[] = [];
+  for (const name of Object.keys(declarations)) {
+    const registered = registry.vars.find((entry) => entry.name === name);
+    for (const slot of registered?.slots ?? []) {
+      if (slot === registry.hostSlot || slots.includes(slot)) continue;
+      slots.push(slot);
+    }
+  }
+  return slots;
+}
+
+function declarationsForSlot(
+  registry: ComponentVarRegistry,
+  declarations: Record<string, string | { light: string; dark: string }>,
+  slot: string,
+): Record<string, string | { light: string; dark: string }> {
+  const subset: Record<string, string | { light: string; dark: string }> = {};
+  for (const [name, value] of Object.entries(declarations)) {
+    const registered = registry.vars.find((entry) => entry.name === name);
+    if (registered?.slots?.includes(slot)) subset[name] = value;
+  }
+  return subset;
+}
+
+function emitVarOverrideDeclarations(
+  classNaming: ClassNamingConfig,
+  selector: string,
+  declarations: Record<string, string | { light: string; dark: string }>,
+  options: OverrideOptions<string> | undefined,
+  keySuffix: string,
+): void {
   const { expanded, darkOnly } = expandVarOverrideDeclarations(
     declarations,
     classNaming.colorModes,
   );
 
-  emitUnconditionalRules(
-    classNaming,
-    `.${hostClass}`,
-    expanded as VariantOptionStyle,
-    options,
-    'vars',
-  );
+  emitUnconditionalRules(classNaming, selector, expanded as VariantOptionStyle, options, keySuffix);
 
   if (darkOnly && Object.keys(darkOnly).length > 0) {
     emitStyledSelector(
       classNaming,
-      `.${hostClass}`,
+      selector,
       {
-        conditions: [conditional(when.prefersDark, darkOnly as VariantOptionStyle, 'vars-dark')],
+        conditions: [
+          conditional(when.prefersDark, darkOnly as VariantOptionStyle, `${keySuffix}-dark`),
+        ],
       },
       options,
-      'vars-dark',
+      `${keySuffix}-dark`,
     );
   }
 }

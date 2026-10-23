@@ -18,6 +18,11 @@ export type RegisteredComponentVar = {
   name: string;
   syntax?: string;
   defaultValue?: string;
+  /**
+   * Extra recipe slots that receive this var's default and theme overrides.
+   * The host slot always receives them, whether or not it is listed here.
+   */
+  slots?: readonly string[];
 };
 
 export type ComponentVarRegistry = {
