@@ -2,7 +2,7 @@
 # Skip Netlify Git-triggered builds to avoid duplicate deploys.
 [build]
   ignore = "exit 0"
-  command = "turbo run build --filter docs"
+  command = "pnpm exec turbo run build --filter docs"
   publish = "docs/dist"
 
 [functions]

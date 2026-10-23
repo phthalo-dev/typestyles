@@ -270,11 +270,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Build docs
-        run: pnpm exec turbo run build --filter docs
-
-      - name: Deploy to Netlify
-        run: npx netlify-cli@24 deploy --prod --filter docs --dir=docs/dist --functions=netlify/functions --no-build --message "Deploy from ${{ github.sha }}"
+      # --build runs the build command and function packaging from netlify.toml,
+      # the same path Netlify's own builds take (the MCP function needs it).
+      - name: Build and deploy to Netlify
+        run: npx netlify-cli@24 deploy --build --prod --filter docs --message "Deploy from ${{ github.sha }}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
@@ -306,17 +305,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Build docs
-        run: pnpm exec turbo run build --filter docs
-
-      - name: Deploy preview to Netlify
+      - name: Build and deploy preview to Netlify
         id: deploy
         run: |
           npx netlify-cli@24 deploy \
+            --build \
             --filter docs \
-            --dir=docs/dist \
-            --functions=netlify/functions \
-            --no-build \
             --alias=deploy-preview-${{ github.event.pull_request.number }} \
             --message "PR #${{ github.event.pull_request.number }}: ${{ github.sha }}" \
             --json > deploy.json
