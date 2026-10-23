@@ -61,9 +61,6 @@ jobs:
           node-version-file: .nvmrc
           cache: true
 
-      # TEMP: confirm pnpm is on PATH for the unstable publish step.
-      - run: command -v pnpm && pnpm --version
-
       # Builds every package (publishing needs every dist), then check, then tests.
       - run: vp run ci
 
