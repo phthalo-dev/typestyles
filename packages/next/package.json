@@ -78,7 +78,7 @@
   },
   "devDependencies": {
     "eslint": "^9.39.2",
-    "vitest": "^3.0.0",
+    "vitest": "catalog:",
     "@types/node": "^25.2.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
@@ -87,7 +87,7 @@
     "react-dom": "^18.0.0",
     "tsup": "^8.0.0",
     "typestyles": "workspace:*",
-    "typescript": "^5.4.0",
+    "typescript": "catalog:",
     "webpack": "^5.97.1"
   }
 }

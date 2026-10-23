@@ -45,8 +45,8 @@
     "esbuild": "^0.27.3",
     "eslint": "^9.39.2",
     "tsx": "^4.23.13",
-    "typescript": "^5.4.0",
+    "typescript": "catalog:",
     "vite-tsconfig-paths": "^5.0.1",
-    "vitest": "^3.0.0"
+    "vitest": "catalog:"
   }
 }

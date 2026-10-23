@@ -23,7 +23,7 @@
     "@typestyles/vite": "workspace:*",
     "@vitejs/plugin-react": "5.2.0",
     "eslint": "^9.39.2",
-    "typescript": "^5.4.0",
+    "typescript": "catalog:",
     "vite": "^6.0.0"
   }
 }

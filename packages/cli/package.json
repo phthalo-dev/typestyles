@@ -45,12 +45,12 @@
   },
   "dependencies": {
     "fast-glob": "^3.3.3",
-    "typescript": "^5.4.0"
+    "typescript": "catalog:"
   },
   "devDependencies": {
     "@types/node": "^25.2.1",
     "eslint": "^9.39.2",
     "tsup": "^8.0.0",
-    "vitest": "^3.0.0"
+    "vitest": "catalog:"
   }
 }

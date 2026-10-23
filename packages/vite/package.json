@@ -46,10 +46,10 @@
   "devDependencies": {
     "eslint": "^9.39.2",
     "tsup": "^8.0.0",
-    "typescript": "^5.4.0",
+    "typescript": "catalog:",
     "typestyles": "workspace:*",
     "vite": "^6.0.0",
-    "vitest": "^3.0.0"
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@typestyles/build-runner": "workspace:*"

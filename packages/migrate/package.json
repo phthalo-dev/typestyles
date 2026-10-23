@@ -51,8 +51,8 @@
     "@types/picomatch": "^4.0.2",
     "eslint": "^9.39.2",
     "tsup": "^8.0.0",
-    "typescript": "^5.4.0",
-    "vitest": "^3.0.0"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "dependencies": {
     "@babel/generator": "^7.29.1",
