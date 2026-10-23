@@ -1480,4 +1480,4 @@ Prop-based interpolations (for example `` `${(props) => props.color}` `` or `` `
 - Use tokens instead of recreating values
 - Static styles only -- dynamic values should use inline styles
 
-If you hit any issues during migration, check the [troubleshooting guide](/docs/troubleshooting) or [open an issue](https://github.com/type-styles/typestyles/issues).
+If you hit any issues during migration, check the [troubleshooting guide](/docs/troubleshooting) or [open an issue](https://github.com/phthalo-dev/typestyles/issues).

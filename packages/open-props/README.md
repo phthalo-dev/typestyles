@@ -1,6 +1,6 @@
 # @typestyles/open-props
 
-Type-safe [Open Props](https://open-props.style/) design tokens for [typestyles](https://github.com/type-styles/typestyles).
+Type-safe [Open Props](https://open-props.style/) design tokens for [typestyles](https://github.com/phthalo-dev/typestyles).
 
 Open Props is a curated set of CSS custom properties for spacing, color, typography, shadows, easings, and more. This package registers every scale through `tokens.create()` so you get **`var(--token-name)` references with full TypeScript autocomplete** — no separate `@import 'open-props'` step, no stringly-typed token names.
 

@@ -1,6 +1,6 @@
 # @typestyles/eslint-plugin
 
-ESLint rules for [typestyles](https://github.com/type-styles/typestyles) style objects — catch authoring mistakes at edit time that would otherwise produce invalid or silently wrong CSS.
+ESLint rules for [typestyles](https://github.com/phthalo-dev/typestyles) style objects — catch authoring mistakes at edit time that would otherwise produce invalid or silently wrong CSS.
 
 StyleX and similar tools reject conflicting declarations at compile time. TypeStyles is runtime-first, so these rules fill the gap: shorthand/longhand conflicts, invalid unitless values, and duplicate namespaces across files.
 

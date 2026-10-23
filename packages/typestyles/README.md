@@ -4,7 +4,7 @@ CSS-in-TypeScript that embraces CSS instead of hiding from it.
 
 TypeStyles gives you the developer experience of type-safe styles in TypeScript while producing clean, readable, inspectable output in the DOM. No gibberish class names. No build step required. No all-or-nothing adoption. Just CSS, with types.
 
-Full documentation: [typestyles.dev](https://typestyles.dev) · Monorepo overview: [README on GitHub](https://github.com/type-styles/typestyles/blob/main/README.md)
+Full documentation: [typestyles.dev](https://typestyles.dev) · Monorepo overview: [README on GitHub](https://github.com/phthalo-dev/typestyles/blob/main/README.md)
 
 **For AI coding agents:** read [`llms.txt`](./llms.txt) in this package (API patterns, common mistakes, doc links) or query the live docs via MCP at [typestyles.dev/mcp](https://typestyles.dev/mcp).
 
@@ -569,21 +569,21 @@ export default defineConfig({
 
 ## Examples
 
-Runnable apps in the [typestyles monorepo examples](https://github.com/type-styles/typestyles/tree/main/examples) — each has its own README.
+Runnable apps in the [typestyles monorepo examples](https://github.com/phthalo-dev/typestyles/tree/main/examples) — each has its own README.
 
 | Example                                                                                                   | Demonstrates                                                      |
 | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| [`vite-app`](https://github.com/type-styles/typestyles/tree/main/examples/vite-app)                       | React + `@typestyles/vite` — HMR, convention entry, design system |
-| [`next-app`](https://github.com/type-styles/typestyles/tree/main/examples/next-app)                       | Next.js App Router + `buildTypestylesForNext` + verification      |
-| [`vue-app`](https://github.com/type-styles/typestyles/tree/main/examples/vue-app)                         | Vue 3 + Vite extraction                                           |
-| [`svelte-app`](https://github.com/type-styles/typestyles/tree/main/examples/svelte-app)                   | Svelte 5 + Vite extraction                                        |
-| [`esbuild-app`](https://github.com/type-styles/typestyles/tree/main/examples/esbuild-app)                 | `@typestyles/esbuild` — vanilla JS                                |
-| [`rollup-app`](https://github.com/type-styles/typestyles/tree/main/examples/rollup-app)                   | `@typestyles/rollup` — vanilla JS                                 |
-| [`rolldown-app`](https://github.com/type-styles/typestyles/tree/main/examples/rolldown-app)               | Rolldown + Rollup-compatible plugin                               |
-| [`parcel-app`](https://github.com/type-styles/typestyles/tree/main/examples/parcel-app)                   | Runtime-only path (no bundler plugin)                             |
-| [`typewind`](https://github.com/type-styles/typestyles/tree/main/examples/typewind)                       | Tailwind-style utilities via `style()`                            |
-| [`design-system`](https://github.com/type-styles/typestyles/tree/main/examples/design-system)             | Framework-agnostic tokens and recipes                             |
-| [`react-design-system`](https://github.com/type-styles/typestyles/tree/main/examples/react-design-system) | React component library on typestyles                             |
+| [`vite-app`](https://github.com/phthalo-dev/typestyles/tree/main/examples/vite-app)                       | React + `@typestyles/vite` — HMR, convention entry, design system |
+| [`next-app`](https://github.com/phthalo-dev/typestyles/tree/main/examples/next-app)                       | Next.js App Router + `buildTypestylesForNext` + verification      |
+| [`vue-app`](https://github.com/phthalo-dev/typestyles/tree/main/examples/vue-app)                         | Vue 3 + Vite extraction                                           |
+| [`svelte-app`](https://github.com/phthalo-dev/typestyles/tree/main/examples/svelte-app)                   | Svelte 5 + Vite extraction                                        |
+| [`esbuild-app`](https://github.com/phthalo-dev/typestyles/tree/main/examples/esbuild-app)                 | `@typestyles/esbuild` — vanilla JS                                |
+| [`rollup-app`](https://github.com/phthalo-dev/typestyles/tree/main/examples/rollup-app)                   | `@typestyles/rollup` — vanilla JS                                 |
+| [`rolldown-app`](https://github.com/phthalo-dev/typestyles/tree/main/examples/rolldown-app)               | Rolldown + Rollup-compatible plugin                               |
+| [`parcel-app`](https://github.com/phthalo-dev/typestyles/tree/main/examples/parcel-app)                   | Runtime-only path (no bundler plugin)                             |
+| [`typewind`](https://github.com/phthalo-dev/typestyles/tree/main/examples/typewind)                       | Tailwind-style utilities via `style()`                            |
+| [`design-system`](https://github.com/phthalo-dev/typestyles/tree/main/examples/design-system)             | Framework-agnostic tokens and recipes                             |
+| [`react-design-system`](https://github.com/phthalo-dev/typestyles/tree/main/examples/react-design-system) | React component library on typestyles                             |
 
 ## Ecosystem packages
 
@@ -602,7 +602,7 @@ Runnable apps in the [typestyles monorepo examples](https://github.com/type-styl
 | [`@typestyles/react`](https://www.npmjs.com/package/@typestyles/react)                 | React integration — `styled` API and `css` prop               |
 | [`@typestyles/cli`](https://www.npmjs.com/package/@typestyles/cli)                     | CLI — class snapshots and verification                        |
 
-See the [full package index](https://github.com/type-styles/typestyles#packages) on GitHub.
+See the [full package index](https://github.com/phthalo-dev/typestyles#packages) on GitHub.
 
 ## License
 

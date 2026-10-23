@@ -238,7 +238,7 @@ The rule reports **once per ESLint run** (project-level), not at individual call
 sites. Snapshot scanning is static and best-effort: string-literal namespaces only,
 direct `recipe()` / `style()` calls, and a single inferred
 `scopeId` when all `createStyles` configs match. See the
-[`@typestyles/no-removed-public-classname` README](https://github.com/type-styles/typestyles/tree/main/packages/eslint-plugin#typestylesno-removed-public-classname-opt-in)
+[`@typestyles/no-removed-public-classname` README](https://github.com/phthalo-dev/typestyles/tree/main/packages/eslint-plugin#typestylesno-removed-public-classname-opt-in)
 for full limits.
 
 See [Theming Patterns — public semantic class names](/docs/theming-patterns#public-semantic-class-names)

@@ -1,6 +1,6 @@
 # @typestyles/astro
 
-[Astro](https://astro.build) integration for [typestyles](https://github.com/type-styles/typestyles): wires `@typestyles/vite` into your Astro config for style HMR in development and build-time CSS extraction in production.
+[Astro](https://astro.build) integration for [typestyles](https://github.com/phthalo-dev/typestyles): wires `@typestyles/vite` into your Astro config for style HMR in development and build-time CSS extraction in production.
 
 ## When to use this
 

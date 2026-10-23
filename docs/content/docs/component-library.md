@@ -5,7 +5,7 @@ description: Building a reusable component library with typestyles
 
 This guide shows you how to set up a reusable component library using typestyles, suitable for publishing to npm.
 
-**Reference implementation:** [examples/react-design-system](https://github.com/type-styles/typestyles/blob/main/examples/react-design-system/README.md) (React Aria wrappers + shared tokens). Consumed by [examples/vite-app](https://github.com/type-styles/typestyles/blob/main/examples/vite-app/README.md) and [examples/next-app](https://github.com/type-styles/typestyles/blob/main/examples/next-app/README.md).
+**Reference implementation:** [examples/react-design-system](https://github.com/phthalo-dev/typestyles/blob/main/examples/react-design-system/README.md) (React Aria wrappers + shared tokens). Consumed by [examples/vite-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/vite-app/README.md) and [examples/next-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/next-app/README.md).
 
 ## Project structure
 

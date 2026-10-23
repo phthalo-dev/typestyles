@@ -5,7 +5,7 @@ description: Using typestyles with React patterns and best practices
 
 TypeStyles works seamlessly with React. This guide shows common patterns for integrating typestyles into React applications.
 
-**Runnable examples:** [examples/vite-app](https://github.com/type-styles/typestyles/blob/main/examples/vite-app/README.md) (Vite + shared design system) and [examples/next-app](https://github.com/type-styles/typestyles/blob/main/examples/next-app/README.md) (App Router + build verification). Component library source: [examples/react-design-system](https://github.com/type-styles/typestyles/blob/main/examples/react-design-system/README.md).
+**Runnable examples:** [examples/vite-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/vite-app/README.md) (Vite + shared design system) and [examples/next-app](https://github.com/phthalo-dev/typestyles/blob/main/examples/next-app/README.md) (App Router + build verification). Component library source: [examples/react-design-system](https://github.com/phthalo-dev/typestyles/blob/main/examples/react-design-system/README.md).
 
 ## Basic component setup
 

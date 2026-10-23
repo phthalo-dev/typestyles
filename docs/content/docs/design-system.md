@@ -5,7 +5,7 @@ description: Building a comprehensive design system using typestyles tokens
 
 A design system is more than just components—it's a complete set of standards for design and code. This guide shows how to build a token-based design system with typestyles.
 
-**Reference implementation:** [`@examples/design-system`](https://github.com/type-styles/typestyles/blob/main/examples/design-system/README.md) (tokens + recipes) and [`@examples/react-design-system`](https://github.com/type-styles/typestyles/blob/main/examples/react-design-system/README.md) (React components). The [docs site kitchen sink](/docs/design-system/kitchen-sink) renders the same recipes.
+**Reference implementation:** [`@examples/design-system`](https://github.com/phthalo-dev/typestyles/blob/main/examples/design-system/README.md) (tokens + recipes) and [`@examples/react-design-system`](https://github.com/phthalo-dev/typestyles/blob/main/examples/react-design-system/README.md) (React components). The [docs site kitchen sink](/docs/design-system/kitchen-sink) renders the same recipes.
 
 ## Token architecture
 

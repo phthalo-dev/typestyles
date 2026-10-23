@@ -1,6 +1,6 @@
 # @typestyles/build-runner
 
-Shared build-time utilities for [typestyles](https://github.com/type-styles/typestyles) bundler integrations — CSS extraction, convention entry discovery, namespace analysis, and CI verification.
+Shared build-time utilities for [typestyles](https://github.com/phthalo-dev/typestyles) bundler integrations — CSS extraction, convention entry discovery, namespace analysis, and CI verification.
 
 You typically consume this package **indirectly** through `@typestyles/vite`, `@typestyles/rollup`, `@typestyles/esbuild`, `@typestyles/webpack`, or `@typestyles/next/build`. Install it directly when writing custom build scripts, CI checks, or a new integration.
 

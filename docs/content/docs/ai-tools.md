@@ -79,4 +79,4 @@ Every documentation page includes **Copy as Markdown**, **View as Markdown**, an
 
 The `typestyles` npm package ships an [`llms.txt`](https://www.npmjs.com/package/typestyles) with API patterns and links to the full docs. Agents working inside consumer repos can read it from `node_modules/typestyles/llms.txt`.
 
-The [typestyles monorepo](https://github.com/type-styles/typestyles) includes an `AGENTS.md` at the repo root with monorepo layout and build commands.
+The [typestyles monorepo](https://github.com/phthalo-dev/typestyles) includes an `AGENTS.md` at the repo root with monorepo layout and build commands.

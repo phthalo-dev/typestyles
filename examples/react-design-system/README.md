@@ -1,6 +1,6 @@
 # @examples/react-design-system
 
-React component library built with [typestyles](https://github.com/type-styles/typestyles) and [`@examples/design-system`](../design-system/README.md) tokens. Consumed by the docs site, `examples/vite-app`, and `examples/next-app`.
+React component library built with [typestyles](https://github.com/phthalo-dev/typestyles) and [`@examples/design-system`](../design-system/README.md) tokens. Consumed by the docs site, `examples/vite-app`, and `examples/next-app`.
 
 Framework-specific wrappers around accessible primitives ([React Aria Components](https://react-spectrum.adobe.com/react-aria/)) with typed variants, design tokens, and theme context.
 

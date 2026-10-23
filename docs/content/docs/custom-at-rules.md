@@ -559,7 +559,7 @@ const body = style('shell-body', {
 
 Without a `styles` instance, call **`createContainerRef('product-shell', { scopeId: 'my-app' })`** — or with an empty scope, **`{ prefix: 'acme' }`** so names become `acme-product-shell`.
 
-A full copy-paste example lives in the design-system package: [`namedContainerQuery.ts`](https://github.com/type-styles/typestyles/blob/main/examples/design-system/src/components/namedContainerQuery.ts).
+A full copy-paste example lives in the design-system package: [`namedContainerQuery.ts`](https://github.com/phthalo-dev/typestyles/blob/main/examples/design-system/src/components/namedContainerQuery.ts).
 
 ### Raw string keys (style queries, `not`, scroll state)
 

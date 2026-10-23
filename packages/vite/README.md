@@ -1,6 +1,6 @@
 # @typestyles/vite
 
-Vite plugin for [typestyles](https://github.com/type-styles/typestyles): style HMR in development, optional zero-runtime CSS extraction in production.
+Vite plugin for [typestyles](https://github.com/phthalo-dev/typestyles): style HMR in development, optional zero-runtime CSS extraction in production.
 
 TypeStyles works without a bundler plugin — styles inject at runtime on first use. This plugin is optional but recommended for Vite apps: it keeps component state while styles hot-reload, catches duplicate namespace collisions at build time, and can emit a static `typestyles.css` file so production ships without client-side `<style>` injection.
 

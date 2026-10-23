@@ -1,6 +1,6 @@
 # Mode-aware token leaves (`{ light, dark }`)
 
-Implements [issue #163](https://github.com/type-styles/typestyles/issues/163).
+Implements [issue #163](https://github.com/phthalo-dev/typestyles/issues/163).
 
 ## Summary
 
