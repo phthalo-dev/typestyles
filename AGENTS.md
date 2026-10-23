@@ -111,3 +111,27 @@ Say what should fail. An unused `@ts-expect-error` fails typecheck, which is the
 - Use `createTypeStyles({ scopeId })` per package/micro-frontend for token/class isolation
 - Prefer `recipe` + variants (from `createTypeStyles`) over ad-hoc string class names
 - SSR: use `typestyles/server` helpers; see `docs/content/docs/ssr.md`
+
+## CI/CD
+
+All three repos (`typestyles`, `var-ui`, `homeslate`) use the same pipeline. Everything lives in `.github/workflows/ci.yml`.
+
+- **Verify** is the status check to require on `main`. It runs `vp run ci`, the same command the pre-push hook runs, so run it before pushing. Every package under `packages/*` is built and published. `Benchmark` runs on PRs that touch `packages/typestyles`, `benchmarks` or the lockfile.
+- **Release** runs on `main` after `Verify`. It reuses the `dist` that `Verify` built, mints a token from the GitHub App (so the version PR and tags trigger CI), and runs the changesets action.
+- **Deploy docs / Preview docs** build the docs site with the Netlify CLI (`netlify deploy --build`) and deploy it: production after `Verify` on `main`, a `deploy-preview-<PR>` alias with a sticky comment on same-repo PRs. They only run when docs or the packages they use changed (the `Changes` job). Netlify's own git builds are turned off (`ignore = "exit 0"` in `netlify.toml`).
+- **Unstable publish** is manual: Actions → CI → Run workflow → tick `unstable`. It versions every package as `0.0.0-unstable.<sha>` and publishes with the `unstable` tag. It lives in `ci.yml` (not its own file) because the npm trusted publisher is bound to that filename.
+
+### Releasing
+
+1. Add a changeset (`pnpm changeset`) to any PR that changes a published package.
+2. After merge, Release opens a `chore: version packages` PR. `Verify` runs on it. Merge it to publish.
+3. Publishing uses **npm trusted publishing (OIDC)** with provenance. There is no `NPM_TOKEN`. Each package's trusted publisher is `phthalo-dev/typestyles` with workflow **`ci.yml`**, so do not rename that file or move the release job.
+4. A **new package** needs one manual first publish, then: `npm trust github <pkg> --repo phthalo-dev/typestyles --file ci.yml --allow-publish --allow-stage-publish -y`.
+
+### Things that bite
+
+- Git hooks live in `.vite-hooks/` (`vp staged` and a main-branch guard on commit; a changeset check and `vp run ci` on push). They exit early when `CI` is set; the release job commits and pushes tags, and must not re-run them.
+- Generated `CHANGELOG.md` files are excluded from formatting; changesets does not format them.
+- Do not set `registry-url` on `setup-vp`: it writes a placeholder auth token that blocks OIDC. The release job also installs `npm@^11.5.1` (trusted publishing needs it; npm 12 rejects flags pnpm forwards).
+- Secrets: `APP_CLIENT_ID` and `APP_PRIVATE_KEY` (GitHub App) are org secrets, with `NETLIFY_AUTH_TOKEN`; `NETLIFY_SITE_ID` is a repo secret.
+- Node comes from `.nvmrc`; pnpm from `packageManager`. Do not repeat versions in workflow YAML.
