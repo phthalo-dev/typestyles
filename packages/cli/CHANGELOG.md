@@ -1,5 +1,11 @@
 # @typestyles/cli
 
+## 0.3.4
+
+### Patch Changes
+
+- [#282](https://github.com/phthalo-dev/typestyles/pull/282) [`612537e`](https://github.com/phthalo-dev/typestyles/commit/612537ef6e3c0297c5627c855e3289825873ea30) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Point the repository metadata at the phthalo-dev GitHub organization.
+
 ## 0.3.3
 
 ### Patch Changes
