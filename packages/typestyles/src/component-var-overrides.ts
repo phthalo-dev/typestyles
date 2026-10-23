@@ -200,6 +200,13 @@ export function finalizeVarRegistry(
   };
 }
 
+/** Class token for a named recipe slot. Dimensioned and flat recipes have no slot classes. */
+export function resolveVarSlotClass(meta: ComponentMeta, slot: string): string | null {
+  if (meta.kind !== 'slot' && meta.kind !== 'multi-slot') return null;
+  const className = meta.base[slot];
+  return className ? className : null;
+}
+
 export function resolveVarHostClass(
   meta: ComponentMeta,
   registry: ComponentVarRegistry,

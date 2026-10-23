@@ -3,6 +3,14 @@ import { createComponent } from './component';
 import { defaultClassNamingConfig, mergeClassNaming } from './class-naming';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 import { registeredNamespaces } from './registry';
+import { createStyles } from './styles';
+
+/** Declarations inside the rule whose selector is exactly `selector`. */
+function declarationsFor(css: string, selector: string): string {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = css.match(new RegExp(`(?:^|[}\\n])\\s*${escaped}(?![\\w-])\\s*\\{([^}]*)\\}`));
+  return match?.[1] ?? '';
+}
 
 describe('createComponent — duplicate namespace', () => {
   beforeEach(() => {
@@ -1127,5 +1135,171 @@ describe('createComponent — function config & internal vars', () => {
     expect(css).toContain('@property --cb-var-declare-border-color');
     expect(css).not.toMatch(/\.cb-var-declare \{[^}]*--cb-var-declare-border-color: red/);
     expect(css).toContain('cb-var-declare--tone-hot');
+  });
+});
+
+describe('recipe var slots', () => {
+  beforeEach(() => {
+    reset();
+    registeredNamespaces.clear();
+  });
+
+  it('copies a var default onto each named slot and still emits it on the host', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'menu-slot-vars',
+      slots: ['root', 'popover'] as const,
+      vars: {
+        popoverBackground: {
+          value: 'var(--color-surface)',
+          syntax: '<color>' as const,
+          slots: ['popover'],
+        },
+        anchorX: { value: '0px', syntax: '<length>' as const },
+      },
+      styles: ({ vars }) => ({
+        base: {
+          root: { display: 'inline-flex' },
+          popover: { backgroundColor: vars.popoverBackground.var },
+        },
+      }),
+    });
+    flushSync();
+
+    const css = getRegisteredCss();
+    const root = declarationsFor(css, '.menu-slot-vars');
+    const popover = declarationsFor(css, '.menu-slot-vars__popover');
+
+    expect(root).toContain('--menu-slot-vars-popoverbackground: var(--color-surface)');
+    expect(root).toContain('--menu-slot-vars-anchorx: 0px');
+    expect(popover).toContain('--menu-slot-vars-popoverbackground: var(--color-surface)');
+    expect(popover).not.toContain('--menu-slot-vars-anchorx');
+  });
+
+  it('warns when a var names a slot the recipe does not declare', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const styles = createStyles();
+    styles.component({
+      name: 'menu-unknown-slot',
+      slots: ['root', 'popover'] as const,
+      vars: {
+        popoverBackground: {
+          value: 'var(--color-surface)',
+          syntax: '<color>' as const,
+          slots: ['missing'],
+        },
+      },
+      styles: () => ({
+        base: { root: { display: 'inline-flex' } },
+      }),
+    });
+    flushSync();
+
+    const css = getRegisteredCss();
+    expect(declarationsFor(css, '.menu-unknown-slot')).toContain(
+      '--menu-unknown-slot-popoverbackground: var(--color-surface)',
+    );
+    expect(css).not.toContain('.menu-unknown-slot__missing');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('missing'));
+    warn.mockRestore();
+  });
+
+  it('warns when a var names slots on a recipe that has none', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const styles = createStyles();
+    styles.component({
+      name: 'slotless-var',
+      vars: {
+        ink: { value: '#111', slots: ['popover'] },
+      },
+      styles: ({ vars }) => ({
+        base: { color: vars.ink.var },
+      }),
+    });
+    flushSync();
+
+    expect(declarationsFor(getRegisteredCss(), '.slotless-var')).toContain(
+      '--slotless-var-ink: #111',
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('no slots'));
+    warn.mockRestore();
+  });
+
+  it('copies one var onto every named slot', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'menu-multi-slot',
+      slots: ['root', 'popover', 'item'] as const,
+      vars: {
+        popoverBackground: {
+          value: 'var(--color-surface)',
+          slots: ['popover', 'item'],
+        },
+      },
+      styles: () => ({
+        base: {
+          popover: { display: 'flex' },
+          item: { display: 'block' },
+        },
+      }),
+    });
+    flushSync();
+
+    const css = getRegisteredCss();
+    for (const selector of [
+      '.menu-multi-slot',
+      '.menu-multi-slot__popover',
+      '.menu-multi-slot__item',
+    ]) {
+      expect(declarationsFor(css, selector)).toContain(
+        '--menu-multi-slot-popoverbackground: var(--color-surface)',
+      );
+    }
+  });
+
+  it('does not duplicate a default when slots lists the host', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const styles = createStyles();
+    styles.component({
+      name: 'menu-host-slot',
+      slots: ['root', 'popover'] as const,
+      vars: {
+        ink: { value: '#111', slots: ['root'] },
+      },
+      styles: () => ({ base: { root: { display: 'flex' } } }),
+    });
+    flushSync();
+
+    const root = declarationsFor(getRegisteredCss(), '.menu-host-slot');
+    expect(root.match(/--menu-host-slot-ink: #111/g)).toHaveLength(1);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('copies a slotted default onto the first slot when the recipe has no root', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'menu-no-root',
+      slots: ['trigger', 'popover'] as const,
+      vars: {
+        popoverBackground: { value: 'var(--color-surface)', slots: ['popover'] },
+        anchorX: '0px',
+      },
+      styles: () => ({
+        base: {
+          trigger: { display: 'inline-flex' },
+          popover: { display: 'flex' },
+        },
+      }),
+    });
+    flushSync();
+
+    const css = getRegisteredCss();
+    const trigger = declarationsFor(css, '.menu-no-root__trigger');
+    const popover = declarationsFor(css, '.menu-no-root__popover');
+    expect(trigger).toContain('--menu-no-root-popoverbackground: var(--color-surface)');
+    expect(trigger).toContain('--menu-no-root-anchorx: 0px');
+    expect(popover).toContain('--menu-no-root-popoverbackground: var(--color-surface)');
+    expect(popover).not.toContain('--menu-no-root-anchorx');
   });
 });

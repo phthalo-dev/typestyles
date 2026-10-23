@@ -4,9 +4,16 @@ import { createStyles } from './styles';
 import { createTypeStyles } from './create-type-styles';
 import { createComponent } from './component';
 import { variant } from './variant';
+import { colorModes } from './color-modes';
 import { getComponentMeta } from './component-meta';
 import { registeredNamespaces } from './registry';
-import { colorModes } from './color-modes';
+
+/** Declarations inside the rule whose selector is exactly `selector`. */
+function declarationsFor(css: string, selector: string): string {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = css.match(new RegExp(`(?:^|[}\\n])\\s*${escaped}(?![\\w-])\\s*\\{([^}]*)\\}`));
+  return match?.[1] ?? '';
+}
 
 describe('styles.override() + __tsMeta', () => {
   beforeEach(() => {
@@ -954,6 +961,109 @@ describe('styles.override() + __tsMeta', () => {
       expect(css).toContain('--ov-vars-btn-background: crimson');
       expect(css).toContain('--ov-vars-btn-foreground: white');
       expect(css).toContain('border-radius: 999px');
+    });
+
+    it('emits a slotted var override on the host and on each named slot', () => {
+      const styles = createStyles({
+        layers: ['components', 'overrides'] as const,
+      });
+      const menu = styles.component({
+        name: 'ov-slot-vars',
+        layer: 'components',
+        slots: ['root', 'popover'] as const,
+        vars: {
+          popoverBackground: {
+            value: 'var(--color-surface)',
+            syntax: '<color>' as const,
+            slots: ['popover'],
+          },
+          anchorX: '0px',
+        },
+        styles: ({ vars }) => ({
+          base: {
+            popover: { backgroundColor: vars.popoverBackground.var },
+          },
+        }),
+      });
+
+      styles.override({
+        recipe: menu,
+        selectorPrefix: '.theme-forest',
+        vars: {
+          popoverBackground: 'var(--color-app)',
+          anchorX: '4px',
+        },
+      });
+      flushSync();
+
+      const css = getRegisteredCss();
+      const host = declarationsFor(css, '.theme-forest .ov-slot-vars');
+      const popover = declarationsFor(css, '.theme-forest .ov-slot-vars__popover');
+
+      expect(host).toContain('--ov-slot-vars-popoverbackground: var(--color-app)');
+      expect(host).toContain('--ov-slot-vars-anchorx: 4px');
+      expect(popover).toContain('--ov-slot-vars-popoverbackground: var(--color-app)');
+      expect(popover).not.toContain('--ov-slot-vars-anchorx');
+    });
+
+    it('emits a prefers-dark var override on each named slot', () => {
+      const styles = createStyles({ colorModes });
+      const menu = styles.component({
+        name: 'ov-slot-dark',
+        slots: ['root', 'popover'] as const,
+        vars: {
+          glow: { value: '0 0 0 3px blue', slots: ['popover'] },
+        },
+        styles: ({ vars }) => ({
+          base: { popover: { boxShadow: vars.glow.var } },
+        }),
+      });
+
+      styles.override({
+        recipe: menu,
+        vars: { glow: { light: '0 0 0 3px blue', dark: '0 0 16px navy' } },
+      });
+      flushSync();
+
+      const css = getRegisteredCss();
+      expect(declarationsFor(css, '.ov-slot-dark')).toContain(
+        '--ov-slot-dark-glow: 0 0 0 3px blue',
+      );
+      expect(declarationsFor(css, '.ov-slot-dark__popover')).toContain(
+        '--ov-slot-dark-glow: 0 0 0 3px blue',
+      );
+      expect(css).toMatch(
+        /@media \(prefers-color-scheme: dark\) \{\s*\.ov-slot-dark__popover \{[^}]*--ov-slot-dark-glow: 0 0 16px navy/,
+      );
+    });
+
+    it('copies a slotted default into a variant recipe slot block', () => {
+      const styles = createStyles();
+      styles.component({
+        name: 'ov-slot-variant',
+        slots: ['root', 'popover'] as const,
+        variants: { open: variant.boolean({ default: false }) },
+        vars: {
+          popoverBackground: { value: 'var(--color-surface)', slots: ['popover'] },
+        },
+        styles: {
+          base: {
+            root: { display: 'flex' },
+            popover: { backgroundColor: 'var(--ov-slot-variant-popoverbackground)' },
+          },
+          variants: {
+            open: {
+              true: { popover: { opacity: 1 } },
+              false: { popover: { opacity: 0 } },
+            },
+          },
+        },
+      });
+      flushSync();
+
+      const popover = declarationsFor(getRegisteredCss(), '.ov-slot-variant__popover');
+      expect(popover).toContain('--ov-slot-variant-popoverbackground: var(--color-surface)');
+      expect(popover).toContain('background-color: var(--ov-slot-variant-popoverbackground)');
     });
 
     it('emits vars on the root slot for slotted recipes', () => {

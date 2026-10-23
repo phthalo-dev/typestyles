@@ -159,6 +159,24 @@ function withUtilsVars(v: { background: { name: string } }): string {
   });
 }
 
+const slottedVars = styles.component({
+  name: 'vars-slotted',
+  slots: ['root', 'popover'] as const,
+  vars: {
+    popoverBackground: {
+      value: 'var(--color-surface)',
+      syntax: '<color>' as const,
+      slots: ['popover'],
+    },
+  },
+  styles: ({ vars }) => ({
+    base: {
+      popover: { backgroundColor: vars.popoverBackground.var },
+    },
+  }),
+});
+
+void slottedVars;
 void baseVars;
 void flatVars;
 void stateVars;
