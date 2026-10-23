@@ -1,5 +1,5 @@
 import { variant } from './variant';
-import { describe, it, expect, beforeEach, vi, expectTypeOf } from 'vitest';
+import { describe, it, expect, beforeEach, vi, expectTypeOf } from 'vite-plus/test';
 import { createClass, createHashClass, compose, createStyles } from './styles';
 import { cx } from './index';
 import { createComponent } from './component';

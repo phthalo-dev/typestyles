@@ -6,14 +6,12 @@
   "scripts": {
     "build": "parcel build index.html --dist-dir dist --no-cache",
     "test": "parcel build index.html --dist-dir dist --no-cache && node scripts/verify-build.mjs",
-    "dev": "parcel index.html --dist-dir dist --no-cache",
-    "lint": "eslint ."
+    "dev": "parcel index.html --dist-dir dist --no-cache"
   },
   "dependencies": {
     "typestyles": "workspace:*"
   },
   "devDependencies": {
-    "eslint": "^9.39.2",
     "parcel": "^2.14.4"
   }
 }

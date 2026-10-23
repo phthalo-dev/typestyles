@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { generateGeometricScale, generateLinearScale, expandDurationBand } from './token-scale';
 
 describe('generateGeometricScale', () => {

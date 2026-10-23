@@ -64,42 +64,28 @@ const alert = recipe({
       tone: {
         info: { root: { color: vars.surface.var } },
         success: {
-          root: {
-            /* … */
-          },
+          root: {/* … */},
         },
         warning: {
-          root: {
-            /* … */
-          },
+          root: {/* … */},
         },
         danger: {
-          root: {
-            /* … */
-          },
+          root: {/* … */},
         },
         tip: {
-          root: {
-            /* … */
-          },
+          root: {/* … */},
         },
       },
       appearance: {
         subtle: {
-          root: {
-            /* … */
-          },
+          root: {/* … */},
         },
         solid: {
-          root: {
-            /* … */
-          },
+          root: {/* … */},
           title: { color: 'inherit' },
         },
         outline: {
-          root: {
-            /* … */
-          },
+          root: {/* … */},
         },
       },
       contentGap: {
@@ -123,20 +109,12 @@ const button = recipe({
   layer: 'components',
   variants: { size: controlSize, elevated: variant.boolean({ default: false }) },
   styles: () => ({
-    base: {
-      /* … */
-    },
+    base: {/* … */},
     variants: {
       size: {
-        sm: {
-          /* … */
-        },
-        md: {
-          /* … */
-        },
-        lg: {
-          /* … */
-        },
+        sm: {/* … */},
+        md: {/* … */},
+        lg: {/* … */},
       },
       elevated: { true: { boxShadow: 'var(--shadow-md)' }, false: {} },
     },

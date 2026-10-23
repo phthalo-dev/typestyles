@@ -46,7 +46,6 @@ jobs:
               - 'pnpm-lock.yaml'
               - 'package.json'
               - 'pnpm-workspace.yaml'
-              - 'turbo.json'
               - 'netlify.toml'
               - '.nvmrc'
               - '.github/workflows/ci.yml'
@@ -57,26 +56,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v5
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          cache: true
 
-      - name: Restore turbo cache
-        uses: actions/cache@v5
-        with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
-
-      - run: pnpm install --frozen-lockfile
-
-      # lint, typecheck, test, then build the packages the test graph skipped
-      # (for example @typestyles/open-props). Publishing needs every dist.
-      - run: pnpm run ci
+      # Builds every package (publishing needs every dist), then check, then tests.
+      - run: vp run ci
 
       - name: Pack package dist artifacts
         if: >-
@@ -110,18 +96,14 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v5
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          cache: true
 
-      - run: pnpm install --frozen-lockfile
+      - run: vp run -F typestyles build
 
-      - run: pnpm --filter typestyles build
-
-      - run: pnpm --filter @typestyles/benchmarks bench:ci
+      - run: vp run -F @typestyles/benchmarks bench:ci
 
   release:
     name: Release
@@ -149,22 +131,17 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
-      - uses: pnpm/action-setup@v4
-
-      # Do not set registry-url on setup-node: it writes a placeholder _authToken
+      # Do not set registry-url on setup-vp: it writes a placeholder _authToken
       # line that blocks npm Trusted Publishing (OIDC). Registry is in .npmrc.
-      - uses: actions/setup-node@v5
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version-file: .nvmrc
-          cache: pnpm
-          package-manager-cache: false
+          cache: true
 
       # Trusted Publishing needs npm >= 11.5.1. Do not use npm@latest: npm 12 rejects
       # --git-checks, which pnpm forwards when changeset publish runs pnpm publish.
       - name: Use npm compatible with pnpm publish
         run: npm install -g 'npm@^11.5.1'
-
-      - run: pnpm install --frozen-lockfile
 
       - uses: actions/download-artifact@v8
         with:
@@ -184,8 +161,8 @@ jobs:
       - uses: changesets/action@v1
         with:
           # dist is already restored from verify, so skip `pnpm release` (which builds).
-          publish: pnpm exec changeset publish
-          version: pnpm run version
+          publish: vp exec changeset publish
+          version: vp exec changeset version
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:
@@ -205,22 +182,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
-
-      # Do not set registry-url on setup-node: it writes a placeholder _authToken
+      # Do not set registry-url on setup-vp: it writes a placeholder _authToken
       # line that blocks npm Trusted Publishing (OIDC). Registry is in .npmrc.
-      - uses: actions/setup-node@v5
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version-file: .nvmrc
-          cache: pnpm
-          package-manager-cache: false
+          cache: true
 
       # Trusted Publishing needs npm >= 11.5.1. Do not use npm@latest: npm 12 rejects
       # --git-checks forwarded by pnpm publish --no-git-checks.
       - name: Use npm compatible with pnpm publish
         run: npm install -g 'npm@^11.5.1'
-
-      - run: pnpm install --frozen-lockfile
 
       - uses: actions/download-artifact@v8
         with:
@@ -253,22 +225,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v5
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Restore turbo cache
-        uses: actions/cache/restore@v5
-        with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
-
-      - run: pnpm install --frozen-lockfile
+          cache: true
 
       # --build runs the build command and function packaging from netlify.toml,
       # the same path Netlify's own builds take (the MCP function needs it).
@@ -288,22 +248,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v5
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Restore turbo cache
-        uses: actions/cache/restore@v5
-        with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-
-
-      - run: pnpm install --frozen-lockfile
+          cache: true
 
       - name: Build and deploy preview to Netlify
         id: deploy

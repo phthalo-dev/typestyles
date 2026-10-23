@@ -4,10 +4,9 @@
   "type": "module",
   "packageManager": "pnpm@10.11.1",
   "scripts": {
-    "build": "turbo run build",
-    "test": "turbo run test",
-    "typecheck": "turbo run typecheck",
-    "dev": "turbo run dev",
+    "build": "vp run -F \"./packages/*\" build",
+    "test": "vp run -r test",
+    "dev": "vp run -r dev",
     "build-runner": "pnpm --filter @typestyles/build-runner",
     "typestyles": "pnpm --filter typestyles",
     "props": "pnpm --filter @typestyles/props",
@@ -32,33 +31,23 @@
     "design-system": "pnpm --filter @examples/design-system",
     "react-design-system": "pnpm --filter @examples/react-design-system",
     "typewind": "pnpm --filter @examples/typewind",
-    "lint": "turbo run lint",
-    "lint:fix": "turbo run lint --fix",
-    "ci": "turbo run lint typecheck test && turbo run build --filter='./packages/*'",
-    "verify": "pnpm run ci",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "lint": "vp lint",
+    "lint:fix": "vp lint --fix",
+    "verify": "vp run ci",
+    "format": "vp fmt",
+    "format:check": "vp fmt --check",
     "changeset": "changeset",
     "version": "changeset version",
     "version:unstable": "node scripts/set-unstable-versions.js",
-    "release": "turbo build && changeset publish",
-    "prepare": "husky"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write"
+    "release": "vp run build && changeset publish",
+    "prepare": "vp config",
+    "check": "vp check",
+    "fmt": "vp fmt"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.6.0",
     "@changesets/cli": "^2.29.8",
-    "@eslint/js": "^9.39.2",
     "@typestyles/eslint-plugin": "workspace:*",
-    "eslint": "^9.39.2",
-    "eslint-config-prettier": "^10.1.8",
-    "globals": "^14.0.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.4.0",
-    "prettier": "^3.8.1",
-    "turbo": "^2.0.0",
-    "typescript-eslint": "^8.72.0"
+    "vite-plus": "catalog:"
   }
 }

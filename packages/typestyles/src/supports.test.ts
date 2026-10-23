@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { supports } from './supports';
 import { serializeStyle } from './serialize-style';
 import { createStyles } from './styles';

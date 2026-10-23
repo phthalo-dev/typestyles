@@ -1,5 +1,5 @@
 import { variant } from './variant';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { invalidatePrefix, invalidateKeys, createOverrideHmrSlot } from './hmr';
 import { createStyles } from './styles';
 import { createTokens } from './tokens';

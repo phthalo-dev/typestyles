@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test';
 import { createTheme, createDarkMode, when, colorMode } from './theme';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 

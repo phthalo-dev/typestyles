@@ -58,7 +58,7 @@ type CSSPropertiesBase = {
 };
 
 // Empty interface (not type alias) so consumers can augment via `declare module 'typestyles'`.
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- module augmentation
+// oxlint-disable-next-line @typescript-eslint/no-empty-object-type -- module augmentation
 export interface CSSProperties extends CSSPropertiesBase {}
 
 /**

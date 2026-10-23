@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 import { createStyles } from './styles';
 import { resolveCascadeLayers } from './layers';

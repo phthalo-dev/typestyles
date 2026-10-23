@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 import * as colorScale from 'typestyles/color-scale';
 import { basePaletteTokenValues } from './palette';
 import { createColorTheme } from './create-color-theme';

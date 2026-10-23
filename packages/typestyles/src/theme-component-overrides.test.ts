@@ -1,5 +1,5 @@
 import { variant } from './variant';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { reset, getRegisteredCss, flushSync } from './sheet';
 import { createTypeStyles } from './create-type-styles';
 

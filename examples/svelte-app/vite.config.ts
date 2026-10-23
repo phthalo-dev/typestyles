@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite';
+import { defineConfig, lazyPlugins } from 'vite-plus';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import typestyles from '@typestyles/vite';
 
 export default defineConfig({
-  plugins: [svelte(), typestyles()],
+  plugins: lazyPlugins(() => [svelte(), typestyles()]),
 });

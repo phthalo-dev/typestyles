@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { reset } from './sheet';
 import { createStyles } from './styles';
 import { createTypeStyles } from './create-type-styles';

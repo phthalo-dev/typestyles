@@ -62,9 +62,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
-    "test": "vitest run",
-    "lint": "eslint .",
+    "build": "vp pack",
+    "test": "vp test run",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
@@ -101,12 +100,11 @@
     "@types/babel__core": "^7.20.5",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "eslint": "^9.39.2",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "tsup": "^8.0.0",
     "typestyles": "workspace:*",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

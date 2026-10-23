@@ -34,9 +34,8 @@
     "src"
   ],
   "scripts": {
-    "build": "tsup",
-    "test": "vitest run",
-    "lint": "eslint .",
+    "build": "vp pack",
+    "test": "vp test run",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
@@ -77,7 +76,6 @@
     "@typestyles/build-runner": "workspace:*"
   },
   "devDependencies": {
-    "eslint": "^9.39.2",
     "vitest": "catalog:",
     "@types/node": "^25.2.1",
     "@types/react": "^18.3.12",
@@ -85,9 +83,9 @@
     "next": "^14.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "tsup": "^8.0.0",
     "typestyles": "workspace:*",
     "typescript": "catalog:",
-    "webpack": "^5.97.1"
+    "webpack": "^5.97.1",
+    "vite-plus": "catalog:"
   }
 }

@@ -113,12 +113,11 @@
     "llms.txt"
   ],
   "scripts": {
-    "build": "tsup && node scripts/check-bundle-size.mjs",
+    "build": "vp pack && node scripts/check-bundle-size.mjs",
     "check:bundle-size": "node scripts/check-bundle-size.mjs",
-    "dev": "tsup --watch",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "eslint .",
+    "dev": "vp pack --watch",
+    "test": "vp test run",
+    "test:watch": "vp test",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.fixtures.json"
   },
   "keywords": [
@@ -142,10 +141,9 @@
   "devDependencies": {
     "@types/node": "^25.2.1",
     "@vitest/coverage-v8": "catalog:",
-    "eslint": "^9.39.2",
     "jsdom": "^25.0.0",
-    "tsup": "^8.0.0",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

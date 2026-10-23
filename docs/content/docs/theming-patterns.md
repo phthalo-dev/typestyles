@@ -900,9 +900,7 @@ export const darkTheme = tokens.createTheme({
 // Optional: separate surface for motion tokens, etc.
 export const reducedMotionTheme = tokens.createTheme({
   name: 'reduced-motion',
-  tokens: {
-    /* motion-related overrides */
-  },
+  tokens: {/* motion-related overrides */},
 });
 ```
 

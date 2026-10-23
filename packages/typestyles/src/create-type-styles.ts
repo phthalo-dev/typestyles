@@ -136,7 +136,7 @@ type StylesApiWithLayersLoose = Omit<StylesApi, 'class' | 'hashClass'> & {
 };
 
 function flattenTypeStylesApi<Recipe = unknown>(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // oxlint-disable-next-line @typescript-eslint/no-explicit-any
   styles: any,
   tokens: TokensApi,
   global: GlobalApiUnlayered | GlobalApiLayered,

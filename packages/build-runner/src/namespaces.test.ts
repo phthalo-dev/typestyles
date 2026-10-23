@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { extractNamespaces, moduleNeedsOverrideHmr, TYPESTYLES_IMPORT_RE } from './namespaces';
 
 describe('extractNamespaces', () => {

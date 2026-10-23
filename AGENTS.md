@@ -32,11 +32,11 @@ Run from the **repository root**:
 
 ```bash
 pnpm install          # install all workspace deps
-pnpm build            # turbo build (all packages + docs)
-pnpm verify           # lint + typecheck + test (same checks as CI)
-pnpm test             # turbo test
-pnpm typecheck        # turbo typecheck
-pnpm lint             # turbo lint
+pnpm build            # vp pack every package
+pnpm verify           # build + check + typecheck + test (`vp run ci`, same as CI)
+pnpm test             # vp run -r test
+pnpm check            # vp check (format + lint)
+pnpm lint             # vp lint
 ```
 
 ## Before committing
@@ -47,23 +47,22 @@ pnpm lint             # turbo lint
 pnpm verify
 ```
 
-This runs `lint`, `typecheck`, and `test` in sequence. Fix any failures before committing — do not skip hooks or commit with known CI failures.
+This builds every package, then runs `vp check` (format + lint), per-package `typecheck`, and per-package tests. Fix any failures before committing — do not skip hooks or commit with known CI failures.
 
 When you changed only one package, you may scope checks for faster feedback (must still pass full `pnpm verify` before commit):
 
 ```bash
-pnpm --filter typestyles test
-pnpm turbo run lint typecheck test --filter=typestyles
+vp run -F typestyles test
+vp run -F typestyles typecheck
 ```
 
-The pre-commit hook only runs Prettier on staged files; it does **not** replace `pnpm verify`.
+The pre-commit hook only runs `vp staged` (format and lint on staged files); the pre-push hook runs `vp run ci`.
 
 Docs site only:
 
 ```bash
-pnpm --filter docs dev
-pnpm --filter docs build
-turbo run build --filter docs
+vp run -F docs dev
+vp run -F "docs..." build   # builds the workspace packages docs depends on first
 ```
 
 Core package:
@@ -83,9 +82,9 @@ pnpm --filter typestyles build
 ## Conventions
 
 - TypeScript throughout; ESM (`"type": "module"`)
-- Tests: Vitest (`vitest run` per package)
+- Tests: Vitest through Vite+ (`vp test run` per package)
 - Changesets for releases (`.changeset/`)
-- Prettier + ESLint; husky pre-commit runs lint-staged
+- Vite+ (`vp`): Oxlint and Oxfmt via `vp check`, tsdown via `vp pack`; hooks in `.vite-hooks/`
 
 ### Type tests
 

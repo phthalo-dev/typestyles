@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { createTokens } from './tokens';
 import { cloneThemeValues, mergeThemeOverrides } from './token-color-modes';
 

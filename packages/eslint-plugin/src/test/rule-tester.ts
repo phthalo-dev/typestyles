@@ -1,5 +1,5 @@
 import { RuleTester } from '@typescript-eslint/rule-tester';
-import { afterEach, describe, it } from 'vitest';
+import { afterEach, describe, it } from 'vite-plus/test';
 
 RuleTester.afterAll = afterEach;
 RuleTester.describe = describe;

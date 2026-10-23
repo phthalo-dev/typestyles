@@ -1,5 +1,5 @@
 import { variant } from './variant';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 import { createStyles } from './styles';
 import { mergeProps, combine } from './binding';
 import { resetBindingDevWarnings } from './cx';

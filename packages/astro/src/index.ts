@@ -25,7 +25,9 @@ export default function typestyles(options: TypestylesPluginOptions = {}): Astro
       'astro:config:setup'({ updateConfig }) {
         updateConfig({
           vite: {
-            plugins: [typestylesVite(options)],
+            // Types only: this workspace builds @typestyles/vite against Vite+'s Vite while Astro ships its own
+            // Vite 6, so the two Plugin types differ. The runtime shape is identical.
+            plugins: [typestylesVite(options) as never],
           },
         });
       },

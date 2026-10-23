@@ -151,7 +151,7 @@ nearest matches from the search index ("did you mean …"), never a bare error.
 - New docs page `content/docs/ai-tools.md` ("Use with AI tools"): what's
   available (llms.txt, `.md` URLs, MCP) + copy-paste install snippets for
   Claude Code (`claude mcp add --transport http typestyles
-https://typestyles.dev/mcp`), Cursor, VS Code, and ChatGPT. Added to
+  https://typestyles.dev/mcp`), Cursor, VS Code, and ChatGPT. Added to
   `navigation.ts`.
 - Post-launch follow-up (not in this change): submit to the official MCP
   registry.

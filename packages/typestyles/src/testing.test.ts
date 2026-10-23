@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vite-plus/test';
 import { resetAll, onAfterReset, createTestHarness } from './testing';
 import { reset } from './sheet';
 import { createStyles, flushSync, getRegisteredCss } from './index';

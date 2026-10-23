@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test';
 import { createBreakpointMediaFn, createMediaFn, resolveBreakpointMediaKey } from './media';
 import { resolveBreakpoints } from './breakpoints';
 import { createStyles } from './styles';

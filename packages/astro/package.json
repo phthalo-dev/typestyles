@@ -22,9 +22,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean --external astro,@typestyles/vite",
-    "test": "vitest run",
-    "lint": "eslint .",
+    "build": "vp pack",
+    "test": "vp test run",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
@@ -47,11 +46,9 @@
   },
   "devDependencies": {
     "astro": "^5.6.1",
-    "eslint": "^9.39.2",
-    "tsup": "^8.0.0",
     "typescript": "catalog:",
     "typestyles": "workspace:*",
-    "vite": "^6.0.0",
-    "vitest": "catalog:"
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

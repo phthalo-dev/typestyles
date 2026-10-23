@@ -7,9 +7,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "lint": "eslint .",
-    "test": "vitest run",
-    "generate:mcp-content": "vitest run --config vitest.generate.config.ts"
+    "test": "vp test run",
+    "generate:mcp-content": "vp test run --config vitest.generate.config.ts"
   },
   "dependencies": {
     "@examples/design-system": "workspace:*",
@@ -43,10 +42,9 @@
     "@typestyles/astro": "workspace:*",
     "@typestyles/build-runner": "workspace:*",
     "esbuild": "^0.27.3",
-    "eslint": "^9.39.2",
     "tsx": "^4.23.13",
     "typescript": "catalog:",
     "vite-tsconfig-paths": "^5.0.1",
-    "vitest": "catalog:"
+    "vite-plus": "catalog:"
   }
 }
