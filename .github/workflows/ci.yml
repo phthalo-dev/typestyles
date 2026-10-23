@@ -5,132 +5,147 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
+    inputs:
+      unstable:
+        description: Publish every package to npm with the `unstable` tag, versioned from this commit
+        type: boolean
+        default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # Only supersede PR runs. A newer push to main must never cancel a run that is
+  # about to release.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  lint:
-    name: Lint
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    outputs:
+      benchmark: ${{ steps.filter.outputs.benchmark }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            benchmark:
+              - 'packages/typestyles/**'
+              - 'benchmarks/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - '.nvmrc'
+              - '.github/workflows/ci.yml'
+
+  verify:
+    name: Verify
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
-          cache: 'pnpm'
+          node-version-file: .nvmrc
+          cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run lint
-        run: pnpm turbo run lint
-
-  typecheck:
-    name: Typecheck
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - name: Restore turbo cache
+        uses: actions/cache@v5
         with:
-          node-version: 22
-          cache: 'pnpm'
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - name: Run typecheck
-        run: pnpm run typecheck
+      # lint, typecheck, test, then build the packages the test graph skipped
+      # (for example @typestyles/open-props). Publishing needs every dist.
+      - run: pnpm run ci
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - name: Pack package dist artifacts
+        if: >-
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && inputs.unstable)
+        run: |
+          for dir in packages/*; do
+            if [ ! -d "$dir/dist" ]; then
+              echo "Missing dist for $dir"
+              exit 1
+            fi
+          done
+          tar -czf package-dist.tar.gz packages/*/dist
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - name: Upload package dist artifacts
+        if: >-
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && inputs.unstable)
+        uses: actions/upload-artifact@v7
         with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run tests
-        run: pnpm run test
+          name: package-dist
+          path: package-dist.tar.gz
+          retention-days: 1
+          if-no-files-found: error
 
   benchmark:
     name: Benchmark
-    if: github.event_name == 'pull_request'
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.benchmark == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
-          cache: 'pnpm'
+          node-version-file: .nvmrc
+          cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - name: Build typestyles
-        run: pnpm --filter typestyles build
+      - run: pnpm --filter typestyles build
 
-      - name: Run benchmarks
-        run: pnpm --filter @typestyles/benchmarks bench:ci
+      - run: pnpm --filter @typestyles/benchmarks bench:ci
 
   release:
     name: Release
+    needs: verify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, typecheck, test]
     concurrency:
-      group: typestyles-npm-release
+      group: typestyles-release
       cancel-in-progress: false
-      # Keep pending publishes instead of replacing them (default queue: single).
-      queue: max
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
       id-token: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      # A GitHub App token (not GITHUB_TOKEN) so the version PR and the tags the
+      # release pushes trigger workflows.
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: pnpm/action-setup@v4
 
       # Do not set registry-url on setup-node: it writes a placeholder _authToken
       # line that blocks npm Trusted Publishing (OIDC). Registry is in .npmrc.
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
-          cache: 'pnpm'
+          node-version-file: .nvmrc
+          cache: pnpm
           package-manager-cache: false
 
       # Trusted Publishing needs npm >= 11.5.1. Do not use npm@latest: npm 12 rejects
@@ -138,50 +153,55 @@ jobs:
       - name: Use npm compatible with pnpm publish
         run: npm install -g 'npm@^11.5.1'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - name: Create Release Pull Request or Publish
-        id: changesets
-        uses: changesets/action@v1
+      - uses: actions/download-artifact@v8
         with:
-          publish: pnpm release
+          name: package-dist
+
+      - name: Restore package dist artifacts
+        run: |
+          tar -xzf package-dist.tar.gz
+          rm package-dist.tar.gz
+          for dir in packages/*; do
+            if [ ! -d "$dir/dist" ]; then
+              echo "Missing restored dist for $dir"
+              exit 1
+            fi
+          done
+
+      - uses: changesets/action@v1
+        with:
+          # dist is already restored from verify, so skip `pnpm release` (which builds).
+          publish: pnpm exec changeset publish
           version: pnpm run version
           commit: 'chore: version packages'
           title: 'chore: version packages'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
-  release-unstable:
-    name: Release unstable packages
-    if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main' &&
-      github.event.head_commit.message != 'chore: version packages'
-    needs: [lint, typecheck, test]
+  publish-unstable:
+    name: Publish unstable packages
+    needs: verify
+    if: github.event_name == 'workflow_dispatch' && inputs.unstable
     concurrency:
-      group: typestyles-npm-release
+      group: typestyles-npm-unstable
       cancel-in-progress: false
-      # Keep pending publishes instead of replacing them (default queue: single).
-      queue: max
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
 
       # Do not set registry-url on setup-node: it writes a placeholder _authToken
       # line that blocks npm Trusted Publishing (OIDC). Registry is in .npmrc.
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
-          cache: 'pnpm'
+          node-version-file: .nvmrc
+          cache: pnpm
           package-manager-cache: false
 
       # Trusted Publishing needs npm >= 11.5.1. Do not use npm@latest: npm 12 rejects
@@ -189,11 +209,22 @@ jobs:
       - name: Use npm compatible with pnpm publish
         run: npm install -g 'npm@^11.5.1'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - name: Build packages
-        run: pnpm run build
+      - uses: actions/download-artifact@v8
+        with:
+          name: package-dist
+
+      - name: Restore package dist artifacts
+        run: |
+          tar -xzf package-dist.tar.gz
+          rm package-dist.tar.gz
+          for dir in packages/*; do
+            if [ ! -d "$dir/dist" ]; then
+              echo "Missing restored dist for $dir"
+              exit 1
+            fi
+          done
 
       - name: Set unstable commit versions
         run: node scripts/set-unstable-versions.js
