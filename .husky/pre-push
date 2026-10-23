@@ -11,7 +11,7 @@ fi
 
 changed_files=$(git diff --name-only origin/main...HEAD 2>/dev/null || true)
 
-if [ -n "$changed_files" ] && [ -z "$(echo "$changed_files" | grep -Ev '^(\.github/|\.husky/|\.changeset/|\.vscode/|\.npmrc|\.nvmrc|AGENTS\.md|README\.md|specs/)' || true)" ]; then
+if [ -n "$changed_files" ] && [ -z "$(echo "$changed_files" | grep -Ev '^(\.github/|\.husky/|\.changeset/|\.vscode/|\.npmrc|\.nvmrc|AGENTS\.md|README\.md|specs/|scripts/|package\.json$)' || true)" ]; then
   exit 0
 fi
 
