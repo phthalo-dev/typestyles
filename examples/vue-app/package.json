@@ -18,7 +18,7 @@
     "@typestyles/vite": "workspace:*",
     "@vitejs/plugin-vue": "^5.2.1",
     "eslint": "^9.39.2",
-    "typescript": "^5.4.0",
+    "typescript": "catalog:",
     "vite": "^6.0.0",
     "vue-tsc": "^2.2.0"
   }

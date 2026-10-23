@@ -49,8 +49,8 @@
     "@types/node": "^25.2.1",
     "eslint": "^9.39.2",
     "tsup": "^8.0.0",
-    "typescript": "^5.4.0",
-    "vitest": "^3.0.0",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
     "webpack": "^5.98.0"
   }
 }

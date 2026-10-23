@@ -106,7 +106,7 @@
     "react-dom": "^18.0.0",
     "tsup": "^8.0.0",
     "typestyles": "workspace:*",
-    "typescript": "^5.4.0",
-    "vitest": "^3.0.0"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
