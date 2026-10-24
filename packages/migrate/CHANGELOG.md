@@ -1,5 +1,11 @@
 # @typestyles/migrate
 
+## 0.5.4
+
+### Patch Changes
+
+- [#295](https://github.com/phthalo-dev/typestyles/pull/295) [`e900eb9`](https://github.com/phthalo-dev/typestyles/commit/e900eb9ab27cd9404ca77681488237d721a204c9) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Update to Babel 8 and `diff` 9. Negative numeric CSS values (for example `z-index: -1`) are emitted as a unary minus, which Babel 8 requires. This also fixes the `traverse is not a function` error when running the published CLI.
+
 ## 0.5.3
 
 ### Patch Changes

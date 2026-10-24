@@ -1,5 +1,11 @@
 # typestyles
 
+## 0.33.0
+
+### Minor Changes
+
+- [#293](https://github.com/phthalo-dev/typestyles/pull/293) [`d5f4a08`](https://github.com/phthalo-dev/typestyles/commit/d5f4a08af02f74a885674f37f2d404b72012c295) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Emit recipe var defaults and theme overrides on slots named by the var, in addition to the host, so a portaled element receives the custom property.
+
 ## 0.32.3
 
 ### Patch Changes
