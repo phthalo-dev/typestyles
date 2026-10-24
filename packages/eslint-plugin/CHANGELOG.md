@@ -1,5 +1,11 @@
 # @typestyles/eslint-plugin
 
+## 0.5.0
+
+### Minor Changes
+
+- [#295](https://github.com/phthalo-dev/typestyles/pull/295) [`e900eb9`](https://github.com/phthalo-dev/typestyles/commit/e900eb9ab27cd9404ca77681488237d721a204c9) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Support ESLint 10 (the peer range is now `^8.57.0 || ^9.0.0 || ^10.0.0`). The test suite runs against ESLint 10.
+
 ## 0.4.5
 
 ### Patch Changes
