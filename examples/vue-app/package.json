@@ -15,10 +15,10 @@
   },
   "devDependencies": {
     "@typestyles/vite": "workspace:*",
-    "@vitejs/plugin-vue": "^5.2.1",
+    "@vitejs/plugin-vue": "^6.0.10",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vue-tsc": "^2.2.0",
+    "vue-tsc": "^3.3.0",
     "vite-plus": "catalog:"
   }
 }

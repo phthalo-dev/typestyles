@@ -14,7 +14,7 @@
     "@examples/design-system": "workspace:*",
     "@lucide/astro": "^1.7.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "@netlify/functions": "^3.1.0",
+    "@netlify/functions": "^6.0.0",
     "@typestyles/props": "workspace:*",
     "@typestyles/react": "workspace:^",
     "astro": "^5.6.1",
@@ -23,7 +23,7 @@
     "hast-util-to-text": "^4.0.2",
     "highlight.js": "^11.11.1",
     "lz-string": "^1.5.0",
-    "marked": "^15.0.0",
+    "marked": "^18.1.0",
     "marked-highlight": "^2.2.3",
     "minisearch": "^7.2.0",
     "monaco-editor": "^0.56.0",
@@ -32,19 +32,19 @@
     "remark-rehype": "^11.1.2",
     "typestyles": "workspace:*",
     "unified": "^11.0.5",
-    "zod": "^3.24.0"
+    "zod": "^4.6.0"
   },
   "devDependencies": {
     "@astrojs/sitemap": "^3.4.0",
     "@types/lz-string": "^1.5.0",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@typestyles/astro": "workspace:*",
     "@typestyles/build-runner": "workspace:*",
     "esbuild": "^0.27.3",
     "tsx": "^4.23.13",
     "typescript": "catalog:",
-    "vite-tsconfig-paths": "^5.0.1",
+    "vite-tsconfig-paths": "^6.1.0",
     "vite-plus": "catalog:"
   }
 }

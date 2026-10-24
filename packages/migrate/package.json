@@ -46,18 +46,18 @@
   "devDependencies": {
     "@types/babel__generator": "^7.27.0",
     "@types/babel__traverse": "^7.28.0",
-    "@types/node": "^25.2.1",
+    "@types/node": "^24.13.0",
     "@types/picomatch": "^4.0.2",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "vite-plus": "catalog:"
   },
   "dependencies": {
-    "@babel/generator": "^7.29.1",
-    "@babel/parser": "^7.29.2",
-    "@babel/traverse": "^7.29.0",
-    "@babel/types": "^7.29.0",
-    "diff": "^8.0.3",
+    "@babel/generator": "^8.0.6",
+    "@babel/parser": "^8.0.8",
+    "@babel/traverse": "^8.0.7",
+    "@babel/types": "^8.0.8",
+    "diff": "^9.0.0",
     "fast-glob": "^3.3.3",
     "picomatch": "^4.0.3",
     "postcss": "^8.5.8"

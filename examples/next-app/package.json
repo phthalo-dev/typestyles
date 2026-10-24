@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@typestyles/build-runner": "workspace:*",
-    "@types/node": "^20.0.0",
+    "@types/node": "^24.13.0",
     "tsx": "^4.21.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

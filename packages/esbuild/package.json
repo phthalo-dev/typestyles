@@ -45,7 +45,7 @@
     "@typestyles/build-runner": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.2.1",
+    "@types/node": "^24.13.0",
     "esbuild": "^0.27.3",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
