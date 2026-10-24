@@ -1,9 +1,10 @@
 import * as t from '@babel/types';
+import { numberNode } from './css';
 import type { BooleanTernaryInterpolation } from './interpolations';
 
 function toCssValueNode(value: string): t.Expression {
   if (/^-?\d+(\.\d+)?$/.test(value.trim())) {
-    return t.numericLiteral(Number(value));
+    return numberNode(Number(value));
   }
   return t.stringLiteral(value);
 }
