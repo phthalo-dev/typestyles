@@ -13,7 +13,7 @@
     "typestyles": "workspace:*"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
     "@typestyles/vite": "workspace:*",
     "svelte": "^5.19.0",
     "typescript": "catalog:",

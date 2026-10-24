@@ -21,6 +21,11 @@ function toPlainObject(expr: t.ObjectExpression): Record<string, unknown> {
       obj[key] = prop.value.value;
     } else if (t.isNumericLiteral(prop.value)) {
       obj[key] = prop.value.value;
+    } else if (
+      t.isUnaryExpression(prop.value, { operator: '-' }) &&
+      t.isNumericLiteral(prop.value.argument)
+    ) {
+      obj[key] = -prop.value.argument.value;
     } else if (t.isObjectExpression(prop.value)) {
       obj[key] = toPlainObject(prop.value);
     }

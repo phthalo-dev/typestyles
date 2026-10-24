@@ -6,13 +6,18 @@ function camelCaseProperty(property: string): string {
   return property.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
 }
 
+/** A numeric CSS value as an AST node. Babel 8 rejects negative `numericLiteral`s, so `-1` is `-(1)`. */
+export function numberNode(n: number): t.Expression {
+  return n < 0 ? t.unaryExpression('-', t.numericLiteral(-n)) : t.numericLiteral(n);
+}
+
 function toValueNode(value: string, varReplacements?: Map<string, t.Identifier>): t.Expression {
   const trimmed = value.trim();
   if (varReplacements?.has(trimmed)) {
     return varReplacements.get(trimmed)!;
   }
   if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-    return t.numericLiteral(Number(trimmed));
+    return numberNode(Number(trimmed));
   }
   return t.stringLiteral(trimmed);
 }

@@ -12,15 +12,15 @@
   "dependencies": {
     "@examples/design-system": "workspace:*",
     "@examples/react-design-system": "workspace:*",
-    "react": "latest",
-    "react-dom": "latest",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "typestyles": "workspace:*"
   },
   "devDependencies": {
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@typestyles/vite": "workspace:*",
-    "@vitejs/plugin-react": "5.2.0",
+    "@vitejs/plugin-react": "^6.1.0",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
