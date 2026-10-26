@@ -276,13 +276,16 @@ export function moduleNeedsOverrideHmr(code: string): boolean {
 export function extractNamespaces(code: string): {
   keys: string[];
   prefixes: string[];
+  /** Static `recipe()` / `styles.component()` names, in source order. */
+  recipeNames: string[];
 } {
   const keys: string[] = [];
   const prefixes: string[] = [];
   const mask = codeSpanMask(code);
   const inCode = (index: number | undefined) => index !== undefined && mask[index] === 0;
+  const recipeNames = extractRecipeNames(code, mask);
 
-  for (const name of extractRecipeNames(code, mask)) {
+  for (const name of recipeNames) {
     prefixes.push(`.${name}-`);
   }
   for (const match of code.matchAll(STYLES_CLASS_RE)) {
@@ -309,7 +312,7 @@ export function extractNamespaces(code: string): {
     prefixes.push(`font-face:${match[1]}`);
   }
 
-  return { keys, prefixes };
+  return { keys, prefixes, recipeNames };
 }
 
 export interface DuplicateNamespaceReporter {

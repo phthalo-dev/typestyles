@@ -156,9 +156,13 @@ Resolves explicit `extract.modules` or falls back to discovery. Used by bundler 
 
 Returns `'build'` when modules exist and mode is omitted; otherwise `'runtime'`.
 
+### `findUnextractedRecipes({ root, extractEntries, recipeModules })`
+
+Returns local `recipe()` modules that are missing from the extract entry graph. `@typestyles/vite` calls this during `vite build` and fails the build unless `coverage: false`. The graph keeps side-effect imports, matching `runTypestylesBuild`.
+
 ### `extractNamespaces(sourceCode)`
 
-Parses a file for typestyles registration calls. Returns `{ keys, prefixes }` for duplicate detection:
+Parses a file for typestyles registration calls. Returns `{ keys, prefixes, recipeNames }` for duplicate detection and extract coverage:
 
 ```ts
 import { extractNamespaces } from '@typestyles/build-runner';
