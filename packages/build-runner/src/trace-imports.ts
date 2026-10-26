@@ -42,13 +42,22 @@ function fileImportsTypestyles(absPath: string): boolean {
   }
 }
 
+interface TraceInputOptions {
+  /**
+   * Keep modules that esbuild would drop as side-effect-free. CSS extraction
+   * bundles with `treeShaking: false` and `ignoreAnnotations: true`, so the
+   * coverage check has to follow that same graph.
+   */
+  keepSideEffects: boolean;
+}
+
 /**
- * Trace local modules reachable from entry files and return those that import `typestyles`.
- * Paths are relative to `root` with `/` separators.
+ * Relative input paths (esbuild metafile keys) reachable from `entryFiles`.
  */
-export async function traceTypestylesModules(
+async function traceInputPaths(
   root: string,
   entryFiles: string[],
+  options: TraceInputOptions,
 ): Promise<string[]> {
   const absEntries = entryFiles.map((file) => resolve(root, file));
   const missing = absEntries.filter((file) => !existsSync(file));
@@ -69,6 +78,7 @@ export async function traceTypestylesModules(
     format: 'esm',
     logLevel: 'silent',
     absWorkingDir: root,
+    ...(options.keepSideEffects ? { treeShaking: false, ignoreAnnotations: true } : {}),
     ...(existsSync(tsconfigPath) ? { tsconfig: tsconfigPath } : {}),
     plugins: [
       {
@@ -91,16 +101,36 @@ export async function traceTypestylesModules(
     ],
   });
 
-  const inputs = result.metafile?.inputs ?? {};
+  return Object.keys(result.metafile?.inputs ?? {});
+}
+
+/**
+ * Trace local modules reachable from entry files and return those that import `typestyles`.
+ * Paths are relative to `root` with `/` separators.
+ */
+export async function traceTypestylesModules(
+  root: string,
+  entryFiles: string[],
+): Promise<string[]> {
+  const inputs = await traceInputPaths(root, entryFiles, { keepSideEffects: false });
   const traced = new Set<string>();
 
-  for (const inputPath of Object.keys(inputs)) {
+  for (const inputPath of inputs) {
     const absPath = resolve(root, inputPath);
     if (!fileImportsTypestyles(absPath)) continue;
     traced.add(inputPath.replace(/\\/g, '/'));
   }
 
   return [...traced].sort();
+}
+
+/**
+ * Every file esbuild keeps when bundling `entryFiles` the way CSS extraction does
+ * (side-effect imports stay). Paths are relative to `root`.
+ */
+export async function traceReachableFiles(root: string, entryFiles: string[]): Promise<string[]> {
+  const inputs = await traceInputPaths(root, entryFiles, { keepSideEffects: true });
+  return inputs.map((inputPath) => inputPath.replace(/\\/g, '/'));
 }
 
 let moduleLoadNonce = 0;

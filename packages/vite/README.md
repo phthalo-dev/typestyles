@@ -100,6 +100,13 @@ typestyles({
   warnDuplicates?: boolean;
 
   /**
+   * Default: true — fail `vite build` when a local module reachable from the app
+   * calls `recipe()` and is missing from the extract entry. Set false to extract
+   * a subset on purpose.
+   */
+  coverage?: boolean;
+
+  /**
    * - 'runtime': HMR only, no extraction
    * - 'build': extract on vite build; runtime stays on during vite dev (default when modules resolve)
    * - 'hybrid': same as build for Vite today
@@ -146,7 +153,9 @@ Even with a convention entry present, this keeps `<style>` injection in producti
 
 ## Verify production output
 
-Extraction is execute-and-collect: styles unreachable from your entry file are silently dropped. After `vite build`, run:
+On `vite build`, the plugin fails if a local module reachable from the app calls `recipe()` and that file is missing from the extract entry. The error names the module and the recipe `name`. Import the module from the convention entry, or set `coverage: false` when the production CSS is meant to omit it.
+
+Tokens, themes, and `style()` calls are still execute-and-collect: anything the entry file does not run is omitted. After `vite build`, assert on the emitted file:
 
 ```ts
 import { verifyTypestylesBuild } from '@typestyles/build-runner';

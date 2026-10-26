@@ -9,6 +9,7 @@ import {
   extractNamespaces,
   htmlLinksTypestylesCss,
   resolveTypestylesCssHref,
+  type TypestylesPluginOptions,
 } from './index';
 
 /** Vite plugin hooks may be a function or `{ handler }`. */
@@ -556,5 +557,110 @@ styles.component({ name: 'x', styles: { base: {} } });`;
         injectTo: 'head',
       },
     ]);
+  });
+
+  async function buildWithModules(
+    dir: string,
+    modules: Array<{ id: string; code: string }>,
+    pluginOptions?: TypestylesPluginOptions,
+  ) {
+    const mod = await import('./index');
+    const plugin = mod.default(pluginOptions);
+    const config = viteHookFn(plugin.config);
+    await Promise.resolve(config?.({ root: dir }, { command: 'build', mode: 'production' }));
+    viteHookFn(plugin.configResolved)?.({
+      command: 'build',
+      root: dir,
+      base: '/',
+    } as ResolvedConfig);
+
+    const transform = viteHookFn(plugin.transform);
+    if (transform == null) throw new Error('expected plugin.transform');
+    for (const file of modules) {
+      await transform.call(
+        {
+          error(message: string) {
+            throw new Error(message);
+          },
+        } as never,
+        file.code,
+        file.id,
+      );
+    }
+
+    const emitted: Array<{ fileName: string; source: string }> = [];
+    const generateBundle = viteHookFn(plugin.generateBundle);
+    if (generateBundle == null) throw new Error('expected plugin.generateBundle');
+    await generateBundle.call({
+      emitFile(file: { type: 'asset'; fileName: string; source: string }) {
+        emitted.push({ fileName: file.fileName, source: file.source });
+      },
+      error(message: string) {
+        throw new Error(message);
+      },
+    } as never);
+    return emitted;
+  }
+
+  it('fails vite build when an app recipe is missing from the extract entry', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-coverage-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, 'src/typestyles-entry.ts'), 'export {};\n');
+    const player = join(dir, 'src/player.ts');
+    const playerCode = `import { createTypeStyles } from 'typestyles';
+const { recipe } = createTypeStyles({ scopeId: 'app' });
+export const libraryPlayer = recipe({ name: 'libraryPlayer', styles: { base: { color: 'red' } } });
+`;
+    writeFileSync(player, playerCode);
+
+    await expect(buildWithModules(dir, [{ id: player, code: playerCode }])).rejects.toThrow(
+      /recipe "libraryPlayer" in src\/player\.ts/,
+    );
+  });
+
+  it('extracts a recipe that the convention entry imports', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-coverage-ok-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    const playerCode = `import { createTypeStyles } from 'typestyles';
+const { recipe } = createTypeStyles({ scopeId: 'app' });
+export const libraryPlayer = recipe({ name: 'libraryPlayer', styles: { base: { color: 'red' } } });
+`;
+    writeFileSync(join(dir, 'src/player.ts'), playerCode);
+    writeFileSync(join(dir, 'src/typestyles-entry.ts'), `import './player';\n`);
+
+    const emitted = await buildWithModules(dir, [
+      { id: join(dir, 'src/player.ts'), code: playerCode },
+    ]);
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0]?.source).toContain('color: red');
+  });
+
+  it('allows a partial extract when coverage is false', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-coverage-off-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, 'src/typestyles-entry.ts'), "import 'typestyles';\n");
+    const player = join(dir, 'src/player.ts');
+    const playerCode = `export const libraryPlayer = recipe({ name: 'libraryPlayer', styles: { base: {} } });\n`;
+    writeFileSync(player, playerCode);
+
+    const emitted = await buildWithModules(dir, [{ id: player, code: playerCode }], {
+      coverage: false,
+    });
+    expect(emitted).toHaveLength(1);
+  });
+
+  it('does not fail the build for a style() module missing from the extract entry', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-coverage-style-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, 'src/typestyles-entry.ts'), "import 'typestyles';\n");
+    const card = join(dir, 'src/card.ts');
+    const cardCode = `import { createTypeStyles } from 'typestyles';
+const { style } = createTypeStyles({ scopeId: 'app' });
+export const card = style('card', { color: 'red' });
+`;
+    writeFileSync(card, cardCode);
+
+    const emitted = await buildWithModules(dir, [{ id: card, code: cardCode }]);
+    expect(emitted).toHaveLength(1);
   });
 });

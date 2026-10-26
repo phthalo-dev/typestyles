@@ -14,6 +14,7 @@ describe('extractNamespaces', () => {
     const result = extractNamespaces(code);
     expect(result.keys).toEqual(['tokens:color']);
     expect(result.prefixes).toEqual(['.button-', '.card-', '.legacy-']);
+    expect(result.recipeNames).toEqual(['button', 'card', 'legacy']);
   });
 
   it('ignores API examples that only appear inside strings, templates, and comments', () => {
@@ -28,6 +29,7 @@ describe('extractNamespaces', () => {
     ].join('\n');
     const result = extractNamespaces(code);
     expect(result.prefixes).toEqual(['.inside-', '.card-']);
+    expect(result.recipeNames).toEqual(['inside', 'card']);
     expect(result.keys).toEqual([]);
   });
 

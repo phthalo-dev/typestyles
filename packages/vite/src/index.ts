@@ -2,6 +2,7 @@ import { resolve as resolvePath } from 'node:path';
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite';
 import {
   extractNamespaces,
+  findUnextractedRecipes,
   moduleNeedsOverrideHmr,
   reportDuplicateNamespaces,
   resolveExtractMode,
@@ -9,6 +10,7 @@ import {
   runTypestylesBuild,
   type TypestylesExtractOptions,
   type TypestylesIntegrationMode,
+  type UnextractedRecipe,
 } from '@typestyles/build-runner';
 
 /** Re-export shared convention discovery (same paths as `@typestyles/next/build`). */
@@ -39,6 +41,14 @@ export interface TypestylesPluginOptions {
    * namespace appears in more than one module. Set to `false` to skip this check.
    */
   warnDuplicates?: boolean;
+  /**
+   * When true (default), fail `vite build` if a local module reachable from the app calls
+   * `recipe()` (or `styles.component()`) and that module is missing from the extract entry.
+   * The error names the module and the recipe. Set to `false` when the production extract
+   * is meant to cover only part of the app. Ignored in `runtime` mode and when nothing
+   * is extracted.
+   */
+  coverage?: boolean;
   /**
    * Mode for typestyles integration:
    * - `"runtime"`: HMR only, no build-time extraction.
@@ -104,6 +114,24 @@ export function htmlLinksTypestylesCss(html: string, cssHref: string, fileName: 
 export { extractNamespaces };
 export { moduleNeedsOverrideHmr } from '@typestyles/build-runner';
 
+function formatUnextractedRecipeError(
+  missing: UnextractedRecipe[],
+  extractEntries: string[],
+): string {
+  const entries = extractEntries.map((entry) => entry.replace(/\\/g, '/')).join(', ');
+  const lines = missing.map((item) => {
+    const quoted = item.names.map((name) => `"${name}"`).join(', ');
+    const label = item.names.length === 1 ? 'recipe' : 'recipes';
+    return `  ${label} ${quoted} in ${item.modulePath}`;
+  });
+  return [
+    '[typestyles] Production extract is missing app recipes:',
+    ...lines,
+    `These modules are reachable from the app and missing from the extract entry (${entries}).`,
+    'Import them from the extract entry, or set coverage: false to extract a subset.',
+  ].join('\n');
+}
+
 /**
  * Vite plugin for typestyles HMR support.
  *
@@ -113,7 +141,7 @@ export { moduleNeedsOverrideHmr } from '@typestyles/build-runner';
  * than `from 'typestyles'` directly — we key off API call patterns in the source, not the import path.
  */
 export default function typestylesPlugin(options: TypestylesPluginOptions = {}): Plugin {
-  const { warnDuplicates = true, extract } = options;
+  const { warnDuplicates = true, coverage = true, extract } = options;
 
   /** Effective module list after optional convention discovery; set in `config`. */
   let resolvedExtractModules: string[] = [];
@@ -125,6 +153,9 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
   let isBuildCommand = false;
   /** HMR injection only during dev server — avoids pulling `typestyles/hmr` into production bundles. */
   let isServe = false;
+
+  /** Local app modules that call `recipe()`, recorded while Vite transforms the build graph. */
+  const recipeModules = new Map<string, string[]>();
 
   /** Dev-only cache for on-demand extract CSS (avoids SPA fallback serving HTML for the link href). */
   let devExtractCss: string | null = null;
@@ -234,8 +265,21 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
       if (!/\.[jt]sx?$/.test(id)) return null;
       if (id.includes('node_modules')) return null;
 
-      const { keys, prefixes } = extractNamespaces(code);
+      const { keys, prefixes, recipeNames } = extractNamespaces(code);
       const overrideHmr = moduleNeedsOverrideHmr(code);
+
+      // The build graph is whatever Vite transforms. Extraction runs a separate
+      // esbuild of the convention entry, so a recipe module can land in the app
+      // and still be absent from typestyles.css.
+      if (
+        coverage &&
+        isBuildCommand &&
+        resolvedMode !== 'runtime' &&
+        resolvedExtractModules.length > 0 &&
+        recipeNames.length > 0
+      ) {
+        recipeModules.set(id, recipeNames);
+      }
 
       // Nothing to invalidate (no typestyles registration calls in this file)
       if (keys.length === 0 && prefixes.length === 0 && !overrideHmr) return null;
@@ -327,6 +371,26 @@ if (import.meta.hot) {
 
       const root = resolvedConfig.root ?? process.cwd();
       const fileName = extract?.fileName ?? 'typestyles.css';
+
+      if (coverage && recipeModules.size > 0) {
+        let missing: UnextractedRecipe[] = [];
+        try {
+          missing = await findUnextractedRecipes({
+            root,
+            extractEntries: resolvedExtractModules,
+            recipeModules: [...recipeModules.entries()].map(([id, names]) => ({ id, names })),
+          });
+        } catch (err) {
+          this.error(
+            `[typestyles] Failed to check extract coverage: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          return;
+        }
+        if (missing.length > 0) {
+          this.error(formatUnextractedRecipeError(missing, resolvedExtractModules));
+          return;
+        }
+      }
 
       try {
         const css = await runTypestylesBuild({

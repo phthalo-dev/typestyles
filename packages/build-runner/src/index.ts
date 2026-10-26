@@ -34,6 +34,11 @@ export {
 export { discoverNextAppRoutes, pageRelPathToRoutePath, type NextAppRoute } from './next-routes';
 export { createModuleLoader, traceTypestylesModules } from './trace-imports';
 export {
+  findUnextractedRecipes,
+  type RecipeModuleRecord,
+  type UnextractedRecipe,
+} from './unextracted-recipes';
+export {
   buildManifestV2,
   collectAndWriteRouteCss,
   type CollectRouteCssOptions,

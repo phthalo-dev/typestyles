@@ -109,6 +109,12 @@ Link the generated file from `index.html` only if you need a custom placement or
 
 To force runtime-only everywhere (no extraction), set `mode: 'runtime'` even when `extract` is present. For dynamic values that cannot be extracted, see `mode: 'hybrid'` in [Zero-runtime extraction](/docs/zero-runtime).
 
+### Missing recipes
+
+`vite build` fails when a local module reachable from the app calls `recipe()` and that module is missing from the extract entry. The message names the file and the recipe `name` (`libraryPlayer` in `src/player.ts`). Add the import to the convention entry.
+
+Set `coverage: false` when the production extract is meant to cover only part of the app. `style()`, tokens, and themes are unchanged: they are included only when the extract entry runs them.
+
 ### Disable duplicate warnings
 
 If you have a legitimate use case for duplicate namespaces (uncommon), you can disable the warning:

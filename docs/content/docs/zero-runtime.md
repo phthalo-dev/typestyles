@@ -144,6 +144,12 @@ export default defineConfig({
 });
 ```
 
+On `vite build`, a local module that calls `recipe()` and is reachable from the app must also be reachable from the extract entry. The build fails with the module path and the recipe `name`. Set `coverage: false` when the extract is intentionally a subset:
+
+```ts
+typestyles({ coverage: false });
+```
+
 Explicit modes are still available when you need them:
 
 ```ts
@@ -285,7 +291,7 @@ For full manual control, **`withTypestylesExtract`** is still available (always 
 
 ### Verify extraction in CI
 
-Zero-runtime extraction is execute-and-collect: styles that never run during the build step are **silently omitted** from the CSS file. There is no compile error when a component file is missing from your convention entry.
+Zero-runtime extraction is execute-and-collect: styles that never run during the build step are omitted from the CSS file. `@typestyles/vite` fails `vite build` when a local module reachable from the app calls `recipe()` and is missing from the extract entry (see [Vite](#vite); opt out with `coverage: false`). Other registrations, and extracts from Rollup, esbuild, webpack, and Next, still need a check against the emitted file.
 
 Use **`verifyTypestylesBuild()`** from `@typestyles/build-runner` (also re-exported from `@typestyles/next/build`) after your build step to fail fast when output is missing or incomplete:
 
@@ -394,5 +400,5 @@ const isStaticCSS =
 ## Limitations
 
 - **Dynamic styles** — styles that are created based on runtime data (e.g. user-provided values) cannot be extracted at build time. Use the `hybrid` mode or keep those styles in runtime mode.
-- **Lazy routes** — styles imported via dynamic `import()` in route code-splitting may not be captured unless those modules are also listed in `extract.modules`.
+- **Lazy routes** — a dynamically imported module that calls `recipe()` is part of the app graph. On `vite build` it must also be reachable from the extract entry, or the build fails. Import it from the convention entry, or set `coverage: false` when that CSS should stay out of the production extract.
 - **Server Components (Next.js)** — `TypestylesStylesheet` handles streaming SSR for React Server Components. Ensure it is present in your root layout, or use build-time extraction. See [SSR — RSC patterns](/docs/ssr#react-server-components-nextjs-app-router).

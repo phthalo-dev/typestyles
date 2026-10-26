@@ -94,6 +94,8 @@ Accepts the same options as `@typestyles/vite`:
 ```ts
 typestyles({
   warnDuplicates?: boolean;
+  /** Default true. Set false to allow app recipes outside the extract entry. */
+  coverage?: boolean;
   mode?: 'runtime' | 'build' | 'hybrid';
   extract?: {
     modules?: string[];
