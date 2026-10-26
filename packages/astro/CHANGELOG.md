@@ -1,5 +1,12 @@
 # @typestyles/astro
 
+## 0.3.11
+
+### Patch Changes
+
+- Updated dependencies [[`c894838`](https://github.com/phthalo-dev/typestyles/commit/c894838f62e1bd2f66a68149f67bc811eb060388)]:
+  - @typestyles/vite@0.5.4
+
 ## 0.3.10
 
 ### Patch Changes
