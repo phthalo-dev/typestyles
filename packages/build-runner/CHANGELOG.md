@@ -1,5 +1,11 @@
 # @typestyles/build-runner
 
+## 0.6.4
+
+### Patch Changes
+
+- [#297](https://github.com/phthalo-dev/typestyles/pull/297) [`c894838`](https://github.com/phthalo-dev/typestyles/commit/c894838f62e1bd2f66a68149f67bc811eb060388) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Fail `vite build` when a local module reachable from the app calls `recipe()` and is missing from the extract entry. Set `coverage: false` to extract a subset on purpose.
+
 ## 0.6.3
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @typestyles/webpack
 
+## 0.5.8
+
+### Patch Changes
+
+- Updated dependencies [[`c894838`](https://github.com/phthalo-dev/typestyles/commit/c894838f62e1bd2f66a68149f67bc811eb060388)]:
+  - @typestyles/build-runner@0.6.4
+
 ## 0.5.7
 
 ### Patch Changes

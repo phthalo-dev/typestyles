@@ -1,6 +1,6 @@
 {
   "name": "@typestyles/build-runner",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "Shared module execution utilities for typestyles build integrations",
   "type": "module",
   "main": "./dist/index.cjs",

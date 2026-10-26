@@ -1,6 +1,6 @@
 {
   "name": "@typestyles/rollup",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "description": "Rollup and Rolldown plugin for typestyles",
   "type": "module",
   "main": "./dist/index.cjs",
