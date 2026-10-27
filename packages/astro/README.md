@@ -7,7 +7,7 @@
 Use this integration when you build an Astro site with typestyles and want the same developer experience as Vite:
 
 - **Development:** runtime style injection + HMR (no separate extraction step on every save)
-- **Production:** content-hashed CSS when `extract.fileName` is omitted (same as `@typestyles/vite`), no client `<style>` injection. The quick start below sets `fileName: 'typestyles.css'` so the `/typestyles.css` link stays stable.
+- **Production:** static `typestyles.css`, no client `<style>` injection
 
 TypeStyles works in Astro without this package — import `typestyles` in `.astro` frontmatter or client components and call `getRegisteredCss()` for SSR. The integration removes boilerplate and aligns dev/prod behavior with the rest of the typestyles ecosystem.
 
@@ -136,7 +136,7 @@ Avoid inlining `getRegisteredCss()` in dev when using extraction mode — prefer
 
 On `astro build`, the integration:
 
-1. Emits the extracted CSS as a static asset (content-hashed unless `extract.fileName` is a literal path)
+1. Emits `typestyles.css` as a static asset
 2. Sets `__TYPESTYLES_RUNTIME_DISABLED__` so client bundles skip `<style>` injection
 3. Runs duplicate namespace checks across your source tree
 

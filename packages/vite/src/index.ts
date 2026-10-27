@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { resolve as resolvePath } from 'node:path';
+import { posix as posixPath, resolve as resolvePath } from 'node:path';
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite';
 import {
   extractNamespaces,
@@ -91,8 +91,19 @@ const DEFAULT_CSS_FILE_NAME = 'typestyles.css';
 const PARKED_CSS_HREF = '#__typestyles_css__';
 
 /** Public URL path for the extracted CSS asset (respects Vite `base`). */
-export function resolveTypestylesCssHref(base: string, fileName: string): string {
+export function resolveTypestylesCssHref(
+  base: string,
+  fileName: string,
+  /** Root-relative HTML path (e.g. `/nested/index.html`); only used when `base` is relative. */
+  htmlPath?: string,
+): string {
   const normalizedFileName = fileName.replace(/^\//, '');
+  if (base.startsWith('.')) {
+    // Relative base: Vite links assets relative to each emitted HTML file.
+    const fromDir = posixPath.dirname(`/${(htmlPath ?? 'index.html').replace(/^\//, '')}`);
+    const relative = posixPath.relative(fromDir, `/${normalizedFileName}`);
+    return relative.startsWith('.') ? relative : `./${relative}`;
+  }
   const normalizedBase = base.replace(/\/$/, '') || '';
   if (normalizedBase === '' || normalizedBase === '/') {
     return `/${normalizedFileName}`;
@@ -159,15 +170,33 @@ export function htmlLinksTypestylesCss(html: string, cssHref: string, fileName: 
   return false;
 }
 
-/** Point an existing stable stylesheet link at `nextHref`, leaving other links alone. */
+/**
+ * Point an existing stable stylesheet link at `nextHref`, leaving other links alone.
+ * `/typestyles.css` is always recognized alongside the configured stable path.
+ */
 function retargetTypestylesStylesheet(html: string, fileName: string, nextHref: string): string {
-  const bareName = fileName.replace(/^\//, '');
+  const bareNames = [...new Set([fileName.replace(/^\//, ''), DEFAULT_CSS_FILE_NAME])];
   return html.replace(/<link\b[^>]*>/gi, (tag) => {
     if (!/\brel=["']stylesheet["']/i.test(tag)) return tag;
     return tag.replace(/\bhref=(["'])([^"']+)\1/i, (attr, quote: string, href: string) => {
-      if (!isTypestylesStylesheetHref(href, `/${bareName}`, bareName)) return attr;
+      if (!bareNames.some((name) => isTypestylesStylesheetHref(href, `/${name}`, name))) {
+        return attr;
+      }
       return `href=${quote}${nextHref}${quote}`;
     });
+  });
+}
+
+/**
+ * The default stylesheet moves from `/typestyles.css` into `assets/`. Relative `url()`s
+ * resolved against the site root before, so climb back out to keep them pointing there.
+ */
+function rebaseRelativeCssUrls(css: string, depth: number): string {
+  if (depth <= 0) return css;
+  const up = '../'.repeat(depth);
+  return css.replace(/url\(\s*(['"]?)([^'")]+?)\1\s*\)/g, (match, quote: string, url: string) => {
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(url)) return match;
+    return `url(${quote}${up}${url.replace(/^\.\//, '')}${quote})`;
   });
 }
 
@@ -418,7 +447,7 @@ if (import.meta.hot) {
 
     transformIndexHtml: {
       order: 'post',
-      handler(html) {
+      handler(html, ctx) {
         if (resolvedExtractModules.length === 0) return;
         if (resolvedMode === 'runtime') return;
         if (!resolvedConfig) return;
@@ -438,7 +467,7 @@ if (import.meta.hot) {
         }
 
         if (!builtCssFileName) return;
-        const href = resolveTypestylesCssHref(resolvedConfig.base, builtCssFileName);
+        const href = resolveTypestylesCssHref(resolvedConfig.base, builtCssFileName, ctx?.path);
         if (html.includes(PARKED_CSS_HREF)) {
           return html.split(PARKED_CSS_HREF).join(href);
         }
@@ -455,7 +484,7 @@ if (import.meta.hot) {
       },
     },
 
-    async generateBundle() {
+    async generateBundle(_options, bundle) {
       if (!isBuildCommand) return;
       if (resolvedMode === 'runtime') return;
       if (!resolvedExtractModules.length) return;
@@ -510,6 +539,14 @@ if (import.meta.hot) {
             source: css,
           });
           builtCssFileName = this.getFileName(referenceId);
+          // Rollup hashed the original source; the rebase is deterministic, so the hash stays valid.
+          const asset = bundle?.[builtCssFileName];
+          if (asset?.type === 'asset' && typeof asset.source === 'string') {
+            asset.source = rebaseRelativeCssUrls(
+              asset.source,
+              builtCssFileName.split('/').length - 1,
+            );
+          }
         }
       } catch (err) {
         this.error(

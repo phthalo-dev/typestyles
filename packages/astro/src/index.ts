@@ -27,7 +27,17 @@ export default function typestyles(options: TypestylesPluginOptions = {}): Astro
           vite: {
             // Types only: this workspace builds @typestyles/vite against Vite+'s Vite while Astro ships its own
             // Vite 6, so the two Plugin types differ. The runtime shape is identical.
-            plugins: [typestylesVite(options) as never],
+            // Astro renders pages without Vite's HTML pipeline, so `/typestyles.css` links are never
+            // rewritten to a hashed asset. Keep the stable name unless the user chose another.
+            plugins: [
+              typestylesVite({
+                ...options,
+                extract: {
+                  ...options.extract,
+                  fileName: options.extract?.fileName ?? 'typestyles.css',
+                },
+              }) as never,
+            ],
           },
         });
       },
