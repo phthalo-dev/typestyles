@@ -51,10 +51,14 @@ createTheme('astro-dark', { base: { 'astro-color': { primary: '#66aaff' } } });`
     await Promise.resolve(config?.({ root: dir }, { command: 'build', mode: 'production' }));
     viteHookFn(plugin.configResolved)?.({ command: 'build', root: dir } as ResolvedConfig);
 
-    const emitted: Array<{ fileName: string; source: string }> = [];
+    const emitted: Array<{ fileName?: string; name?: string; source: string }> = [];
     const ctx = {
-      emitFile(file: { type: 'asset'; fileName: string; source: string }) {
-        emitted.push({ fileName: file.fileName, source: file.source });
+      emitFile(file: { type: 'asset'; fileName?: string; name?: string; source: string }) {
+        emitted.push(file);
+        return 'typestyles-css';
+      },
+      getFileName() {
+        return 'assets/typestyles-abc12345.css';
       },
       error(message: string) {
         throw new Error(message);
@@ -65,7 +69,8 @@ createTheme('astro-dark', { base: { 'astro-color': { primary: '#66aaff' } } });`
     await generateBundle.call(ctx as never);
 
     expect(emitted).toHaveLength(1);
-    expect(emitted[0]?.fileName).toBe('typestyles.css');
+    expect(emitted[0]?.fileName).toBeUndefined();
+    expect(emitted[0]?.name).toBe('typestyles.css');
     expect(emitted[0]?.source).toContain('--astro-color-primary: #0066ff');
     expect(emitted[0]?.source).toContain('.theme-astro-dark');
     expect(emitted[0]?.source).toContain('--astro-color-primary: #66aaff');

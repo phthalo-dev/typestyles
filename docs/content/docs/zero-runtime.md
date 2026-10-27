@@ -137,7 +137,7 @@ export default defineConfig({
     typestyles({
       extract: {
         modules: ['src/styles/tokens.ts', 'src/styles/components.ts'],
-        fileName: 'typestyles.css', // optional, default: "typestyles.css"
+        fileName: 'assets/typestyles-[hash].css', // optional; omitted → content-hashed asset
       },
     }),
   ],
@@ -169,7 +169,7 @@ typestyles({
 
 ### Linking the CSS file
 
-Add a `<link rel="stylesheet" href="/typestyles.css" />` (or your chosen `fileName`) to `index.html` only when you need manual control — **`@typestyles/vite` auto-injects this link** into HTML entry points when extraction is enabled. During `vite dev`, the dev server serves that URL; production builds include the emitted asset.
+Add a `<link rel="stylesheet" href="/typestyles.css" />` to `index.html` only when you need manual control — **`@typestyles/vite` injects this link** into HTML entry points when extraction is enabled. During `vite dev`, the dev server serves that stable URL. Production builds emit a content-hashed CSS asset and point the link at it. A literal `extract.fileName` (for example `typestyles.css`) opts out of hashing.
 
 ---
 

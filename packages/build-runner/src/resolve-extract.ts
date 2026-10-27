@@ -9,7 +9,14 @@ export interface TypestylesExtractOptions {
    */
   modules?: string[];
   /**
-   * Output CSS filename. Defaults to `typestyles.css`.
+   * Output CSS filename.
+   *
+   * `@typestyles/vite` omits this by default and emits a content-hashed asset through Vite's
+   * `assetFileNames` (usually `assets/typestyles-<hash>.css`). A literal such as `typestyles.css`
+   * keeps that exact path. `[name]`, `[hash]`, `[hash:N]`, `[ext]`, and `[extname]` are expanded.
+   * The dev server still serves a stable unhashed URL.
+   *
+   * Other bundlers write this path literally and default to `typestyles.css`.
    */
   fileName?: string;
   /**

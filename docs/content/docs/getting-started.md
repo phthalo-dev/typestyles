@@ -53,7 +53,7 @@ import './components/Button.styles';
 import './components/Card.styles';
 ```
 
-That's it. In dev you get runtime injection + HMR. In production, `typestyles.css` is emitted as a static asset with no runtime JS.
+That's it. In dev you get runtime injection + HMR, and the dev server serves `/typestyles.css`. In production, the extracted CSS is a content-hashed asset (usually `assets/typestyles-<hash>.css`) with no runtime JS.
 
 ## Your first styles
 
