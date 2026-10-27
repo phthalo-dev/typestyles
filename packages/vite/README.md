@@ -63,13 +63,13 @@ export default defineConfig({
 });
 ```
 
-**3. Link the CSS** in your HTML shell (optional — the plugin auto-injects this during dev and build when extraction is enabled):
+**3. Link the CSS** in your HTML shell (optional — the plugin injects this during dev and build when extraction is enabled):
 
 ```html
 <link rel="stylesheet" href="/typestyles.css" />
 ```
 
-During `vite dev`, styles still inject at runtime and HMR works. During `vite build`, the plugin emits `typestyles.css`, defines `__TYPESTYLES_RUNTIME_DISABLED__`, and the browser loads one cacheable stylesheet.
+During `vite dev`, styles still inject at runtime and HMR works, and the dev server serves that stable URL. During `vite build`, the plugin emits a content-hashed asset (Vite's `assetFileNames`, usually `assets/typestyles-<hash>.css`), rewrites the link to that href, and defines `__TYPESTYLES_RUNTIME_DISABLED__`. The hashed URL cache-busts on each deploy. Set `extract.fileName` to a literal such as `typestyles.css` to keep a fixed path.
 
 Example app: [`examples/vite-app`](../../examples/vite-app)
 
@@ -116,7 +116,13 @@ typestyles({
   extract?: {
     /** Explicit entry files relative to project root */
     modules?: string[];
-    /** Output asset name. Default: 'typestyles.css' */
+    /**
+     * Production CSS path.
+     * Omitted: content-hashed asset (`assets/typestyles-<hash>.css`).
+     * A literal such as `'typestyles.css'` opts out of hashing.
+     * `[name]`, `[hash]`, `[hash:N]`, `[ext]`, and `[extname]` are expanded.
+     * Dev always serves the stable unhashed URL.
+     */
     fileName?: string;
   };
 });
@@ -130,7 +136,7 @@ Use when you have multiple entry files or non-standard paths:
 typestyles({
   extract: {
     modules: ['src/styles/tokens.ts', 'src/styles/components.ts'],
-    fileName: 'assets/typestyles.css',
+    fileName: 'assets/typestyles-[hash].css',
   },
 });
 ```
@@ -147,7 +153,7 @@ Even with a convention entry present, this keeps `<style>` injection in producti
 
 **HMR:** On each `.ts`/`.tsx` module that registers typestyles APIs, the plugin injects `import.meta.hot` accept/dispose handlers. On dispose, it calls `invalidateKeys` from `typestyles/hmr` so stale rules are removed before the module re-executes. HMR code is only injected during `vite dev`, not in production bundles.
 
-**Extraction:** On `vite build`, matching entry modules are bundled and executed in Node via `@typestyles/build-runner`. The collected CSS is emitted as a static asset. In dev, the same extraction runs on demand when the browser requests `/typestyles.css` so your `<link>` href works without SPA fallback returning HTML.
+**Extraction:** On `vite build`, matching entry modules are bundled and executed in Node via `@typestyles/build-runner`. The collected CSS is emitted as a content-hashed asset so a new deploy cannot be served with a cached copy of the previous stylesheet. In dev, extraction runs on demand when the browser requests `/typestyles.css` so your `<link>` href works without SPA fallback returning HTML.
 
 **Duplicate detection:** The plugin scans every source file for namespace strings (`recipe({ name: 'button' })` → `.button-`). Collisions across files fail the build with a clear error.
 
@@ -155,14 +161,14 @@ Even with a convention entry present, this keeps `<style>` injection in producti
 
 On `vite build`, the plugin fails if a local module reachable from the app calls `recipe()` and that file is missing from the extract entry. The error names the module and the recipe `name`. Import the module from the convention entry, or set `coverage: false` when the production CSS is meant to omit it.
 
-Tokens, themes, and `style()` calls are still execute-and-collect: anything the entry file does not run is omitted. After `vite build`, assert on the emitted file:
+Tokens, themes, and `style()` calls are still execute-and-collect: anything the entry file does not run is omitted. The default build filename includes a content hash. Point `verifyTypestylesBuild` at that file, or set `extract.fileName` to a literal path first:
 
 ```ts
 import { verifyTypestylesBuild } from '@typestyles/build-runner';
 
 verifyTypestylesBuild({
   root: process.cwd(),
-  cssFile: 'dist/typestyles.css',
+  cssFile: 'dist/assets/typestyles-<hash>.css',
   requiredCssSubstrings: ['.button-base'],
 });
 ```

@@ -98,14 +98,14 @@ export default defineConfig({
     typestyles({
       extract: {
         modules: ['src/typestyles-entry.ts'],
-        fileName: 'typestyles.css',
+        fileName: 'assets/typestyles-[hash].css',
       },
     }),
   ],
 });
 ```
 
-Link the generated file from `index.html` only if you need a custom placement or filename — otherwise the plugin injects `<link rel="stylesheet" href="…">` into every HTML entry during dev and build (respecting `extract.fileName` and Vite `base`). In dev the middleware serves the same URL; production builds include the emitted asset.
+Link the generated file from `index.html` only if you need a custom placement — otherwise the plugin injects `<link rel="stylesheet" href="…">` into every HTML entry. In dev the middleware serves a stable URL (`/typestyles.css`, or your `fileName` with hash placeholders removed). Production builds emit a content-hashed asset (Vite `assetFileNames`, usually `assets/typestyles-<hash>.css`) and rewrite that link to the hashed href, including a hardcoded `/typestyles.css`. Set `extract.fileName` to a literal such as `typestyles.css` to keep a fixed production path. `[name]`, `[hash]`, `[hash:N]`, `[ext]`, and `[extname]` in `fileName` are expanded at build time.
 
 To force runtime-only everywhere (no extraction), set `mode: 'runtime'` even when `extract` is present. For dynamic values that cannot be extracted, see `mode: 'hybrid'` in [Zero-runtime extraction](/docs/zero-runtime).
 

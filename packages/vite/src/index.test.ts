@@ -1,9 +1,17 @@
 import { variant } from 'typestyles';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vite-plus/test';
-import type { ResolvedConfig } from 'vite';
+import { build, createLogger, type Logger, type ResolvedConfig } from 'vite';
 import {
   discoverDefaultExtractModules,
   extractNamespaces,
@@ -438,10 +446,15 @@ createTheme('vite-dark', { base: { 'vite-color': { primary: '#66aaff' } } });`,
     await Promise.resolve(config?.({ root: dir }, { command: 'build', mode: 'production' }));
     viteHookFn(plugin.configResolved)?.({ command: 'build', root: dir } as ResolvedConfig);
 
-    const emitted: Array<{ fileName: string; source: string }> = [];
+    const emitted: Array<{ type: 'asset'; fileName?: string; name?: string; source: string }> = [];
     const ctx = {
-      emitFile(file: { type: 'asset'; fileName: string; source: string }) {
-        emitted.push({ fileName: file.fileName, source: file.source });
+      emitFile(file: { type: 'asset'; fileName?: string; name?: string; source: string }) {
+        emitted.push(file);
+        return 'typestyles-css';
+      },
+      getFileName(referenceId: string) {
+        if (referenceId !== 'typestyles-css') throw new Error(`unknown asset ${referenceId}`);
+        return 'assets/typestyles-abc12345.css';
       },
       error(message: string) {
         throw new Error(message);
@@ -452,7 +465,9 @@ createTheme('vite-dark', { base: { 'vite-color': { primary: '#66aaff' } } });`,
     await generateBundle.call(ctx as never);
 
     expect(emitted).toHaveLength(1);
-    expect(emitted[0]?.fileName).toBe('typestyles.css');
+    // A fixed fileName skips Rollup's assetFileNames hash. Pass `name` and let Vite hash it.
+    expect(emitted[0]?.fileName).toBeUndefined();
+    expect(emitted[0]).toMatchObject({ type: 'asset', name: 'typestyles.css' });
     expect(emitted[0]?.source).toContain('--vite-color-primary: #0066ff');
     expect(emitted[0]?.source).toContain('.theme-vite-dark');
     expect(emitted[0]?.source).toContain('--vite-color-primary: #66aaff');
@@ -471,7 +486,7 @@ styles.component({ name: 'x', styles: { base: {} } });`;
     expect(result).toBeNull();
   });
 
-  it('auto-injects a stylesheet link into HTML when extraction is enabled', async () => {
+  it('injects the stable stylesheet link during dev', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-html-'));
     mkdirSync(join(dir, 'src'), { recursive: true });
     writeFileSync(join(dir, 'src/typestyles-entry.ts'), "import 'typestyles';\n");
@@ -479,9 +494,9 @@ styles.component({ name: 'x', styles: { base: {} } });`;
     const mod = await import('./index');
     const plugin = mod.default();
     const config = viteHookFn(plugin.config);
-    await Promise.resolve(config?.({ root: dir }, { command: 'build', mode: 'production' }));
+    await Promise.resolve(config?.({ root: dir }, { command: 'serve', mode: 'development' }));
     viteHookFn(plugin.configResolved)?.({
-      command: 'build',
+      command: 'serve',
       root: dir,
       base: '/',
     } as ResolvedConfig);
@@ -502,7 +517,7 @@ styles.component({ name: 'x', styles: { base: {} } });`;
     ]);
   });
 
-  it('does not duplicate an existing stylesheet link in HTML', async () => {
+  it('does not duplicate an existing stylesheet link during dev', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-html-dup-'));
     mkdirSync(join(dir, 'src'), { recursive: true });
     writeFileSync(join(dir, 'src/typestyles-entry.ts'), "import 'typestyles';\n");
@@ -510,9 +525,9 @@ styles.component({ name: 'x', styles: { base: {} } });`;
     const mod = await import('./index');
     const plugin = mod.default();
     const config = viteHookFn(plugin.config);
-    await Promise.resolve(config?.({ root: dir }, { command: 'build', mode: 'production' }));
+    await Promise.resolve(config?.({ root: dir }, { command: 'serve', mode: 'development' }));
     viteHookFn(plugin.configResolved)?.({
-      command: 'build',
+      command: 'serve',
       root: dir,
       base: '/',
     } as ResolvedConfig);
@@ -528,7 +543,7 @@ styles.component({ name: 'x', styles: { base: {} } });`;
     expect(tags).toBeUndefined();
   });
 
-  it('uses Vite base in the injected stylesheet href', async () => {
+  it('uses Vite base in the dev stylesheet href', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-html-base-'));
     mkdirSync(join(dir, 'src'), { recursive: true });
     writeFileSync(join(dir, 'src/typestyles-entry.ts'), "import 'typestyles';\n");
@@ -536,9 +551,9 @@ styles.component({ name: 'x', styles: { base: {} } });`;
     const mod = await import('./index');
     const plugin = mod.default();
     const config = viteHookFn(plugin.config);
-    await Promise.resolve(config?.({ root: dir }, { command: 'build', mode: 'production' }));
+    await Promise.resolve(config?.({ root: dir }, { command: 'serve', mode: 'development' }));
     viteHookFn(plugin.configResolved)?.({
-      command: 'build',
+      command: 'serve',
       root: dir,
       base: '/my-app/',
     } as ResolvedConfig);
@@ -557,6 +572,319 @@ styles.component({ name: 'x', styles: { base: {} } });`;
         injectTo: 'head',
       },
     ]);
+  });
+
+  it('rewrites a hardcoded /typestyles.css link to the content-hashed asset on build', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-html-hash-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(
+      join(dir, 'src/typestyles-entry.ts'),
+      `import { createTokens } from 'typestyles';
+const tokens = createTokens();
+tokens.create('vite-hash', { ink: '#b31415' });`,
+    );
+
+    const mod = await import('./index');
+    const plugin = mod.default();
+    const config = viteHookFn(plugin.config);
+    await Promise.resolve(config?.({ root: dir }, { command: 'build', mode: 'production' }));
+    viteHookFn(plugin.configResolved)?.({
+      command: 'build',
+      root: dir,
+      base: '/',
+    } as ResolvedConfig);
+
+    const html =
+      '<!doctype html><html><head><link rel="stylesheet" href="/typestyles.css" /></head><body></body></html>';
+    const transform = viteHookFn(plugin.transform);
+    if (transform == null) throw new Error('expected plugin.transform');
+    const parked = await transform.call({} as never, html, join(dir, 'index.html'));
+    expect(parked).toMatchObject({ map: null });
+    expect(parked && typeof parked === 'object' && 'code' in parked ? parked.code : '').toContain(
+      '#__typestyles_css__',
+    );
+    expect(
+      parked && typeof parked === 'object' && 'code' in parked ? parked.code : '',
+    ).not.toContain('"/typestyles.css"');
+
+    const emitted: Array<{ fileName?: string; name?: string }> = [];
+    await viteHookFn(plugin.generateBundle)?.call({
+      emitFile(file: { type: 'asset'; fileName?: string; name?: string }) {
+        emitted.push(file);
+        return 'typestyles-css';
+      },
+      getFileName() {
+        return 'assets/typestyles-abc12345.css';
+      },
+      error(message: string) {
+        throw new Error(message);
+      },
+    } as never);
+
+    expect(emitted[0]?.fileName).toBeUndefined();
+    expect(emitted[0]?.name).toBe('typestyles.css');
+
+    const transformIndexHtml = plugin.transformIndexHtml;
+    if (transformIndexHtml == null || typeof transformIndexHtml === 'function') {
+      throw new Error('expected transformIndexHtml handler');
+    }
+    const parkedHtml =
+      parked && typeof parked === 'object' && 'code' in parked ? String(parked.code) : html;
+    const rewritten = await Promise.resolve(transformIndexHtml.handler(parkedHtml, {} as never));
+    expect(rewritten).toContain('href="/assets/typestyles-abc12345.css"');
+    expect(rewritten).not.toContain('"/typestyles.css"');
+    expect(rewritten).not.toContain('#__typestyles_css__');
+
+    const injected = await Promise.resolve(
+      transformIndexHtml.handler(
+        '<!doctype html><html><head></head><body></body></html>',
+        {} as never,
+      ),
+    );
+    expect(injected).toEqual([
+      {
+        tag: 'link',
+        attrs: { rel: 'stylesheet', href: '/assets/typestyles-abc12345.css' },
+        injectTo: 'head',
+      },
+    ]);
+  });
+
+  it('resolves the hashed stylesheet relative to each HTML entry when base is relative', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-relbase-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(
+      join(dir, 'src/typestyles-entry.ts'),
+      `import { createTokens } from 'typestyles';
+const tokens = createTokens();
+tokens.create('vite-rel', { ink: '#112233' });`,
+    );
+    const mod = await import('./index');
+    const plugin = mod.default();
+    await Promise.resolve(
+      viteHookFn(plugin.config)?.({ root: dir }, { command: 'build', mode: 'production' }),
+    );
+    viteHookFn(plugin.configResolved)?.({
+      command: 'build',
+      root: dir,
+      base: './',
+    } as ResolvedConfig);
+    await viteHookFn(plugin.generateBundle)?.call({
+      emitFile: () => 'ref',
+      getFileName: () => 'assets/typestyles-abc12345.css',
+      error(message: string) {
+        throw new Error(message);
+      },
+    } as never);
+
+    const transformIndexHtml = plugin.transformIndexHtml;
+    if (transformIndexHtml == null || typeof transformIndexHtml === 'function') {
+      throw new Error('expected transformIndexHtml handler');
+    }
+    const html = '<html><head><link rel="stylesheet" href="#__typestyles_css__" /></head></html>';
+    const root = await Promise.resolve(
+      transformIndexHtml.handler(html, { path: '/index.html' } as never),
+    );
+    const nested = await Promise.resolve(
+      transformIndexHtml.handler(html, { path: '/nested/index.html' } as never),
+    );
+    expect(root).toContain('href="./assets/typestyles-abc12345.css"');
+    expect(nested).toContain('href="../assets/typestyles-abc12345.css"');
+  });
+
+  it('retargets a hardcoded /typestyles.css link when fileName configures another stable path', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-alias-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(
+      join(dir, 'src/typestyles-entry.ts'),
+      `import { createTokens } from 'typestyles';
+const tokens = createTokens();
+tokens.create('vite-alias', { ink: '#445566' });`,
+    );
+    const mod = await import('./index');
+    const plugin = mod.default({
+      extract: { modules: ['src/typestyles-entry.ts'], fileName: 'assets/typestyles-[hash].css' },
+    });
+    await Promise.resolve(
+      viteHookFn(plugin.config)?.({ root: dir }, { command: 'build', mode: 'production' }),
+    );
+    viteHookFn(plugin.configResolved)?.({
+      command: 'build',
+      root: dir,
+      base: '/',
+    } as ResolvedConfig);
+
+    const html = '<html><head><link rel="stylesheet" href="/typestyles.css" /></head></html>';
+    const parked = await viteHookFn(plugin.transform)?.call(
+      {} as never,
+      html,
+      join(dir, 'index.html'),
+    );
+    expect(parked && typeof parked === 'object' && 'code' in parked ? parked.code : '').toContain(
+      '#__typestyles_css__',
+    );
+  });
+
+  it('keeps relative url() references pointing at the site root when the default CSS moves into assets/', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-urls-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(
+      join(dir, 'src/typestyles-entry.ts'),
+      `import { createGlobal } from 'typestyles';
+createGlobal().rule('body', { backgroundImage: 'url(hero@2x.jpg), url("/abs.png"), url(data:image/png;base64,AAAA), url(https://x.test/a.png)' });`,
+    );
+    const mod = await import('./index');
+    const plugin = mod.default({ extract: { modules: ['src/typestyles-entry.ts'] } });
+    await Promise.resolve(
+      viteHookFn(plugin.config)?.({ root: dir }, { command: 'build', mode: 'production' }),
+    );
+    viteHookFn(plugin.configResolved)?.({
+      command: 'build',
+      root: dir,
+      base: '/',
+    } as ResolvedConfig);
+    const bundle: Record<string, { type: 'asset'; source: string }> = {
+      'assets/typestyles-abc12345.css': { type: 'asset', source: '' },
+    };
+    await viteHookFn(plugin.generateBundle)?.call(
+      {
+        emitFile(file: { source: string }) {
+          bundle['assets/typestyles-abc12345.css']!.source = file.source;
+          return 'ref';
+        },
+        getFileName: () => 'assets/typestyles-abc12345.css',
+        error(message: string) {
+          throw new Error(message);
+        },
+      } as never,
+      {} as never,
+      bundle as never,
+    );
+    const css = bundle['assets/typestyles-abc12345.css']!.source;
+    expect(css).toContain('url(../hero@2x.jpg)');
+    expect(css).toContain('url("/abs.png")');
+    expect(css).toContain('url(data:image/png;base64,AAAA)');
+    expect(css).toContain('url(https://x.test/a.png)');
+  });
+
+  it('expands [hash] in extract.fileName and keeps a literal fileName unhashed', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-filename-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(
+      join(dir, 'src/typestyles-entry.ts'),
+      `import { createTokens } from 'typestyles';
+const tokens = createTokens();
+tokens.create('vite-name', { ink: '#00aa00' });`,
+    );
+
+    const mod = await import('./index');
+
+    const hashed = mod.default({
+      extract: { modules: ['src/typestyles-entry.ts'], fileName: 'assets/typestyles-[hash].css' },
+    });
+    const hashedConfig = viteHookFn(hashed.config);
+    await Promise.resolve(hashedConfig?.({ root: dir }, { command: 'build', mode: 'production' }));
+    viteHookFn(hashed.configResolved)?.({
+      command: 'build',
+      root: dir,
+      base: '/',
+    } as ResolvedConfig);
+    const hashedEmitted: Array<{ fileName?: string; name?: string }> = [];
+    await viteHookFn(hashed.generateBundle)?.call({
+      emitFile(file: { fileName?: string; name?: string }) {
+        hashedEmitted.push(file);
+        return 'hashed';
+      },
+      getFileName() {
+        return 'unused.css';
+      },
+      error(message: string) {
+        throw new Error(message);
+      },
+    } as never);
+    expect(hashedEmitted[0]?.fileName).toMatch(/^assets\/typestyles-[A-Za-z0-9_-]{8}\.css$/);
+
+    const literal = mod.default({
+      extract: { modules: ['src/typestyles-entry.ts'], fileName: 'typestyles.css' },
+    });
+    const literalConfig = viteHookFn(literal.config);
+    await Promise.resolve(literalConfig?.({ root: dir }, { command: 'build', mode: 'production' }));
+    viteHookFn(literal.configResolved)?.({
+      command: 'build',
+      root: dir,
+      base: '/',
+    } as ResolvedConfig);
+    const literalEmitted: Array<{ fileName?: string }> = [];
+    await viteHookFn(literal.generateBundle)?.call({
+      emitFile(file: { fileName?: string }) {
+        literalEmitted.push(file);
+        return 'literal';
+      },
+      getFileName() {
+        return 'unused.css';
+      },
+      error(message: string) {
+        throw new Error(message);
+      },
+    } as never);
+    expect(literalEmitted[0]?.fileName).toBe('typestyles.css');
+  });
+
+  it('emits a content-hashed CSS file and links it from index.html', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-build-'));
+    try {
+      mkdirSync(join(dir, 'src'), { recursive: true });
+      writeFileSync(
+        join(dir, 'index.html'),
+        '<!doctype html><html><head><link rel="stylesheet" href="/typestyles.css" /></head><body><script type="module" src="/src/main.ts"></script></body></html>',
+      );
+      writeFileSync(join(dir, 'src/main.ts'), 'export {}\n');
+      writeFileSync(
+        join(dir, 'src/typestyles-entry.ts'),
+        `import { createTokens } from 'typestyles';
+const tokens = createTokens();
+tokens.create('vite-built', { ink: '#b31415' });`,
+      );
+
+      const mod = await import('./index');
+      const warnings: string[] = [];
+      const logger = createLogger('warn');
+      const customLogger: Logger = {
+        ...logger,
+        warn(message, options) {
+          warnings.push(String(message));
+          logger.warn(message, options);
+        },
+        warnOnce(message, options) {
+          warnings.push(String(message));
+          logger.warnOnce(message, options);
+        },
+      };
+
+      await build({
+        configFile: false,
+        root: dir,
+        logLevel: 'warn',
+        customLogger,
+        plugins: [mod.default()],
+        build: { outDir: 'dist', emptyOutDir: true, write: true },
+      });
+
+      expect(existsSync(join(dir, 'dist/typestyles.css'))).toBe(false);
+      const cssFiles = readdirSync(join(dir, 'dist/assets')).filter((name) =>
+        /^typestyles-[A-Za-z0-9_-]+\.css$/.test(name),
+      );
+      expect(cssFiles).toHaveLength(1);
+      const cssName = cssFiles[0]!;
+      const css = readFileSync(join(dir, 'dist/assets', cssName), 'utf8');
+      expect(css).toContain('#b31415');
+      const html = readFileSync(join(dir, 'dist/index.html'), 'utf8');
+      expect(html).toContain(`href="/assets/${cssName}"`);
+      expect(html).not.toContain('href="/typestyles.css"');
+      expect(warnings.join('\n')).not.toContain("doesn't exist at build time");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   async function buildWithModules(
@@ -588,12 +916,16 @@ styles.component({ name: 'x', styles: { base: {} } });`;
       );
     }
 
-    const emitted: Array<{ fileName: string; source: string }> = [];
+    const emitted: Array<{ fileName?: string; name?: string; source: string }> = [];
     const generateBundle = viteHookFn(plugin.generateBundle);
     if (generateBundle == null) throw new Error('expected plugin.generateBundle');
     await generateBundle.call({
-      emitFile(file: { type: 'asset'; fileName: string; source: string }) {
-        emitted.push({ fileName: file.fileName, source: file.source });
+      emitFile(file: { type: 'asset'; fileName?: string; name?: string; source: string }) {
+        emitted.push(file);
+        return 'typestyles-css';
+      },
+      getFileName() {
+        return 'assets/typestyles-test.css';
       },
       error(message: string) {
         throw new Error(message);

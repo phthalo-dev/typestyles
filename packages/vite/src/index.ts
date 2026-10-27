@@ -1,4 +1,5 @@
-import { resolve as resolvePath } from 'node:path';
+import { createHash } from 'node:crypto';
+import { posix as posixPath, resolve as resolvePath } from 'node:path';
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite';
 import {
   extractNamespaces,
@@ -57,10 +58,11 @@ export interface TypestylesPluginOptions {
    *
    * When omitted and at least one extraction module is resolved (explicit `extract.modules`, or a
    * discovered convention entry file), defaults to `"build"`: `vite dev` keeps runtime
-   * injection + HMR (runtime is only disabled during `vite build`), serves the same extracted CSS
-   * at `extract.fileName` so `<link href="/typestyles.css">` is valid (avoids SPA fallback
-   * returning HTML for that URL), and production emits the CSS file. If no modules are resolved,
-   * defaults to `"runtime"`.
+   * injection + HMR (runtime is only disabled during `vite build`) and serves extracted CSS at a
+   * stable URL (`/typestyles.css`, unless `extract.fileName` sets another path) so
+   * `<link href="/typestyles.css">` is valid (avoids SPA fallback returning HTML for that URL).
+   * Production emits a content-hashed CSS asset and points the HTML link at it. If no modules
+   * are resolved, defaults to `"runtime"`.
    */
   mode?: TypestylesIntegrationMode;
   /**
@@ -79,14 +81,78 @@ function resolveExtractModulesForVite(
   return resolveExtractModules(root, extract);
 }
 
+/** Stable dev URL. Production hashing never changes this path. */
+const DEFAULT_CSS_FILE_NAME = 'typestyles.css';
+
+/**
+ * Fragment Vite will not try to resolve during the HTML scan (`#` URLs are left as-is).
+ * The build post-hook replaces it with the emitted asset href.
+ */
+const PARKED_CSS_HREF = '#__typestyles_css__';
+
 /** Public URL path for the extracted CSS asset (respects Vite `base`). */
-export function resolveTypestylesCssHref(base: string, fileName: string): string {
+export function resolveTypestylesCssHref(
+  base: string,
+  fileName: string,
+  /** Root-relative HTML path (e.g. `/nested/index.html`); only used when `base` is relative. */
+  htmlPath?: string,
+): string {
   const normalizedFileName = fileName.replace(/^\//, '');
+  if (base.startsWith('.')) {
+    // Relative base: Vite links assets relative to each emitted HTML file.
+    const fromDir = posixPath.dirname(`/${(htmlPath ?? 'index.html').replace(/^\//, '')}`);
+    const relative = posixPath.relative(fromDir, `/${normalizedFileName}`);
+    return relative.startsWith('.') ? relative : `./${relative}`;
+  }
   const normalizedBase = base.replace(/\/$/, '') || '';
   if (normalizedBase === '' || normalizedBase === '/') {
     return `/${normalizedFileName}`;
   }
   return `${normalizedBase}/${normalizedFileName}`;
+}
+
+function cssFileNameHasPlaceholder(fileName: string): boolean {
+  return /\[(?:hash(?::\d+)?|name|extname|ext)\]/.test(fileName);
+}
+
+/**
+ * Dev middleware and the dev `<link>` use a stable path. Hash placeholders are removed so
+ * `assets/typestyles-[hash].css` is served at `/assets/typestyles.css`.
+ */
+function stableDevCssFileName(fileName: string | undefined): string {
+  if (!fileName) return DEFAULT_CSS_FILE_NAME;
+  const normalized = fileName.replace(/^\//, '');
+  if (!cssFileNameHasPlaceholder(normalized)) return normalized;
+  return normalized
+    .replace(/-?\[hash(?::\d+)?\]/g, '')
+    .replace(/\[name\]/g, 'typestyles')
+    .replace(/\[extname\]/g, '.css')
+    .replace(/\[ext\]/g, 'css');
+}
+
+/** Expand Rollup-style placeholders in `extract.fileName`. `[hash]` is 8 url-safe characters. */
+function renderCssFileName(pattern: string, source: string): string {
+  const hash = createHash('sha256').update(source).digest('base64url');
+  return pattern.replace(
+    /\[(hash(?::(\d+))?|name|extname|ext)\]/g,
+    (_match, kind: string, size?: string) => {
+      if (kind === 'name') return 'typestyles';
+      if (kind === 'extname') return '.css';
+      if (kind === 'ext') return 'css';
+      const length = size ? Number(size) : 8;
+      const clamped = Math.min(Math.max(1, length), hash.length);
+      return hash.slice(0, clamped);
+    },
+  );
+}
+
+function isTypestylesStylesheetHref(href: string, cssHref: string, bareName: string): boolean {
+  return (
+    href === cssHref ||
+    href.endsWith(`/${bareName}`) ||
+    href === bareName ||
+    href === `./${bareName}`
+  );
 }
 
 /** True when `html` already links the extracted stylesheet (avoids duplicate injection). */
@@ -99,16 +165,39 @@ export function htmlLinksTypestylesCss(html: string, cssHref: string, fileName: 
     const hrefMatch = match[0].match(hrefPattern);
     const href = hrefMatch?.[1];
     if (!href) continue;
-    if (
-      href === cssHref ||
-      href.endsWith(`/${bareName}`) ||
-      href === bareName ||
-      href === `./${bareName}`
-    ) {
-      return true;
-    }
+    if (isTypestylesStylesheetHref(href, cssHref, bareName)) return true;
   }
   return false;
+}
+
+/**
+ * Point an existing stable stylesheet link at `nextHref`, leaving other links alone.
+ * `/typestyles.css` is always recognized alongside the configured stable path.
+ */
+function retargetTypestylesStylesheet(html: string, fileName: string, nextHref: string): string {
+  const bareNames = [...new Set([fileName.replace(/^\//, ''), DEFAULT_CSS_FILE_NAME])];
+  return html.replace(/<link\b[^>]*>/gi, (tag) => {
+    if (!/\brel=["']stylesheet["']/i.test(tag)) return tag;
+    return tag.replace(/\bhref=(["'])([^"']+)\1/i, (attr, quote: string, href: string) => {
+      if (!bareNames.some((name) => isTypestylesStylesheetHref(href, `/${name}`, name))) {
+        return attr;
+      }
+      return `href=${quote}${nextHref}${quote}`;
+    });
+  });
+}
+
+/**
+ * The default stylesheet moves from `/typestyles.css` into `assets/`. Relative `url()`s
+ * resolved against the site root before, so climb back out to keep them pointing there.
+ */
+function rebaseRelativeCssUrls(css: string, depth: number): string {
+  if (depth <= 0) return css;
+  const up = '../'.repeat(depth);
+  return css.replace(/url\(\s*(['"]?)([^'")]+?)\1\s*\)/g, (match, quote: string, url: string) => {
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(url)) return match;
+    return `url(${quote}${up}${url.replace(/^\.\//, '')}${quote})`;
+  });
 }
 
 export { extractNamespaces };
@@ -161,6 +250,9 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
   let devExtractCss: string | null = null;
   let devExtractInFlight: Promise<string> | null = null;
 
+  /** Final production CSS path, set in `generateBundle` before HTML is emitted. */
+  let builtCssFileName: string | null = null;
+
   return {
     name: 'typestyles',
     enforce: 'pre',
@@ -192,7 +284,7 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
       if (resolvedExtractModules.length === 0) return;
       if (resolvedMode === 'runtime') return;
 
-      const fileName = extract?.fileName ?? 'typestyles.css';
+      const fileName = stableDevCssFileName(extract?.fileName);
 
       const invalidateDevExtract = (): void => {
         devExtractCss = null;
@@ -261,6 +353,23 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
     },
 
     transform(code, id) {
+      // Park a hardcoded `/typestyles.css` link before Vite's HTML scan. A `#` href is
+      // left untouched, so the build does not warn that the unhashed file is missing.
+      // `transformIndexHtml` (post) swaps in the emitted filename after `generateBundle`.
+      if (
+        isBuildCommand &&
+        resolvedMode !== 'runtime' &&
+        resolvedExtractModules.length > 0 &&
+        id.split('?')[0]?.endsWith('.html')
+      ) {
+        const parked = retargetTypestylesStylesheet(
+          code,
+          stableDevCssFileName(extract?.fileName),
+          PARKED_CSS_HREF,
+        );
+        if (parked !== code) return { code: parked, map: null };
+      }
+
       // Skip non-JS/TS modules and node_modules
       if (!/\.[jt]sx?$/.test(id)) return null;
       if (id.includes('node_modules')) return null;
@@ -337,40 +446,52 @@ if (import.meta.hot) {
     },
 
     transformIndexHtml: {
-      order: 'pre',
-      handler(html) {
+      order: 'post',
+      handler(html, ctx) {
         if (resolvedExtractModules.length === 0) return;
         if (resolvedMode === 'runtime') return;
         if (!resolvedConfig) return;
 
-        const fileName = extract?.fileName ?? 'typestyles.css';
-        const href = resolveTypestylesCssHref(resolvedConfig.base, fileName);
+        const stableFileName = stableDevCssFileName(extract?.fileName);
 
-        if (htmlLinksTypestylesCss(html, href, fileName)) {
-          return;
+        if (!isBuildCommand) {
+          const href = resolveTypestylesCssHref(resolvedConfig.base, stableFileName);
+          if (htmlLinksTypestylesCss(html, href, stableFileName)) return;
+          return [
+            {
+              tag: 'link',
+              attrs: { rel: 'stylesheet', href },
+              injectTo: 'head' as const,
+            },
+          ];
         }
 
+        if (!builtCssFileName) return;
+        const href = resolveTypestylesCssHref(resolvedConfig.base, builtCssFileName, ctx?.path);
+        if (html.includes(PARKED_CSS_HREF)) {
+          return html.split(PARKED_CSS_HREF).join(href);
+        }
+        if (htmlLinksTypestylesCss(html, href, builtCssFileName)) return;
+        const retargeted = retargetTypestylesStylesheet(html, stableFileName, href);
+        if (retargeted !== html) return retargeted;
         return [
           {
             tag: 'link',
-            attrs: {
-              rel: 'stylesheet',
-              href,
-            },
-            injectTo: 'head',
+            attrs: { rel: 'stylesheet', href },
+            injectTo: 'head' as const,
           },
         ];
       },
     },
 
-    async generateBundle() {
+    async generateBundle(_options, bundle) {
       if (!isBuildCommand) return;
       if (resolvedMode === 'runtime') return;
       if (!resolvedExtractModules.length) return;
       if (!resolvedConfig) return;
 
       const root = resolvedConfig.root ?? process.cwd();
-      const fileName = extract?.fileName ?? 'typestyles.css';
+      const requestedFileName = extract?.fileName?.replace(/^\//, '');
 
       if (coverage && recipeModules.size > 0) {
         let missing: UnextractedRecipe[] = [];
@@ -397,11 +518,36 @@ if (import.meta.hot) {
           root,
           modules: resolvedExtractModules,
         });
-        this.emitFile({
-          type: 'asset',
-          fileName,
-          source: css,
-        });
+        if (requestedFileName && cssFileNameHasPlaceholder(requestedFileName)) {
+          builtCssFileName = renderCssFileName(requestedFileName, css);
+          this.emitFile({
+            type: 'asset',
+            fileName: builtCssFileName,
+            source: css,
+          });
+        } else if (requestedFileName) {
+          builtCssFileName = requestedFileName;
+          this.emitFile({
+            type: 'asset',
+            fileName: requestedFileName,
+            source: css,
+          });
+        } else {
+          const referenceId = this.emitFile({
+            type: 'asset',
+            name: DEFAULT_CSS_FILE_NAME,
+            source: css,
+          });
+          builtCssFileName = this.getFileName(referenceId);
+          // Rollup hashed the original source; the rebase is deterministic, so the hash stays valid.
+          const asset = bundle?.[builtCssFileName];
+          if (asset?.type === 'asset' && typeof asset.source === 'string') {
+            asset.source = rebaseRelativeCssUrls(
+              asset.source,
+              builtCssFileName.split('/').length - 1,
+            );
+          }
+        }
       } catch (err) {
         this.error(
           `[typestyles] Failed to extract CSS: ${err instanceof Error ? err.message : String(err)}`,
