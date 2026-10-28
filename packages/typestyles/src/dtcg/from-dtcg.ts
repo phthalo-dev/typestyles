@@ -1,6 +1,16 @@
 import type { DTCGError, DTCGGroup, DTCGResult, FromDTCGOptions } from './types';
 
-type FlatToken = { path: string; segments: string[]; value: unknown; type?: string };
+type FlatToken = {
+  /** Display path (shared by a token and its dark counterpart). */
+  path: string;
+  segments: string[];
+  value: unknown;
+  type?: string;
+};
+
+/** Key suffix for the dark value node; NUL cannot be confused with a real path segment. */
+const DARK = '\u0000dark';
+const EXTENSION_KEY = 'dev.typestyles';
 
 const ALIAS = /^\{([^{}]+)\}$/;
 
@@ -57,6 +67,10 @@ export function fromDTCG(
       } else if ('$value' in child) {
         const type = typeof child.$type === 'string' ? child.$type : groupType;
         tokens.set(path, { path, segments: childSegments, value: child.$value, type });
+        const ext = isPlainObject(child.$extensions) ? child.$extensions[EXTENSION_KEY] : undefined;
+        if (isPlainObject(ext) && 'dark' in ext && ext.dark !== undefined) {
+          tokens.set(path + DARK, { path, segments: childSegments, value: ext.dark, type });
+        }
       } else {
         walk(child, childSegments, groupType);
       }
@@ -109,7 +123,7 @@ export function fromDTCG(
 
       if (inChain.has(target)) {
         const cycle = [...chain.slice(chain.indexOf(target)), target].join(' -> ');
-        fail({ code: 'alias-cycle', path: cur, message: `Alias cycle detected: ${cycle}` });
+        fail({ code: 'alias-cycle', path: token.path, message: `Alias cycle detected: ${cycle}` });
         break;
       }
 
@@ -124,7 +138,7 @@ export function fromDTCG(
         if (external === undefined) {
           fail({
             code: 'alias-missing',
-            path: cur,
+            path: token.path,
             message: `Alias "{${target}}" does not resolve to any token`,
           });
         } else {
@@ -137,8 +151,8 @@ export function fromDTCG(
       if (token.type && targetToken.type && token.type !== targetToken.type) {
         fail({
           code: 'type-mismatch',
-          path: cur,
-          message: `Alias "{${target}}" has type "${targetToken.type}" but "${cur}" has type "${token.type}"`,
+          path: token.path,
+          message: `Alias "{${target}}" has type "${targetToken.type}" but "${token.path}" has type "${token.type}"`,
         });
         break;
       }
@@ -157,14 +171,17 @@ export function fromDTCG(
   if (errors.length > 0) return { ok: false, errors };
 
   const out: Record<string, unknown> = {};
-  for (const token of tokens.values()) {
+  for (const [key, token] of tokens) {
+    if (key.endsWith(DARK)) continue;
     let cursor = out;
     for (let i = 0; i < token.segments.length - 1; i++) {
       const seg = token.segments[i];
       if (!isPlainObject(cursor[seg])) cursor[seg] = {};
       cursor = cursor[seg] as Record<string, unknown>;
     }
-    cursor[token.segments[token.segments.length - 1]] = resolved.get(token.path);
+    const light = resolved.get(key);
+    const leaf = tokens.has(key + DARK) ? { light, dark: resolved.get(key + DARK) } : light;
+    cursor[token.segments[token.segments.length - 1]] = leaf;
   }
   return { ok: true, value: out, warnings: [] };
 }
