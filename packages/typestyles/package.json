@@ -97,6 +97,16 @@
         "default": "./dist/token-scale.cjs"
       }
     },
+    "./dtcg": {
+      "import": {
+        "types": "./dist/dtcg.d.ts",
+        "default": "./dist/dtcg.js"
+      },
+      "require": {
+        "types": "./dist/dtcg.d.cts",
+        "default": "./dist/dtcg.cjs"
+      }
+    },
     "./testing": {
       "import": {
         "types": "./dist/testing.d.ts",
