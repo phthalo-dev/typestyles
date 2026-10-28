@@ -374,8 +374,8 @@ Mark `IMPROVEMENTS.md` item shipped with PR link.
 - **Runtime mutation of templates after `create()`** — templates are fixed at
   registration; changing them requires a new namespace or new `createTokens`
   instance.
-- **Importing DTCG JSON directly** — tracked separately as "W3C Design Tokens
-  import + Figma sync" in `IMPROVEMENTS.md`; `nameTemplate` is the low-level
+- **Importing DTCG JSON directly** — done: `fromDTCG` / `toDTCG` in `typestyles/dtcg` (previously tracked separately as "W3C Design Tokens
+  import + Figma sync" in `IMPROVEMENTS.md`). `nameTemplate` remains the low-level
   hook Style Dictionary / hand-rolled pipelines use once values reach
   `tokens.create`.
 - **Automatic reverse mapping from existing CSS** — no parser for arbitrary
