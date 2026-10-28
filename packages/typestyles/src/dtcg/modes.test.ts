@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+/* oxlint-disable typescript/no-explicit-any -- tests probe malformed input */
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { fromDTCG } from './from-dtcg';
 import { toDTCG } from './to-dtcg';
 import type { DTCGGroup } from './types';
