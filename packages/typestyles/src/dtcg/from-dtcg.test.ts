@@ -108,4 +108,41 @@ describe('fromDTCG', () => {
   it('never throws on non-object input', () => {
     expect(fromDTCG(null as any).ok).toBe(false);
   });
+
+  it('rejects __proto__ keys without polluting Object.prototype', () => {
+    const tree = JSON.parse(
+      '{"__proto__":{"x":{"$value":"1"}},"constructor":{"y":{"$value":"2"}},"toString":{"$value":"3"}}',
+    );
+    const r = fromDTCG(tree);
+    expect(({} as any).x).toBeUndefined();
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.errors.some((e) => e.code === 'invalid-token' && e.path.includes('__proto__'))).toBe(
+        true,
+      );
+    }
+    const top = JSON.parse('{"__proto__":{"$value":"1"}}');
+    const r2 = fromDTCG(top);
+    expect(r2.ok).toBe(false);
+    const ok = valueOf(
+      JSON.parse('{"constructor":{"y":{"$value":"2"}},"toString":{"$value":"3"}}'),
+    );
+    expect(Object.getOwnPropertyDescriptor(ok, 'toString')?.value).toBe('3');
+    expect(Object.getOwnPropertyDescriptor(ok.constructor, 'y')?.value).toBe('2');
+  });
+
+  it('does not throw on very long alias chains', () => {
+    const tree: any = {};
+    for (let i = 20000; i >= 1; i--) tree['t' + i] = { $value: `{t${i - 1}}` };
+    tree.t0 = { $value: 'end' };
+    const r = fromDTCG(tree);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect((r.value as any).t20000).toBe('end');
+  });
+
+  it('keeps numeric-looking keys as string keys', () => {
+    const v = valueOf({ color: { brand: { '7': { $value: 'a' }, '10': { $value: 'b' } } } });
+    expect(v.color.brand['7']).toBe('a');
+    expect(Object.keys(v.color.brand)).toEqual(expect.arrayContaining(['7', '10']));
+  });
 });

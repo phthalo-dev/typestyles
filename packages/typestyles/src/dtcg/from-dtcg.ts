@@ -36,6 +36,15 @@ export function fromDTCG(
     const groupType = typeof group.$type === 'string' ? group.$type : inherited;
     for (const key of Object.keys(group)) {
       if (key.startsWith('$')) continue;
+      if (key === '__proto__') {
+        const path = [...segments, key].join('.');
+        errors.push({
+          code: 'invalid-token',
+          path,
+          message: `Reserved name "__proto__" is not allowed at "${path}"`,
+        });
+        continue;
+      }
       const child = group[key];
       const childSegments = [...segments, key];
       const path = childSegments.join('.');
@@ -53,73 +62,97 @@ export function fromDTCG(
       }
     }
   };
-  walk(tree as Record<string, unknown>, []);
+  try {
+    walk(tree as Record<string, unknown>, []);
+  } catch {
+    return {
+      ok: false,
+      errors: [{ code: 'invalid-token', path: '', message: 'DTCG tree is nested too deeply' }],
+    };
+  }
 
   const resolved = new Map<string, unknown>();
   const failed = new Set<string>();
 
-  const resolve = (path: string, visiting: string[]): { ok: boolean; value?: unknown } => {
-    if (resolved.has(path)) return { ok: true, value: resolved.get(path) };
-    if (failed.has(path)) return { ok: false };
-    const token = tokens.get(path)!;
-    const target = parseAlias(token.value);
-    if (target === undefined) {
-      resolved.set(path, token.value);
-      return { ok: true, value: token.value };
-    }
+  // Iterative (no recursion) so arbitrarily long alias chains cannot overflow the stack.
+  const resolve = (start: string): void => {
+    const chain: string[] = [];
+    const inChain = new Set<string>();
+    let cur = start;
+    let ok = false;
+    let value: unknown;
 
-    const fail = (error: DTCGError) => {
-      errors.push(error);
-      failed.add(path);
-      return { ok: false };
-    };
-
-    if (visiting.includes(target)) {
-      const cycle = [...visiting.slice(visiting.indexOf(target)), target].join(' -> ');
-      return fail({
-        code: 'alias-cycle',
-        path,
-        message: `Alias cycle detected: ${cycle}`,
-      });
-    }
-
-    const targetToken = tokens.get(target);
-    if (!targetToken) {
-      let external: string | undefined;
-      try {
-        external = options.resolveExternal?.(target);
-      } catch {
-        external = undefined;
+    for (;;) {
+      if (resolved.has(cur)) {
+        ok = true;
+        value = resolved.get(cur);
+        break;
       }
-      if (external === undefined) {
-        return fail({
-          code: 'alias-missing',
-          path,
-          message: `Alias "{${target}}" does not resolve to any token`,
+      if (failed.has(cur)) break;
+
+      const token = tokens.get(cur)!;
+      const target = parseAlias(token.value);
+      if (target === undefined) {
+        ok = true;
+        value = token.value;
+        resolved.set(cur, value);
+        break;
+      }
+
+      const fail = (error: DTCGError) => {
+        errors.push(error);
+        failed.add(cur);
+      };
+
+      chain.push(cur);
+      inChain.add(cur);
+
+      if (inChain.has(target)) {
+        const cycle = [...chain.slice(chain.indexOf(target)), target].join(' -> ');
+        fail({ code: 'alias-cycle', path: cur, message: `Alias cycle detected: ${cycle}` });
+        break;
+      }
+
+      const targetToken = tokens.get(target);
+      if (!targetToken) {
+        let external: string | undefined;
+        try {
+          external = options.resolveExternal?.(target);
+        } catch {
+          external = undefined;
+        }
+        if (external === undefined) {
+          fail({
+            code: 'alias-missing',
+            path: cur,
+            message: `Alias "{${target}}" does not resolve to any token`,
+          });
+        } else {
+          ok = true;
+          value = external;
+        }
+        break;
+      }
+
+      if (token.type && targetToken.type && token.type !== targetToken.type) {
+        fail({
+          code: 'type-mismatch',
+          path: cur,
+          message: `Alias "{${target}}" has type "${targetToken.type}" but "${cur}" has type "${token.type}"`,
         });
+        break;
       }
-      resolved.set(path, external);
-      return { ok: true, value: external };
+
+      cur = target;
     }
 
-    if (token.type && targetToken.type && token.type !== targetToken.type) {
-      return fail({
-        code: 'type-mismatch',
-        path,
-        message: `Alias "{${target}}" has type "${targetToken.type}" but "${path}" has type "${token.type}"`,
-      });
+    for (const member of chain) {
+      if (ok) resolved.set(member, value);
+      else failed.add(member);
     }
-
-    const r = resolve(target, [...visiting, path]);
-    if (!r.ok) {
-      failed.add(path);
-      return r;
-    }
-    resolved.set(path, r.value);
-    return r;
   };
 
-  for (const path of tokens.keys()) resolve(path, []);
+  for (const path of tokens.keys()) resolve(path);
 
   if (errors.length > 0) return { ok: false, errors };
 
