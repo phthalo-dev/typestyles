@@ -56,12 +56,70 @@ describe('fromDTCG modes', () => {
     const codes = errs.map((e) => e.code);
     expect(codes).toContain('alias-missing');
     expect(codes).toContain('type-mismatch');
+    expect(codes).toContain('alias-cycle');
     expect(errs.find((e) => e.code === 'alias-missing')!.path).toBe('a');
   });
 
   it('leaves a mode-less token as a scalar', () => {
     const v = valueOf({ bg: { $value: '#fff', $extensions: { other: { x: 1 } } } });
     expect(v.bg).toBe('#fff');
+  });
+});
+
+describe('fromDTCG per-mode alias resolution', () => {
+  const X = { $value: '#fff', $extensions: { [EXT]: { dark: '#000' } } };
+
+  it('an alias to a mode-aware token follows its dark value', () => {
+    const v = valueOf({ X, Y: { $value: '{X}' } });
+    expect(v.Y).toEqual({ light: '#fff', dark: '#000' });
+  });
+
+  it('an explicit dark alias to a mode-aware token uses its dark value', () => {
+    const v = valueOf({ X, Z: { $value: '{X}', $extensions: { [EXT]: { dark: '{X}' } } } });
+    expect(v.Z).toEqual({ light: '#fff', dark: '#000' });
+  });
+
+  it('follows chains through mode-less tokens', () => {
+    const v = valueOf({ X, W: { $value: '{X}' }, Y: { $value: '{W}' } });
+    expect(v.Y).toEqual({ light: '#fff', dark: '#000' });
+    expect(v.W).toEqual({ light: '#fff', dark: '#000' });
+  });
+
+  it('dark alias to a mode-less target falls back to its light value (scalar if no hop has dark)', () => {
+    const v = valueOf({
+      base: { $value: '#123' },
+      A: { $value: '#fff', $extensions: { [EXT]: { dark: '{base}' } } },
+      B: { $value: '{base}' },
+    });
+    expect(v.A).toEqual({ light: '#fff', dark: '#123' });
+    expect(v.B).toBe('#123');
+  });
+
+  it('a dark node aliasing its own dark node is an alias-cycle', () => {
+    const errs = errorsOf({ X: { $value: '#fff', $extensions: { [EXT]: { dark: '{X}' } } } });
+    expect(errs.map((e) => e.code)).toEqual(['alias-cycle']);
+    expect(errs[0].message).toContain('X (dark)');
+    expect(errs[0].message).not.toContain('\u0000');
+  });
+
+  it('cycle messages never contain the internal NUL suffix', () => {
+    const errs = errorsOf({
+      a: { $value: '#fff', $extensions: { [EXT]: { dark: '{b}' } } },
+      b: { $value: '#fff', $extensions: { [EXT]: { dark: '{a}' } } },
+    });
+    for (const e of errs) expect(e.message).not.toContain('\u0000');
+    expect(errs.some((e) => e.code === 'alias-cycle')).toBe(true);
+  });
+
+  it('does not report the same error twice for a token', () => {
+    const errs = errorsOf({ a: { $value: '{nope}' } });
+    expect(errs).toHaveLength(1);
+  });
+
+  it('rejects dark: null as invalid-token', () => {
+    const errs = errorsOf({ a: { $value: '#fff', $extensions: { [EXT]: { dark: null } } } });
+    expect(errs.map((e) => e.code)).toEqual(['invalid-token']);
+    expect(errs[0].path).toBe('a');
   });
 });
 

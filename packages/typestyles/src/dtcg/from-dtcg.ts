@@ -68,7 +68,13 @@ export function fromDTCG(
         const type = typeof child.$type === 'string' ? child.$type : groupType;
         tokens.set(path, { path, segments: childSegments, value: child.$value, type });
         const ext = isPlainObject(child.$extensions) ? child.$extensions[EXTENSION_KEY] : undefined;
-        if (isPlainObject(ext) && 'dark' in ext && ext.dark !== undefined) {
+        if (isPlainObject(ext) && ext.dark === null) {
+          errors.push({
+            code: 'invalid-token',
+            path,
+            message: `"dark" must not be null at "${path}"`,
+          });
+        } else if (isPlainObject(ext) && 'dark' in ext && ext.dark !== undefined) {
           tokens.set(path + DARK, { path, segments: childSegments, value: ext.dark, type });
         }
       } else {
@@ -85,50 +91,79 @@ export function fromDTCG(
     };
   }
 
-  const resolved = new Map<string, unknown>();
+  type Mode = 'light' | 'dark';
+  type Result = { value: unknown; hadDark: boolean };
+  // Cache keys are `${mode}:${path}`; a light-only token resolves separately per mode.
+  const resolved = new Map<string, Result>();
   const failed = new Set<string>();
+  const seenErrors = new Set<string>();
+  const report = (error: DTCGError) => {
+    const id = `${error.code}\u0001${error.path}`;
+    if (seenErrors.has(id)) return;
+    seenErrors.add(id);
+    errors.push(error);
+  };
+
+  // In dark mode prefer a token's dark node and fall back to its light node.
+  const nodeFor = (path: string, mode: Mode): { node: FlatToken; dark: boolean } | undefined => {
+    if (mode === 'dark') {
+      const d = tokens.get(path + DARK);
+      if (d) return { node: d, dark: true };
+    }
+    const l = tokens.get(path);
+    return l ? { node: l, dark: false } : undefined;
+  };
 
   // Iterative (no recursion) so arbitrarily long alias chains cannot overflow the stack.
-  const resolve = (start: string): void => {
-    const chain: string[] = [];
-    const inChain = new Set<string>();
-    let cur = start;
+  const resolve = (startPath: string, mode: Mode): void => {
+    const chain: { state: string; dark: boolean }[] = [];
+    const labels = new Map<string, string>();
+    let cur = startPath;
     let ok = false;
     let value: unknown;
+    let tailDark = false;
 
     for (;;) {
-      if (resolved.has(cur)) {
+      const state = `${mode}:${cur}`;
+      if (resolved.has(state)) {
         ok = true;
-        value = resolved.get(cur);
+        value = resolved.get(state)!.value;
+        tailDark = resolved.get(state)!.hadDark;
         break;
       }
-      if (failed.has(cur)) break;
+      if (failed.has(state)) break;
 
-      const token = tokens.get(cur)!;
+      const { node: token, dark } = nodeFor(cur, mode)!;
+      const label = token.path + (dark ? ' (dark)' : '');
       const target = parseAlias(token.value);
       if (target === undefined) {
         ok = true;
         value = token.value;
-        resolved.set(cur, value);
+        tailDark = dark;
+        chain.push({ state, dark });
         break;
       }
 
-      const fail = (error: DTCGError) => {
-        errors.push(error);
-        failed.add(cur);
-      };
+      chain.push({ state, dark });
+      labels.set(state, label);
 
-      chain.push(cur);
-      inChain.add(cur);
-
-      if (inChain.has(target)) {
-        const cycle = [...chain.slice(chain.indexOf(target)), target].join(' -> ');
-        fail({ code: 'alias-cycle', path: token.path, message: `Alias cycle detected: ${cycle}` });
+      const targetState = `${mode}:${target}`;
+      if (labels.has(targetState)) {
+        const names = chain.map((c) => labels.get(c.state)!);
+        const cycle = [
+          ...names.slice(names.indexOf(labels.get(targetState)!)),
+          labels.get(targetState)!,
+        ].join(' -> ');
+        report({
+          code: 'alias-cycle',
+          path: token.path,
+          message: `Alias cycle detected: ${cycle}`,
+        });
         break;
       }
 
-      const targetToken = tokens.get(target);
-      if (!targetToken) {
+      const targetNode = nodeFor(target, mode);
+      if (!targetNode) {
         let external: string | undefined;
         try {
           external = options.resolveExternal?.(target);
@@ -136,7 +171,7 @@ export function fromDTCG(
           external = undefined;
         }
         if (external === undefined) {
-          fail({
+          report({
             code: 'alias-missing',
             path: token.path,
             message: `Alias "{${target}}" does not resolve to any token`,
@@ -144,15 +179,16 @@ export function fromDTCG(
         } else {
           ok = true;
           value = external;
+          tailDark = false;
         }
         break;
       }
 
-      if (token.type && targetToken.type && token.type !== targetToken.type) {
-        fail({
+      if (token.type && targetNode.node.type && token.type !== targetNode.node.type) {
+        report({
           code: 'type-mismatch',
           path: token.path,
-          message: `Alias "{${target}}" has type "${targetToken.type}" but "${token.path}" has type "${token.type}"`,
+          message: `Alias "{${target}}" has type "${targetNode.node.type}" but "${token.path}" has type "${token.type}"`,
         });
         break;
       }
@@ -160,13 +196,32 @@ export function fromDTCG(
       cur = target;
     }
 
-    for (const member of chain) {
-      if (ok) resolved.set(member, value);
-      else failed.add(member);
+    // Walk back from the end of the chain so each member knows whether a dark node was used at or after it.
+    let hadDark = ok && tailDark;
+    for (let i = chain.length - 1; i >= 0; i--) {
+      const m = chain[i];
+      if (resolved.has(m.state)) continue;
+      if (ok) {
+        // The terminal literal's own node is already accounted for in tailDark.
+        if (i !== chain.length - 1 || parseAlias(tokenValueOf(m.state)) !== undefined) {
+          hadDark = hadDark || m.dark;
+        }
+        resolved.set(m.state, { value, hadDark });
+      } else failed.add(m.state);
     }
   };
 
-  for (const path of tokens.keys()) resolve(path);
+  const tokenValueOf = (state: string): unknown => {
+    const i = state.indexOf(':');
+    const mode = state.slice(0, i) as Mode;
+    return nodeFor(state.slice(i + 1), mode)!.node.value;
+  };
+
+  for (const [key, token] of tokens) {
+    if (key.endsWith(DARK)) continue;
+    resolve(token.path, 'light');
+    resolve(token.path, 'dark');
+  }
 
   if (errors.length > 0) return { ok: false, errors };
 
@@ -179,8 +234,9 @@ export function fromDTCG(
       if (!isPlainObject(cursor[seg])) cursor[seg] = {};
       cursor = cursor[seg] as Record<string, unknown>;
     }
-    const light = resolved.get(key);
-    const leaf = tokens.has(key + DARK) ? { light, dark: resolved.get(key + DARK) } : light;
+    const light = resolved.get(`light:${key}`)!.value;
+    const dark = resolved.get(`dark:${key}`)!;
+    const leaf = dark.hadDark ? { light, dark: dark.value } : light;
     cursor[token.segments[token.segments.length - 1]] = leaf;
   }
   return { ok: true, value: out, warnings: [] };
