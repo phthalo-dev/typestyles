@@ -19,7 +19,11 @@ Runtime codec between typestyles tokens and W3C DTCG JSON. Not published docs.
 Light/dark lives under `$extensions["dev.typestyles"]` as `{ dark: <value or alias> }`. The token's `$value` is the light/default value.
 
 ```json
-{ "$type": "color", "$value": "#fff", "$extensions": { "dev.typestyles": { "dark": "{color.base}" } } }
+{
+  "$type": "color",
+  "$value": "#fff",
+  "$extensions": { "dev.typestyles": { "dark": "{color.base}" } }
+}
 ```
 
 ## Supported `$type` names
