@@ -1,18 +1,45 @@
 import type { DTCGError, DTCGGroup, DTCGResult, FromDTCGOptions } from './types';
 
-type FlatToken = {
-  /** Display path (shared by a token and its dark counterpart). */
-  path: string;
-  segments: string[];
-  value: unknown;
-  type?: string;
+/**
+ * One entry per group or token. Entries are addressed by numeric id (their index), store
+ * only their own name plus a parent pointer, and never hold a joined path: full paths are
+ * built lazily (and truncated) for messages, so memory does not grow with path length.
+ */
+type Entry = {
+  parent: number;
+  name: string;
+  /** Child ids by name; groups only. */
+  children?: Map<string, number>;
+  /** Tokens only. */
+  token?: TokenData;
 };
 
-/** Key suffix for the dark value node; NUL cannot be confused with a real path segment. */
-const DARK = '\u0000dark';
+type TokenData = {
+  value: unknown;
+  type?: string;
+  /** Dark value from `$extensions["dev.typestyles"].dark`; kept apart from user keys. */
+  hasDark: boolean;
+  dark?: unknown;
+};
+
 const EXTENSION_KEY = 'dev.typestyles';
+const ROOT = 0;
+
+const DEFAULT_MAX_DEPTH = 32;
+const DEFAULT_MAX_NAME_LENGTH = 128;
+const DEFAULT_MAX_TOKENS = 50_000;
+const MAX_PATH_IN_MESSAGE = 200;
+const MAX_TARGET_IN_MESSAGE = 120;
+const MAX_MESSAGE = 600;
 
 const ALIAS = /^\{([^{}]+)\}$/;
+/**
+ * Characters a name segment may not contain: control characters, whitespace, `.{}`
+ * (forbidden by the DTCG spec) and characters that break out of a CSS custom-property name.
+ */
+const BAD_NAME = /[\p{Cc}\s.{};:<>\\"'()@,!`]/u;
+/** Characters a string value may not contain: they end a declaration, rule or `<style>`. */
+const BAD_VALUE = /[;{}<>\\\p{Cc}]/u;
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -24,6 +51,14 @@ function parseAlias(value: unknown): string | undefined {
   return m ? m[1] : undefined;
 }
 
+function clip(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max - 3) + '...' : s;
+}
+
+function limit(value: unknown, fallback: number): number {
+  return typeof value === 'number' && value >= 0 ? value : fallback;
+}
+
 /**
  * Flatten a DTCG tree into a nested plain object and resolve `{a.b}` aliases.
  * Never throws; all problems are collected and returned together.
@@ -32,9 +67,6 @@ export function fromDTCG(
   tree: DTCGGroup,
   options: FromDTCGOptions = {},
 ): DTCGResult<Record<string, unknown>> {
-  const errors: DTCGError[] = [];
-  const tokens = new Map<string, FlatToken>();
-
   if (!isPlainObject(tree)) {
     return {
       ok: false,
@@ -42,202 +74,393 @@ export function fromDTCG(
     };
   }
 
-  const walk = (group: Record<string, unknown>, segments: string[], inherited?: string) => {
-    const groupType = typeof group.$type === 'string' ? group.$type : inherited;
-    for (const key of Object.keys(group)) {
-      if (key.startsWith('$')) continue;
-      if (key === '__proto__') {
-        const path = [...segments, key].join('.');
-        errors.push({
-          code: 'invalid-token',
-          path,
-          message: `Reserved name "__proto__" is not allowed at "${path}"`,
-        });
-        continue;
-      }
-      const child = group[key];
-      const childSegments = [...segments, key];
-      const path = childSegments.join('.');
-      if (!isPlainObject(child)) {
-        errors.push({
-          code: 'invalid-token',
-          path,
-          message: `Expected a token or group object at "${path}"`,
-        });
-      } else if ('$value' in child) {
-        const type = typeof child.$type === 'string' ? child.$type : groupType;
-        tokens.set(path, { path, segments: childSegments, value: child.$value, type });
-        const ext = isPlainObject(child.$extensions) ? child.$extensions[EXTENSION_KEY] : undefined;
-        if (isPlainObject(ext) && ext.dark === null) {
-          errors.push({
-            code: 'invalid-token',
-            path,
-            message: `"dark" must not be null at "${path}"`,
-          });
-        } else if (isPlainObject(ext) && 'dark' in ext && ext.dark !== undefined) {
-          tokens.set(path + DARK, { path, segments: childSegments, value: ext.dark, type });
+  const maxDepth = limit(options.maxDepth, DEFAULT_MAX_DEPTH);
+  const maxNameLength = limit(options.maxNameLength, DEFAULT_MAX_NAME_LENGTH);
+  const maxTokens = limit(options.maxTokens, DEFAULT_MAX_TOKENS);
+
+  const errors: DTCGError[] = [];
+  const warnings: string[] = [];
+  const entries: Entry[] = [{ parent: -1, name: '' }];
+  const tokenIds: number[] = [];
+
+  /** Dotted path of an entry (optionally plus one more name), truncated for messages. */
+  const pathOf = (id: number, extra?: string): string => {
+    const names: string[] = extra === undefined ? [] : [extra];
+    for (let i = id; i > ROOT; i = entries[i].parent) names.push(entries[i].name);
+    let out = '';
+    for (let i = names.length - 1; i >= 0; i--) {
+      out += (i === names.length - 1 ? '' : '.') + names[i];
+      if (out.length > MAX_PATH_IN_MESSAGE) break;
+    }
+    return clip(out, MAX_PATH_IN_MESSAGE);
+  };
+  const fail = (path: string, message: string) =>
+    errors.push({ code: 'invalid-token', path, message: clip(message, MAX_MESSAGE) });
+  const warn = (path: string, message: string) => warnings.push(`${path}: ${message}`);
+
+  /** Why a name is not allowed, or undefined. */
+  const nameProblem = (name: string): string | undefined => {
+    if (name === '__proto__') return 'Reserved name "__proto__" is not allowed';
+    if (name.length > maxNameLength) return `Name is longer than maxNameLength (${maxNameLength})`;
+    if (name === '') return 'Name must not be empty';
+    if (BAD_NAME.test(name)) {
+      return 'Name contains a character that is not allowed (whitespace, control characters or any of . { } ; : < > \\ " \' ( ) @ , ! `)';
+    }
+    return undefined;
+  };
+
+  /** Why a (non-alias) value cannot be used, or undefined. Walks structured values iteratively. */
+  const valueProblem = (value: unknown): string | undefined => {
+    const stack: { v: unknown; depth: number }[] = [{ v: value, depth: 0 }];
+    const seen = new Set<object>();
+    for (let item = stack.pop(); item; item = stack.pop()) {
+      const { v, depth } = item;
+      if (typeof v === 'string') {
+        if (BAD_VALUE.test(v)) {
+          return /\{[^{}]*\}/.test(v)
+            ? 'Value contains an embedded alias, which is not resolved (DTCG only allows whole-value aliases such as "{group.token}"); braces are not allowed in values'
+            : 'Value contains a character that is not allowed (; { } < > \\ or a control character)';
+        }
+      } else if (typeof v === 'number' || typeof v === 'boolean') {
+        // fine
+      } else if (v === null || v === undefined) {
+        // Nested nulls are left to tokens.create; keep checking the rest.
+        if (depth === 0) return 'Value must not be null or undefined';
+      } else if (typeof v === 'object') {
+        if (seen.has(v)) return 'Value is circular or shares an object (not JSON)';
+        seen.add(v);
+        if (depth >= maxDepth) return `Value is nested deeper than maxDepth (${maxDepth})`;
+        const isArray = Array.isArray(v);
+        for (const key of Object.keys(v)) {
+          if (!isArray) {
+            const problem = nameProblem(key);
+            if (problem) return `Structured value key: ${problem}`;
+          }
+          stack.push({ v: (v as Record<string, unknown>)[key], depth: depth + 1 });
         }
       } else {
-        walk(child, childSegments, groupType);
+        return `Unsupported value type "${typeof v}"`;
       }
     }
+    return undefined;
   };
-  try {
-    walk(tree as Record<string, unknown>, []);
-  } catch {
+
+  /** Validate a `$value` or dark value; aliases are checked once resolved. */
+  const checkValue = (id: number, value: unknown, label: string): void => {
+    if (parseAlias(value) !== undefined) return;
+    const problem = valueProblem(value);
+    if (problem) {
+      fail(pathOf(id), `${problem} (${label} at "${pathOf(id)}")`);
+      return;
+    }
+    if (typeof value === 'object' && value !== null) {
+      warn(
+        pathOf(id),
+        `structured ${label} passed through; tokens.create will flatten it into multiple custom properties`,
+      );
+    }
+  };
+
+  // Iterative depth-first walk (pre-order, same key order as the input).
+  type Frame = {
+    id: number;
+    obj: Record<string, unknown>;
+    keys: string[];
+    i: number;
+    children: Map<string, number>;
+    type?: string;
+    depth: number;
+  };
+  const onPath = new Set<object>();
+  const open = (
+    id: number,
+    obj: Record<string, unknown>,
+    inherited: string | undefined,
+    depth: number,
+  ): Frame => {
+    onPath.add(obj);
+    const children = new Map<string, number>();
+    entries[id].children = children;
+    const ext = isPlainObject(obj.$extensions) ? obj.$extensions[EXTENSION_KEY] : undefined;
+    if (ext !== undefined && !isPlainObject(ext)) {
+      warn(pathOf(id), `$extensions["${EXTENSION_KEY}"] is not an object and is ignored`);
+    } else if (isPlainObject(ext) && 'dark' in ext) {
+      warn(pathOf(id), `"dark" on a group is ignored; put it on each token`);
+    }
     return {
-      ok: false,
-      errors: [{ code: 'invalid-token', path: '', message: 'DTCG tree is nested too deeply' }],
+      id,
+      obj,
+      keys: Object.keys(obj),
+      i: 0,
+      children,
+      type: typeof obj.$type === 'string' ? obj.$type : inherited,
+      depth,
     };
+  };
+
+  /** Walk the tree; returns false if it stopped early (maxTokens). */
+  const walk = (): boolean => {
+    const stack: Frame[] = [open(ROOT, tree as Record<string, unknown>, undefined, 0)];
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      if (frame.i >= frame.keys.length) {
+        onPath.delete(frame.obj);
+        stack.pop();
+        continue;
+      }
+      const key = frame.keys[frame.i++];
+      if (key.startsWith('$')) continue;
+      const depth = frame.depth + 1;
+      const problem = nameProblem(key);
+      if (problem) {
+        fail(pathOf(frame.id, key), `${problem} at "${pathOf(frame.id, key)}"`);
+        continue;
+      }
+      if (depth > maxDepth) {
+        fail(
+          pathOf(frame.id, key),
+          `Nested deeper than maxDepth (${maxDepth}) at "${pathOf(frame.id, key)}"`,
+        );
+        continue;
+      }
+      const child = frame.obj[key];
+      if (!isPlainObject(child)) {
+        fail(
+          pathOf(frame.id, key),
+          `Expected a token or group object at "${pathOf(frame.id, key)}"`,
+        );
+        continue;
+      }
+      if (onPath.has(child)) {
+        fail(pathOf(frame.id, key), `Circular reference at "${pathOf(frame.id, key)}"`);
+        continue;
+      }
+
+      const isToken = '$value' in child;
+      if (isToken && tokenIds.length >= maxTokens) {
+        fail(
+          pathOf(frame.id, key),
+          `Tree has more than maxTokens (${maxTokens}) tokens; stopped at "${pathOf(frame.id, key)}"`,
+        );
+        return false;
+      }
+      const id = entries.length;
+      entries.push({ parent: frame.id, name: key });
+      frame.children.set(key, id);
+
+      if (!isToken) {
+        stack.push(open(id, child, frame.type, depth));
+        continue;
+      }
+
+      const token: TokenData = {
+        value: child.$value,
+        type: typeof child.$type === 'string' ? child.$type : frame.type,
+        hasDark: false,
+      };
+      entries[id].token = token;
+      tokenIds.push(id);
+      checkValue(id, token.value, 'value');
+
+      for (const k of Object.keys(child)) {
+        if (!k.startsWith('$')) {
+          warn(pathOf(id), 'token has child keys alongside $value; they are ignored');
+          break;
+        }
+      }
+
+      const extensions = child.$extensions;
+      const ext = isPlainObject(extensions) ? extensions[EXTENSION_KEY] : undefined;
+      if (ext !== undefined && !isPlainObject(ext)) {
+        warn(pathOf(id), `$extensions["${EXTENSION_KEY}"] is not an object and is ignored`);
+      } else if (isPlainObject(ext) && ext.dark === null) {
+        fail(pathOf(id), `"dark" must not be null at "${pathOf(id)}"`);
+      } else if (isPlainObject(ext) && 'dark' in ext && ext.dark !== undefined) {
+        token.hasDark = true;
+        token.dark = ext.dark;
+        checkValue(id, token.dark, 'dark value');
+      }
+    }
+    return true;
+  };
+
+  try {
+    // A partial tree would only add misleading alias-missing errors, so skip resolution.
+    if (!walk()) return { ok: false, errors };
+  } catch {
+    // Only exotic (non-JSON) input gets here, e.g. a throwing getter or proxy.
+    fail('', 'DTCG tree: could not read tree (reading a value threw)');
+    return { ok: false, errors };
   }
+
+  /** Token id for a dotted alias target, or undefined. */
+  const lookup = (target: string): number | undefined => {
+    let id = ROOT;
+    let start = 0;
+    for (;;) {
+      const dot = target.indexOf('.', start);
+      const name = dot === -1 ? target.slice(start) : target.slice(start, dot);
+      const next = entries[id].children?.get(name);
+      if (next === undefined) return undefined;
+      id = next;
+      if (dot === -1) break;
+      start = dot + 1;
+    }
+    return entries[id].token ? id : undefined;
+  };
 
   type Mode = 'light' | 'dark';
   type Result = { value: unknown; hadDark: boolean };
-  // Cache keys are `${mode}:${path}`; a light-only token resolves separately per mode.
-  const resolved = new Map<string, Result>();
-  const failed = new Set<string>();
-  const seenErrors = new Set<string>();
-  const report = (error: DTCGError) => {
-    const id = `${error.code}\u0001${error.path}`;
-    if (seenErrors.has(id)) return;
-    seenErrors.add(id);
-    errors.push(error);
+  // Caches are keyed by token id, one per mode; a light-only token resolves separately per mode.
+  const resolved: Record<Mode, Map<number, Result>> = { light: new Map(), dark: new Map() };
+  const failed: Record<Mode, Set<number>> = { light: new Set(), dark: new Set() };
+  // De-dupe resolution errors per (code, token id).
+  const reported = new Map<string, Set<number>>();
+  const report = (code: DTCGError['code'], id: number, message: string) => {
+    let ids = reported.get(code);
+    if (!ids) reported.set(code, (ids = new Set()));
+    if (ids.has(id)) return;
+    ids.add(id);
+    errors.push({ code, path: pathOf(id), message: clip(message, MAX_MESSAGE) });
   };
 
-  // In dark mode prefer a token's dark node and fall back to its light node.
-  const nodeFor = (path: string, mode: Mode): { node: FlatToken; dark: boolean } | undefined => {
-    if (mode === 'dark') {
-      const d = tokens.get(path + DARK);
-      if (d) return { node: d, dark: true };
-    }
-    const l = tokens.get(path);
-    return l ? { node: l, dark: false } : undefined;
-  };
+  // In dark mode a token's dark value wins; otherwise (and in light mode) its light value.
+  const nodeValue = (token: TokenData, mode: Mode): { value: unknown; dark: boolean } =>
+    mode === 'dark' && token.hasDark
+      ? { value: token.dark, dark: true }
+      : { value: token.value, dark: false };
 
   // Iterative (no recursion) so arbitrarily long alias chains cannot overflow the stack.
-  const resolve = (startPath: string, mode: Mode): void => {
-    const chain: { state: string; dark: boolean }[] = [];
-    const labels = new Map<string, string>();
-    let cur = startPath;
+  const resolve = (startId: number, mode: Mode): void => {
+    const cache = resolved[mode];
+    const bad = failed[mode];
+    const chain: { id: number; dark: boolean }[] = [];
+    const position = new Map<number, number>();
+    let cur = startId;
     let ok = false;
     let value: unknown;
     let tailDark = false;
 
     for (;;) {
-      const state = `${mode}:${cur}`;
-      if (resolved.has(state)) {
+      const hit = cache.get(cur);
+      if (hit) {
         ok = true;
-        value = resolved.get(state)!.value;
-        tailDark = resolved.get(state)!.hadDark;
+        value = hit.value;
+        tailDark = hit.hadDark;
         break;
       }
-      if (failed.has(state)) break;
+      if (bad.has(cur)) break;
 
-      const { node: token, dark } = nodeFor(cur, mode)!;
-      const label = token.path + (dark ? ' (dark)' : '');
-      const target = parseAlias(token.value);
+      const token = entries[cur].token;
+      if (!token) break; // unreachable: only token ids are resolved
+      const node = nodeValue(token, mode);
+      position.set(cur, chain.length);
+      chain.push({ id: cur, dark: node.dark });
+
+      const target = parseAlias(node.value);
       if (target === undefined) {
         ok = true;
-        value = token.value;
-        tailDark = dark;
-        chain.push({ state, dark });
+        value = node.value;
+        tailDark = node.dark;
+        break;
+      }
+      const shownTarget = `{${clip(target, MAX_TARGET_IN_MESSAGE)}}`;
+
+      const targetId = lookup(target);
+      const cycleStart = targetId === undefined ? undefined : position.get(targetId);
+      if (cycleStart !== undefined) {
+        const label = (m: { id: number; dark: boolean }) =>
+          pathOf(m.id) + (m.dark ? ' (dark)' : '');
+        const loop = chain.slice(cycleStart).map(label);
+        loop.push(loop[0]);
+        const shown = loop.length > 10 ? [...loop.slice(0, 5), '...', ...loop.slice(-4)] : loop;
+        report('alias-cycle', cur, `Alias cycle detected: ${shown.join(' -> ')}`);
         break;
       }
 
-      chain.push({ state, dark });
-      labels.set(state, label);
-
-      const targetState = `${mode}:${target}`;
-      if (labels.has(targetState)) {
-        const names = chain.map((c) => labels.get(c.state)!);
-        const cycle = [
-          ...names.slice(names.indexOf(labels.get(targetState)!)),
-          labels.get(targetState)!,
-        ].join(' -> ');
-        report({
-          code: 'alias-cycle',
-          path: token.path,
-          message: `Alias cycle detected: ${cycle}`,
-        });
-        break;
-      }
-
-      const targetNode = nodeFor(target, mode);
-      if (!targetNode) {
-        let external: string | undefined;
+      if (targetId === undefined) {
+        let external: unknown;
         try {
           external = options.resolveExternal?.(target);
         } catch {
           external = undefined;
         }
-        if (external === undefined) {
-          report({
-            code: 'alias-missing',
-            path: token.path,
-            message: `Alias "{${target}}" does not resolve to any token`,
-          });
+        if (typeof external !== 'string') {
+          report('alias-missing', cur, `Alias "${shownTarget}" does not resolve to any token`);
         } else {
-          ok = true;
-          value = external;
-          tailDark = false;
+          const problem = valueProblem(external);
+          if (problem) {
+            report(
+              'invalid-token',
+              cur,
+              `resolveExternal returned an unusable value for "${shownTarget}": ${problem}`,
+            );
+          } else {
+            ok = true;
+            value = external;
+            tailDark = false;
+          }
         }
         break;
       }
 
-      if (token.type && targetNode.node.type && token.type !== targetNode.node.type) {
-        report({
-          code: 'type-mismatch',
-          path: token.path,
-          message: `Alias "{${target}}" has type "${targetNode.node.type}" but "${token.path}" has type "${token.type}"`,
-        });
+      const targetType = entries[targetId].token?.type;
+      if (token.type && targetType && token.type !== targetType) {
+        report(
+          'type-mismatch',
+          cur,
+          `Alias "${shownTarget}" has type "${clip(targetType, 60)}" but "${pathOf(cur)}" has type "${clip(token.type, 60)}"`,
+        );
         break;
       }
 
-      cur = target;
+      cur = targetId;
     }
 
     // Walk back from the end of the chain so each member knows whether a dark node was used at or after it.
     let hadDark = ok && tailDark;
     for (let i = chain.length - 1; i >= 0; i--) {
       const m = chain[i];
-      if (resolved.has(m.state)) continue;
-      if (ok) {
-        // The terminal literal's own node is already accounted for in tailDark.
-        if (i !== chain.length - 1 || parseAlias(tokenValueOf(m.state)) !== undefined) {
-          hadDark = hadDark || m.dark;
-        }
-        resolved.set(m.state, { value, hadDark });
-      } else failed.add(m.state);
+      hadDark ||= m.dark;
+      if (ok) cache.set(m.id, { value, hadDark });
+      else bad.add(m.id);
     }
   };
 
-  const tokenValueOf = (state: string): unknown => {
-    const i = state.indexOf(':');
-    const mode = state.slice(0, i) as Mode;
-    return nodeFor(state.slice(i + 1), mode)!.node.value;
-  };
-
-  for (const [key, token] of tokens) {
-    if (key.endsWith(DARK)) continue;
-    resolve(token.path, 'light');
-    resolve(token.path, 'dark');
+  for (const id of tokenIds) {
+    resolve(id, 'light');
+    resolve(id, 'dark');
   }
 
   if (errors.length > 0) return { ok: false, errors };
 
+  // Build the nested output; group objects are created lazily so empty groups are omitted.
   const out: Record<string, unknown> = {};
-  for (const [key, token] of tokens) {
-    if (key.endsWith(DARK)) continue;
-    let cursor = out;
-    for (let i = 0; i < token.segments.length - 1; i++) {
-      const seg = token.segments[i];
-      if (!isPlainObject(cursor[seg])) cursor[seg] = {};
-      cursor = cursor[seg] as Record<string, unknown>;
+  const objects = new Map<number, Record<string, unknown>>([[ROOT, out]]);
+  const objectFor = (groupId: number): Record<string, unknown> => {
+    const missing: number[] = [];
+    let id = groupId;
+    let obj = objects.get(id);
+    while (obj === undefined) {
+      missing.push(id);
+      id = entries[id].parent;
+      obj = objects.get(id);
     }
-    const light = resolved.get(`light:${key}`)!.value;
-    const dark = resolved.get(`dark:${key}`)!;
-    const leaf = dark.hadDark ? { light, dark: dark.value } : light;
-    cursor[token.segments[token.segments.length - 1]] = leaf;
+    for (let i = missing.length - 1; i >= 0; i--) {
+      const child: Record<string, unknown> = {};
+      obj[entries[missing[i]].name] = child;
+      objects.set(missing[i], child);
+      obj = child;
+    }
+    return obj;
+  };
+  for (const id of tokenIds) {
+    const light = resolved.light.get(id);
+    const dark = resolved.dark.get(id);
+    if (!light || !dark) continue; // unreachable: every token resolved or errors were returned
+    objectFor(entries[id].parent)[entries[id].name] = dark.hadDark
+      ? { light: light.value, dark: dark.value }
+      : light.value;
   }
-  return { ok: true, value: out, warnings: [] };
+  return { ok: true, value: out, warnings };
 }
