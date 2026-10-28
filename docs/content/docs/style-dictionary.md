@@ -198,7 +198,7 @@ This emits a valid DTCG file your design team can import. The **primitives** are
 
 ## Runtime DTCG with `typestyles/dtcg`
 
-When you would rather load DTCG JSON directly (for example from a design tool export, an API, or a theme editor), `typestyles/dtcg` converts between DTCG trees and the plain nested objects that `tokens.create` accepts. It has no Style Dictionary dependency and does no file I/O.
+When you would rather load DTCG JSON directly (for example from a design tool export, an API, or a theme editor), `typestyles/dtcg` converts between DTCG trees and plain nested objects of values for `tokens.create`. String and number values come through as they are. Structured values (such as the 2025.10 `{ colorSpace, components }` color form) are not converted: they pass through, and `tokens.create` flattens them into several custom properties. It has no Style Dictionary dependency and does no file I/O.
 
 ```ts
 import { fromDTCG, toDTCG } from 'typestyles/dtcg';
@@ -216,13 +216,28 @@ import tree from './tokens/core.tokens.json';
 const result = fromDTCG(tree);
 if (!result.ok) throw new Error(result.errors.map((e) => `${e.path}: ${e.message}`).join('\n'));
 
+type Nested = { [key: string]: string | Nested };
+
 const tokens = createTokens({ scopeId: 'app' });
-const color = tokens.create('color', result.value.color as Record<string, string>);
+// result.value is nested (groups are objects), so type it as a nested record.
+const color = tokens.create('color', result.value.color as Nested);
 ```
 
-Given the file from earlier, `result.value.color` is `{ brand: { 500: '#3b82f6', 600: '#2563eb' }, text: { default: '#2563eb' } }`: the `{color.brand.600}` alias is already resolved.
+Given the file from earlier, `result.value.color` is `{ brand: { 500: '#3b82f6', 600: '#2563eb' }, text: { default: '#2563eb' } }`: the `{color.brand.600}` alias is already resolved. Only whole-value aliases resolve, as in the DTCG spec: `"{space.sm}"` works, `"1px {space.sm}"` does not (it is rejected, see below).
 
-`fromDTCG` never throws. It returns `{ ok: true, value, warnings }` or `{ ok: false, errors }`, where every error is `{ code, path, message }` and `code` is one of `alias-missing`, `alias-cycle`, `invalid-token` or `type-mismatch`. All problems are collected in one pass, so you can show them together. Keys named `__proto__` are rejected as `invalid-token`.
+`fromDTCG` never throws. It returns `{ ok: true, value, warnings }` or `{ ok: false, errors }`, where every error is `{ code, path, message }` and `code` is one of `alias-missing`, `alias-cycle`, `invalid-token` or `type-mismatch`. All problems are collected in one pass, so you can show them together. Paths in errors are cut to 200 characters. `$type` is compared between a token and the token its alias points at, not along the whole chain.
+
+`warnings` is a list of `"path: message"` strings for things that still load but probably are not what you meant: a structured (object or array) value that passed through, a token that also has child keys (the children are ignored), a `dark` value on a group's `dev.typestyles` extension (put it on each token), and a `dev.typestyles` extension that is not an object.
+
+### Untrusted input
+
+`fromDTCG` is built to read theme JSON you did not write, such as a theme stored in a database. It limits how much work a tree can cause and rejects names and values that could break out of CSS, all as `invalid-token`:
+
+- **Size limits.** Pass `maxDepth` (default 32), `maxNameLength` (default 128) and `maxTokens` (default 50,000) to change them. A name or level past the limit is reported and its subtree is skipped; going past `maxTokens` stops the walk.
+- **Names** (every group and token key) may not be empty or contain whitespace, control characters, or any of `. { } ; : < > \ " ' ( ) @ , !` and backtick. The DTCG spec already forbids `.`, `{` and `}`; the rest would break a CSS custom-property name. Keys named `__proto__` are also rejected. Letters in any script, digits, `-`, `_`, `/`, `+` and `%` are fine.
+- **String values** (`$value`, dark values, `resolveExternal` results, and strings inside structured values) may not contain `;`, `{`, `}`, `<`, `>`, `\` or control characters, including newlines. Quotes, commas, parentheses, `#`, `%` and `/` are fine, so font stacks, shadows and `var(--x)` keep working. An alias is checked after it resolves. `null` and `undefined` values are rejected; numbers and booleans are fine.
+
+**Trust boundary.** These checks stop a value from closing a declaration, rule or `<style>` element, but `fromDTCG` is not a general sanitizer. Do not pass untrusted data to anything that puts CSS into HTML without escaping it.
 
 ### Light and dark values
 
@@ -244,7 +259,7 @@ DTCG has no built-in modes, so typestyles stores the dark value under the `dev.t
 
 ### Aliases to tokens outside the tree
 
-If an alias points at a token that is not in the tree, `fromDTCG` returns an `alias-missing` error. Pass `resolveExternal` to supply the value yourself (return `undefined` to leave it unresolved):
+If an alias points at a token that is not in the tree, `fromDTCG` returns an `alias-missing` error. Pass `resolveExternal` to supply the value yourself as a string (return `undefined`, or anything that is not a string, to leave it unresolved). The string is checked like any other value:
 
 ```ts
 const result = fromDTCG(tree, {
@@ -265,7 +280,9 @@ const doc = toDTCG(
 await writeFile('dist/tokens.json', JSON.stringify(doc, null, 2));
 ```
 
-`toDTCG` is best-effort and never throws; it skips `undefined`, functions and `__proto__` keys. Values are written as plain strings such as `"#3b82f6"` and `"16px"`; object-form values (for example the structured color and dimension values in the 2025.10 format module) pass through untouched.
+`toDTCG` is best-effort and never throws. It silently skips `undefined`, `null`, functions, symbols, bigints, keys that start with `$`, and `__proto__` keys, and it drops anything nested more than 64 levels deep without telling you. Values are written as plain strings such as `"#3b82f6"` and `"16px"`; object-form values (for example the structured color and dimension values in the 2025.10 format module) pass through untouched.
+
+Names are written as they are, so a key such as `a.b` or `x{` produces a document that is not valid DTCG (and that `fromDTCG` rejects). A literal string value that looks like an alias, such as `"{b}"`, is written as is and becomes an alias when you read the document back.
 
 ## Themes and color modes across the boundary
 

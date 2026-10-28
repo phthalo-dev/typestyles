@@ -32,4 +32,14 @@ Light/dark lives under `$extensions["dev.typestyles"]` as `{ dark: <value or ali
 
 ## Deviation from the spec's value shapes
 
-2025.10 specifies structured values: color `{ colorSpace, components, alpha?, hex? }`, dimension `{ value, unit: px|rem }`, duration `{ value, unit: ms|s }`. This codec accepts and emits **string** values (e.g. `"#fff"`, `"16px"`, `"200ms"`) for these types. Object-form values pass through untouched (never parsed or rewritten). Strict-2025.10 consumers may need a conversion step.
+2025.10 specifies structured values: color `{ colorSpace, components, alpha?, hex? }`, dimension `{ value, unit: px|rem }`, duration `{ value, unit: ms|s }`. This codec accepts and emits **string** values (e.g. `"#fff"`, `"16px"`, `"200ms"`) for these types. Object-form values pass through untouched (never parsed or rewritten) and `fromDTCG` adds a warning, because `tokens.create` flattens them into several custom properties. Strict-2025.10 consumers may need a conversion step.
+
+## Untrusted input (decision)
+
+`fromDTCG` is meant to read theme JSON from storage, so it treats input as hostile:
+
+- Limits with safe defaults: `maxDepth` 32, `maxNameLength` 128, `maxTokens` 50,000. Violations are `invalid-token`; the subtree is not walked (`maxTokens` stops the walk).
+- Entries are stored by numeric id with a parent pointer and their own name; full paths are only built (and truncated to 200 chars) for messages and output, so cost does not grow with path length. Walk and alias resolution are iterative.
+- Names may not be empty or contain whitespace, control characters or `. { } ; : < > \ " ' ( ) @ , !` and backtick (`.{}` are already forbidden by the spec). String values (including dark values, `resolveExternal` results and strings or keys inside structured values) may not contain `; { } < > \` or control characters. Aliases are checked after resolution. Embedded aliases (`"1px {s}"`) are rejected by the brace rule; the spec only has whole-value aliases.
+- `$type` is only compared between adjacent alias hops, so `a(color) -> b(untyped) -> c(dimension)` passes.
+- This keeps output from breaking out of a CSS declaration; it is not a general sanitizer.
