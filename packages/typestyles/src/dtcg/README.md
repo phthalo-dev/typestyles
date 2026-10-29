@@ -38,8 +38,12 @@ Light/dark lives under `$extensions["dev.typestyles"]` as `{ dark: <value or ali
 
 `fromDTCG` is meant to read theme JSON from storage, so it treats input as hostile:
 
-- Limits with safe defaults: `maxDepth` 32, `maxNameLength` 128, `maxTokens` 50,000. Violations are `invalid-token`; the subtree is not walked (`maxTokens` stops the walk).
+- Limits with safe defaults: `maxDepth` 32, `maxNameLength` 128, `maxTokens` 50,000. Violations are `invalid-token`; the subtree is not walked (`maxTokens` stops the walk). `maxErrors` and `maxWarnings` (100 each) cap the result; hitting `maxErrors` during the walk stops it. `null` or non-object options mean defaults.
 - Entries are stored by numeric id with a parent pointer and their own name; full paths are only built (and truncated to 200 chars) for messages and output, so cost does not grow with path length. Walk and alias resolution are iterative.
-- Names may not be empty or contain whitespace, control characters or `. { } ; : < > \ " ' ( ) @ , !` and backtick (`.{}` are already forbidden by the spec). String values (including dark values, `resolveExternal` results and strings or keys inside structured values) may not contain `; { } < > \` or control characters. Aliases are checked after resolution. Embedded aliases (`"1px {s}"`) are rejected by the brace rule; the spec only has whole-value aliases.
+- Names are an allow-list: `/^[\p{L}\p{N}_-]+$/u` (letters, digits, `-`, `_`). `tokens.create` default naming puts names into `--ns-path` unchanged; these are all CSS name code points (non-ASCII included), so the custom property is always valid. Combining marks (`\p{M}`, e.g. NFD-decomposed accents) are not allowed. String values (including dark values, `resolveExternal` results and strings or keys inside structured values) may not contain `; { } < > \`, control characters, `/*`, `*/`, or an odd number of `"` or `'`. Aliases are checked after resolution. Embedded aliases (`"1px {s}"`) are rejected by the brace rule; the spec only has whole-value aliases.
 - `$type` is only compared between adjacent alias hops, so `a(color) -> b(untyped) -> c(dimension)` passes.
 - This keeps output from breaking out of a CSS declaration; it is not a general sanitizer.
+
+## toDTCG (decision)
+
+Best-effort and never throws: unreadable entries (throwing getters, proxies) are skipped, an object already on the current path (a cycle) is skipped, and `maxNodes` (default 50,000 groups plus tokens) stops conversion so shared references cannot multiply the output.
