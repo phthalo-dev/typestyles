@@ -34,6 +34,10 @@ const MAX_PATH_IN_MESSAGE = 200;
 const MAX_TARGET_IN_MESSAGE = 120;
 const MAX_MESSAGE = 600;
 
+/** Deepest `(` / `[` nesting a string value may have; keeps the scan's stack small. */
+const MAX_BRACKET_DEPTH = 32;
+const TOO_DEEP = `Value has brackets nested deeper than ${MAX_BRACKET_DEPTH}`;
+
 const ALIAS = /^\{([^{}]+)\}$/;
 /**
  * A name segment may only contain letters, combining marks, digits, `-` and `_`.
@@ -83,6 +87,7 @@ function balanceProblem(s: string): string | undefined {
       let j = i + 1;
       while (j < s.length && isCssSpace(s[j])) j++;
       if (s[j] === '"' || s[j] === "'") {
+        if (open.length >= MAX_BRACKET_DEPTH) return TOO_DEEP;
         open.push(ch); // quoted url: the string scan handles the rest
         continue;
       }
@@ -94,6 +99,7 @@ function balanceProblem(s: string): string | undefined {
       if (j >= s.length) return 'Value has an unclosed "url("';
       i = j; // the url( paren opened and closed
     } else if (ch === '(' || ch === '[') {
+      if (open.length >= MAX_BRACKET_DEPTH) return TOO_DEEP;
       open.push(ch);
     } else if (ch === ')' || ch === ']') {
       if (open.pop() !== (ch === ')' ? '(' : '[')) return `Value has an unmatched "${ch}"`;

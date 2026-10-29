@@ -360,6 +360,18 @@ describe('fromDTCG CSS-safety of names and values', () => {
     }
   });
 
+  it('caps bracket nesting at 32', () => {
+    expectAccepted('('.repeat(32) + ')'.repeat(32));
+    expectAccepted('[('.repeat(16) + ')]'.repeat(16));
+    expectRejectedOnAllPaths('('.repeat(33) + ')'.repeat(33));
+    expect(errorsOf({ t: { $value: '('.repeat(33) + ')'.repeat(33) } })[0].message).toContain(
+      'nested',
+    );
+    const { result, ms } = timed(() => fromDTCG({ t: { $value: '('.repeat(5 << 20) } }));
+    expect(result.ok).toBe(false);
+    expect(ms).toBeLessThan(500);
+  });
+
   it('keeps balanced quotes and brackets, including other quotes or brackets inside strings', () => {
     const values = [
       `"Children's Font", serif`,
