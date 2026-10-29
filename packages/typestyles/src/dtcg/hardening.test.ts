@@ -266,6 +266,57 @@ describe('fromDTCG CSS-safety of names and values', () => {
     }
   });
 
+  it('rejects unterminated strings and unbalanced brackets', () => {
+    const bad = [
+      `"'" '`,
+      `'"' "`,
+      '"abc',
+      "'abc",
+      'calc(1px',
+      'rgb(1,2,3',
+      'url(x',
+      'a[b',
+      'a)',
+      'a]',
+      '(]',
+      '[)',
+    ];
+    for (const value of bad) {
+      const label = JSON.stringify(value);
+      expect(errorsOf({ t: { $value: value } })[0].code, label).toBe('invalid-token');
+      expect(
+        errorsOf({ t: { $value: '#fff', $extensions: { [EXT]: { dark: value } } } })[0].code,
+        label,
+      ).toBe('invalid-token');
+      expect(
+        errorsOf({ x: { $value: '{ext.a}' } }, { resolveExternal: () => value })[0].code,
+        label,
+      ).toBe('invalid-token');
+      expect(errorsOf({ t: { $value: { value, unit: 'px' } } })[0].code, label).toBe(
+        'invalid-token',
+      );
+      expect(errorsOf({ t: { $value: ['ok', value] } })[0].code, label).toBe('invalid-token');
+    }
+  });
+
+  it('keeps balanced quotes and brackets, including other quotes or brackets inside strings', () => {
+    const values = [
+      `"Children's Font", serif`,
+      "'Segoe UI', sans-serif",
+      '"Inter", sans-serif',
+      '0 1px 2px rgba(0,0,0,.1)',
+      'var(--c-blue-7)',
+      'light-dark(#fff, #000)',
+      'calc(1px + (2px * 3))',
+      'url("a(b")',
+      `'a"b[' "c)'d"`,
+    ];
+    const tree: any = {};
+    values.forEach((v, i) => (tree['t' + i] = { $value: v }));
+    const out = okOf(tree).value as any;
+    values.forEach((v, i) => expect(out['t' + i]).toBe(v));
+  });
+
   it('keeps balanced quotes and lone slashes or asterisks in values', () => {
     const values = [
       '"Inter", sans-serif',

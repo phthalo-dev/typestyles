@@ -44,16 +44,34 @@ const ALIAS = /^\{([^{}]+)\}$/;
 const NAME = /^[\p{L}\p{N}_-]+$/u;
 /**
  * Characters a string value may not contain: they end a declaration, rule or `<style>`.
- * `valueProblem` also rejects CSS comment delimiters (slash-star, star-slash) and unbalanced
- * quotes, which would swallow the rest of the stylesheet.
+ * `valueProblem` also rejects CSS comment delimiters (slash-star, star-slash), unterminated
+ * strings and unbalanced brackets, which would swallow the rest of the stylesheet.
  */
 const BAD_VALUE = /[;{}<>\\\p{Cc}]/u;
 
-/** Whether `s` has an odd number of `quote` characters (an unterminated CSS string). */
-function oddCount(s: string, quote: string): boolean {
-  let odd = false;
-  for (let i = s.indexOf(quote); i !== -1; i = s.indexOf(quote, i + 1)) odd = !odd;
-  return odd;
+/**
+ * Why `s` has an unterminated string or unbalanced `(` / `[`, or undefined. One left-to-right
+ * scan: outside a string, `"` or `'` opens a string that only the same quote closes (no
+ * escapes: `\` and newlines are already rejected); brackets inside strings are ignored.
+ * An open string or bracket would swallow the rest of the declaration and later rules.
+ */
+function balanceProblem(s: string): string | undefined {
+  let quote = '';
+  const open: string[] = [];
+  for (const ch of s) {
+    if (quote) {
+      if (ch === quote) quote = '';
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+    } else if (ch === '(' || ch === '[') {
+      open.push(ch);
+    } else if (ch === ')' || ch === ']') {
+      if (open.pop() !== (ch === ')' ? '(' : '[')) return `Value has an unmatched "${ch}"`;
+    }
+  }
+  if (quote) return `Value has an unterminated ${quote} string`;
+  if (open.length > 0) return `Value has an unclosed "${open[open.length - 1]}"`;
+  return undefined;
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -187,9 +205,8 @@ export function fromDTCG(
         if (v.includes('/*') || v.includes('*/')) {
           return 'Value contains a CSS comment delimiter (/* or */)';
         }
-        if (oddCount(v, '"') || oddCount(v, "'")) {
-          return 'Value contains an unbalanced quote (an odd number of " or \')';
-        }
+        const balance = balanceProblem(v);
+        if (balance) return balance;
       } else if (typeof v === 'number' || typeof v === 'boolean') {
         // fine
       } else if (v === null || v === undefined) {
