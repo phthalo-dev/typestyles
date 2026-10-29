@@ -419,4 +419,4 @@ See [Theming patterns](/docs/theming-patterns) for preset mode layers, multi-bra
 
 ## Interop with DTCG and Style Dictionary
 
-If your tokens originate in Figma, Tokens Studio, or another design tool that emits the **W3C Design Tokens Community Group (DTCG)** JSON format, use **Style Dictionary** as a build step that emits a plain TypeScript primitives module — then feed that module into `tokens.create(…)` here. See [Style Dictionary & W3C tokens](/docs/style-dictionary) for the full pipeline in both directions.
+If your tokens originate in Figma, Tokens Studio, or another design tool that emits the **W3C Design Tokens Community Group (DTCG)** JSON format, use **Style Dictionary** as a build step that emits a plain TypeScript primitives module — then feed that module into `tokens.create(…)` here. To read DTCG JSON directly at runtime (including `{alias}` references and light/dark values), use `fromDTCG` from `typestyles/dtcg`. See [Style Dictionary & W3C tokens](/docs/style-dictionary) for both approaches and the full pipeline in both directions.

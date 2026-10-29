@@ -18,6 +18,7 @@ export default defineConfig({
       color: 'src/color-entry.ts',
       'color-scale': 'src/color-scale-entry.ts',
       'token-scale': 'src/token-scale-entry.ts',
+      dtcg: 'src/dtcg-entry.ts',
       globals: 'src/globals.ts',
       css: 'src/css-entry.ts',
       server: 'src/server.ts',
