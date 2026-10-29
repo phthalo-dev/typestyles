@@ -219,6 +219,14 @@ describe('fromDTCG CSS-safety of names and values', () => {
     expect(Object.keys(v.g)).toEqual(expect.arrayContaining(names));
   });
 
+  it('accepts combining marks, so decomposed (NFD) and composed (NFC) names both pass', () => {
+    const nfd = 'a\u0308';
+    const nfc = '\u00e4';
+    const v = okOf({ g: { [nfd]: { $value: '1' }, [nfc]: { $value: '2' } } }).value as any;
+    expect(v.g[nfd]).toBe('1');
+    expect(v.g[nfc]).toBe('2');
+  });
+
   it('accepted names give valid custom properties with tokens.create default naming', () => {
     reset();
     const names = ['500', '7', '10', '2xl', 'brand-500', 'snake_case', 'Über', '_x', '-y'];

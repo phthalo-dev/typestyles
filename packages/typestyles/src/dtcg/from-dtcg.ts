@@ -36,12 +36,14 @@ const MAX_MESSAGE = 600;
 
 const ALIAS = /^\{([^{}]+)\}$/;
 /**
- * A name segment may only contain letters, digits, `-` and `_`. `tokens.create` joins names
- * into a custom-property name (`--color-brand-500`) without escaping, and these are all CSS
- * name code points (non-ASCII letters and digits included), so the result is always valid.
+ * A name segment may only contain letters, combining marks, digits, `-` and `_`.
+ * `tokens.create` joins names into a custom-property name (`--color-brand-500`) without
+ * escaping, and these are all CSS name code points (non-ASCII letters, marks and digits
+ * included), so the result is always valid. Marks let decomposed (NFD) names such as `a` +
+ * U+0308 pass like their composed form.
  * It also keeps out the DTCG-forbidden `.`, `{` and `}`.
  */
-const NAME = /^[\p{L}\p{N}_-]+$/u;
+const NAME = /^[\p{L}\p{M}\p{N}_-]+$/u;
 /**
  * Characters a string value may not contain: they end a declaration, rule or `<style>`.
  * `valueProblem` also rejects CSS comment delimiters (slash-star, star-slash), unterminated
@@ -185,7 +187,7 @@ export function fromDTCG(
     if (name.length > maxNameLength) return `Name is longer than maxNameLength (${maxNameLength})`;
     if (name === '') return 'Name must not be empty';
     if (!NAME.test(name)) {
-      return 'Name contains a character that is not allowed (only letters, digits, - and _ are allowed)';
+      return 'Name contains a character that is not allowed (only letters, combining marks, digits, - and _ are allowed)';
     }
     return undefined;
   };
