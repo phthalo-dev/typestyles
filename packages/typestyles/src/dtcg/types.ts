@@ -32,4 +32,11 @@ export type FromDTCGOptions = {
   maxNameLength?: number;
   /** Most tokens the tree may contain. Default 50,000. */
   maxTokens?: number;
+  /**
+   * Most errors to return. Past it, one last `invalid-token` entry with path `''` says how many
+   * more there were, and the tree walk stops early. Default 100.
+   */
+  maxErrors?: number;
+  /** Most warnings to return. Past it, one last warning says how many more there were. Default 100. */
+  maxWarnings?: number;
 };

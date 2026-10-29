@@ -28,6 +28,8 @@ const ROOT = 0;
 const DEFAULT_MAX_DEPTH = 32;
 const DEFAULT_MAX_NAME_LENGTH = 128;
 const DEFAULT_MAX_TOKENS = 50_000;
+const DEFAULT_MAX_ERRORS = 100;
+const DEFAULT_MAX_WARNINGS = 100;
 const MAX_PATH_IN_MESSAGE = 200;
 const MAX_TARGET_IN_MESSAGE = 120;
 const MAX_MESSAGE = 600;
@@ -74,11 +76,11 @@ function limit(value: unknown, fallback: number): number {
 
 /**
  * Flatten a DTCG tree into a nested plain object and resolve `{a.b}` aliases.
- * Never throws; all problems are collected and returned together.
+ * Never throws; problems are collected and returned together (up to `maxErrors`).
  */
 export function fromDTCG(
   tree: DTCGGroup,
-  options: FromDTCGOptions = {},
+  options?: FromDTCGOptions,
 ): DTCGResult<Record<string, unknown>> {
   if (!isPlainObject(tree)) {
     return {
@@ -87,9 +89,32 @@ export function fromDTCG(
     };
   }
 
-  const maxDepth = limit(options.maxDepth, DEFAULT_MAX_DEPTH);
-  const maxNameLength = limit(options.maxNameLength, DEFAULT_MAX_NAME_LENGTH);
-  const maxTokens = limit(options.maxTokens, DEFAULT_MAX_TOKENS);
+  // Options are read once, up front; null, non-objects and throwing getters mean defaults.
+  let opts: FromDTCGOptions = {};
+  let maxDepth = DEFAULT_MAX_DEPTH;
+  let maxNameLength = DEFAULT_MAX_NAME_LENGTH;
+  let maxTokens = DEFAULT_MAX_TOKENS;
+  let maxErrors = DEFAULT_MAX_ERRORS;
+  let maxWarnings = DEFAULT_MAX_WARNINGS;
+  let resolveExternal: FromDTCGOptions['resolveExternal'];
+  try {
+    if (isPlainObject(options)) {
+      const o = options as FromDTCGOptions;
+      const external = o.resolveExternal;
+      const limits = {
+        maxDepth: limit(o.maxDepth, DEFAULT_MAX_DEPTH),
+        maxNameLength: limit(o.maxNameLength, DEFAULT_MAX_NAME_LENGTH),
+        maxTokens: limit(o.maxTokens, DEFAULT_MAX_TOKENS),
+        maxErrors: limit(o.maxErrors, DEFAULT_MAX_ERRORS),
+        maxWarnings: limit(o.maxWarnings, DEFAULT_MAX_WARNINGS),
+      };
+      opts = o;
+      ({ maxDepth, maxNameLength, maxTokens, maxErrors, maxWarnings } = limits);
+      resolveExternal = typeof external === 'function' ? external : undefined;
+    }
+  } catch {
+    // Keep the defaults.
+  }
 
   const errors: DTCGError[] = [];
   const warnings: string[] = [];
@@ -107,9 +132,34 @@ export function fromDTCG(
     }
     return clip(out, MAX_PATH_IN_MESSAGE);
   };
+  // Errors and warnings past maxErrors / maxWarnings are only counted.
+  let omittedErrors = 0;
+  let omittedWarnings = 0;
+  /** Set when the walk stopped because of maxErrors, so the omitted count is a lower bound. */
+  let stoppedAtMaxErrors = false;
+  const addError = (error: DTCGError) => {
+    if (errors.length < maxErrors) errors.push(error);
+    else omittedErrors++;
+  };
   const fail = (path: string, message: string) =>
-    errors.push({ code: 'invalid-token', path, message: clip(message, MAX_MESSAGE) });
-  const warn = (path: string, message: string) => warnings.push(`${path}: ${message}`);
+    addError({ code: 'invalid-token', path, message: clip(message, MAX_MESSAGE) });
+  const warn = (path: string, message: string) => {
+    if (warnings.length < maxWarnings) warnings.push(`${path}: ${message}`);
+    else omittedWarnings++;
+  };
+  /** The errors to return, plus one closing entry if any were omitted. */
+  const failure = (): { ok: false; errors: DTCGError[] } => {
+    if (omittedErrors > 0) {
+      errors.push({
+        code: 'invalid-token',
+        path: '',
+        message: stoppedAtMaxErrors
+          ? `More than ${maxErrors} errors (maxErrors); stopped checking the tree`
+          : `${omittedErrors} more ${omittedErrors === 1 ? 'error' : 'errors'} omitted (maxErrors ${maxErrors})`,
+      });
+    }
+    return { ok: false, errors };
+  };
 
   /** Why a name is not allowed, or undefined. */
   const nameProblem = (name: string): string | undefined => {
@@ -227,6 +277,10 @@ export function fromDTCG(
         stack.pop();
         continue;
       }
+      if (omittedErrors > 0) {
+        stoppedAtMaxErrors = true;
+        return false;
+      }
       const key = frame.keys[frame.i++];
       if (key.startsWith('$')) continue;
       const depth = frame.depth + 1;
@@ -305,11 +359,11 @@ export function fromDTCG(
 
   try {
     // A partial tree would only add misleading alias-missing errors, so skip resolution.
-    if (!walk()) return { ok: false, errors };
+    if (!walk()) return failure();
   } catch {
     // Only exotic (non-JSON) input gets here, e.g. a throwing getter or proxy.
     fail('', 'DTCG tree: could not read tree (reading a value threw)');
-    return { ok: false, errors };
+    return failure();
   }
 
   /** Token id for a dotted alias target, or undefined. */
@@ -340,7 +394,7 @@ export function fromDTCG(
     if (!ids) reported.set(code, (ids = new Set()));
     if (ids.has(id)) return;
     ids.add(id);
-    errors.push({ code, path: pathOf(id), message: clip(message, MAX_MESSAGE) });
+    addError({ code, path: pathOf(id), message: clip(message, MAX_MESSAGE) });
   };
 
   // In dark mode a token's dark value wins; otherwise (and in light mode) its light value.
@@ -400,7 +454,7 @@ export function fromDTCG(
       if (targetId === undefined) {
         let external: unknown;
         try {
-          external = options.resolveExternal?.(target);
+          external = resolveExternal?.call(opts, target);
         } catch {
           external = undefined;
         }
@@ -451,7 +505,7 @@ export function fromDTCG(
     resolve(id, 'dark');
   }
 
-  if (errors.length > 0) return { ok: false, errors };
+  if (errors.length > 0 || omittedErrors > 0) return failure();
 
   // Build the nested output; group objects are created lazily so empty groups are omitted.
   const out: Record<string, unknown> = {};
@@ -480,6 +534,11 @@ export function fromDTCG(
     objectFor(entries[id].parent)[entries[id].name] = dark.hadDark
       ? { light: light.value, dark: dark.value }
       : light.value;
+  }
+  if (omittedWarnings > 0) {
+    warnings.push(
+      `${omittedWarnings} more ${omittedWarnings === 1 ? 'warning' : 'warnings'} omitted (maxWarnings ${maxWarnings})`,
+    );
   }
   return { ok: true, value: out, warnings };
 }

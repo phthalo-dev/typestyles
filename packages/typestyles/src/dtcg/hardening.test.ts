@@ -403,3 +403,63 @@ describe('fromDTCG unreadable trees', () => {
     expect(fromDTCG(tree, UNCAPPED).ok).toBe(false);
   });
 });
+
+describe('fromDTCG options and caps', () => {
+  it('treats null or non-object options as {}', () => {
+    expect(fromDTCG({ t: { $value: '1' } }, null as any)).toEqual({
+      ok: true,
+      value: { t: '1' },
+      warnings: [],
+    });
+    expect(fromDTCG({ t: { $value: '1' } }, 5 as any).ok).toBe(true);
+    const throwing = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error('nope');
+        },
+      },
+    );
+    expect(() => fromDTCG({ t: { $value: '1' } }, throwing as any)).not.toThrow();
+  });
+
+  it('stops early with at most maxErrors + 1 errors (100k invalid names)', () => {
+    const tree: any = {};
+    for (let i = 0; i < 100_000; i++) tree['a b' + i] = { $value: '1' };
+    const { result, ms } = timed(() => fromDTCG(tree));
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toHaveLength(101);
+    const last = result.errors[100];
+    expect(last.code).toBe('invalid-token');
+    expect(last.path).toBe('');
+    expect(last.message).toContain('maxErrors');
+    expect(ms).toBeLessThan(500);
+    const few = errorsOf(tree, { maxErrors: 3 });
+    expect(few).toHaveLength(4);
+    expect(few[3].path).toBe('');
+  });
+
+  it('counts errors omitted during alias resolution', () => {
+    const tree: any = {};
+    for (let i = 0; i < 10; i++) tree['t' + i] = { $value: `{missing${i}}` };
+    const errs = errorsOf(tree, { maxErrors: 4 });
+    expect(errs).toHaveLength(5);
+    expect(errs.slice(0, 4).every((e) => e.code === 'alias-missing')).toBe(true);
+    expect(errs[4]).toMatchObject({ code: 'invalid-token', path: '' });
+    expect(errs[4].message).toContain('6 more');
+    expect(errorsOf(tree)).toHaveLength(10);
+  });
+
+  it('keeps at most maxWarnings warnings plus one summary line', () => {
+    const tree: any = {};
+    for (let i = 0; i < 300; i++) tree['t' + i] = { $value: { a: '1' } };
+    const r = okOf(tree);
+    expect(r.warnings).toHaveLength(101);
+    expect(r.warnings[100]).toContain('200 more');
+    const few = okOf(tree, { maxWarnings: 2 });
+    expect(few.warnings).toHaveLength(3);
+    expect(few.warnings[2]).toContain('298 more');
+    expect(okOf({ t: { $value: { a: '1' } } }).warnings).toHaveLength(1);
+  });
+});
