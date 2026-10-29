@@ -307,7 +307,7 @@ describe('fromDTCG CSS-safety of names and values', () => {
       "'abc",
       'calc(1px',
       'rgb(1,2,3',
-      'url(x',
+      'fn(x',
       'a[b',
       'a)',
       'a]',
@@ -332,29 +332,42 @@ describe('fromDTCG CSS-safety of names and values', () => {
     }
   });
 
-  it('reads an unquoted url( like CSS: up to the first ")", with no quotes or "(" inside', () => {
+  it('rejects url( anywhere in a value, in any case', () => {
     for (const value of [
+      '#url(a[)',
+      '@url(a[)',
+      '#URL([)',
+      'x #url(a[) y',
       `url(a")")`,
       `url(a')')`,
       `url(a"x)" )`,
       `URL(a"x)" )`,
       `uRl(  a'x)' )`,
-      'url(a(b)',
-      'url(a',
-      'url( ',
-      "URL(a'b)",
+      'url(x)',
+      'url("x")',
+      "url('x')",
+      'url("a(b")',
+      'url(https://example.com/a.png)',
+      'url( x )',
+      'curl(x)',
+      '"url("',
+      'var(--x, url(y))',
     ]) {
       expectRejectedOnAllPaths(value);
     }
+    expect(errorsOf({ t: { $value: 'url(x)' } })[0].message).toContain('url() is not allowed');
     for (const value of [
-      'url("a(b")',
-      "url('x')",
-      'url(x)',
-      'url(https://example.com/a.png)',
-      'url( x )',
-      'url(  "x" )',
-      'var(--x, url(y))',
-      'URL(x) url(y)',
+      `"Children's Font", serif`,
+      "'Segoe UI', sans-serif",
+      '0 1px 2px rgba(0,0,0,.1)',
+      'var(--c-blue-7)',
+      'light-dark(#fff, #000)',
+      'calc(1px + (2px * 3))',
+      '#3b82f6',
+      'ur(l)',
+      'u rl(x)',
+      'url',
+      'urls(x)',
     ]) {
       expectAccepted(value);
     }
@@ -381,7 +394,7 @@ describe('fromDTCG CSS-safety of names and values', () => {
       'var(--c-blue-7)',
       'light-dark(#fff, #000)',
       'calc(1px + (2px * 3))',
-      'url("a(b")',
+      'format("a(b")',
       `'a"b[' "c)'d"`,
     ];
     const tree: any = {};
@@ -398,7 +411,7 @@ describe('fromDTCG CSS-safety of names and values', () => {
       'calc(100% / 3)',
       'calc(2 * 4px)',
       '1px / 2px',
-      'url("a.png")',
+      '"a/b.png"',
     ];
     const tree: any = {};
     values.forEach((v, i) => (tree['t' + i] = { $value: v }));
