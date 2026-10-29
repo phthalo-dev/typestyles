@@ -51,20 +51,48 @@ const NAME = /^[\p{L}\p{M}\p{N}_-]+$/u;
  */
 const BAD_VALUE = /[;{}<>\\\p{Cc}]/u;
 
+/** CSS whitespace. Only the space can occur: the others are control characters, rejected earlier. */
+const isCssSpace = (ch: string) =>
+  ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r' || ch === '\f';
+
+/** Whether the `(` at `i` starts CSS `url(`: `url` in any case, not part of a longer name. */
+function isUrlOpen(s: string, i: number): boolean {
+  if (i < 3 || s.slice(i - 3, i).toLowerCase() !== 'url') return false;
+  // CSS name code points: ASCII letters, digits, `_`, `-`, and anything non-ASCII.
+  return i === 3 || !/[\w-]|[^\0-\x7f]/.test(s[i - 4]);
+}
+
 /**
  * Why `s` has an unterminated string or unbalanced `(` / `[`, or undefined. One left-to-right
  * scan: outside a string, `"` or `'` opens a string that only the same quote closes (no
  * escapes: `\` and newlines are already rejected); brackets inside strings are ignored.
- * An open string or bracket would swallow the rest of the declaration and later rules.
+ * An unquoted `url(` is read the way CSS reads it: up to the first `)`, which must come before
+ * any quote or `(`. An open string or bracket would swallow the rest of the declaration and
+ * later rules. Iterates UTF-16 units; every character it looks for is ASCII.
  */
 function balanceProblem(s: string): string | undefined {
   let quote = '';
   const open: string[] = [];
-  for (const ch of s) {
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
     if (quote) {
       if (ch === quote) quote = '';
     } else if (ch === '"' || ch === "'") {
       quote = ch;
+    } else if (ch === '(' && isUrlOpen(s, i)) {
+      let j = i + 1;
+      while (j < s.length && isCssSpace(s[j])) j++;
+      if (s[j] === '"' || s[j] === "'") {
+        open.push(ch); // quoted url: the string scan handles the rest
+        continue;
+      }
+      for (; j < s.length && s[j] !== ')'; j++) {
+        if (s[j] === '"' || s[j] === "'" || s[j] === '(') {
+          return `Value has a quote or "(" inside an unquoted url()`;
+        }
+      }
+      if (j >= s.length) return 'Value has an unclosed "url("';
+      i = j; // the url( paren opened and closed
     } else if (ch === '(' || ch === '[') {
       open.push(ch);
     } else if (ch === ')' || ch === ']') {

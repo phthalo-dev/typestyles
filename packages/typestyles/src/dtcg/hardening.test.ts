@@ -19,6 +19,31 @@ function okOf(tree: DTCGGroup, options?: Parameters<typeof fromDTCG>[1]) {
   return r;
 }
 
+/** A string value is rejected as $value, dark value, resolveExternal result and nested string. */
+function expectRejectedOnAllPaths(value: string) {
+  const label = JSON.stringify(value).slice(0, 80);
+  const trees: [DTCGGroup, Parameters<typeof fromDTCG>[1]?][] = [
+    [{ t: { $value: value } }],
+    [{ t: { $value: '#fff', $extensions: { [EXT]: { dark: value } } } }],
+    [{ x: { $value: '{ext.a}' } }, { resolveExternal: () => value }],
+    [{ t: { $value: { value, unit: 'px' } } }],
+    [{ t: { $value: ['ok', value] } }],
+  ];
+  for (const [tree, options] of trees) {
+    expect(errorsOf(tree, options)[0].code, label).toBe('invalid-token');
+  }
+}
+
+/** A string value is accepted unchanged as $value and as a dark value. */
+function expectAccepted(value: string) {
+  const v = okOf({
+    t: { $value: value },
+    d: { $value: '1', $extensions: { [EXT]: { dark: value } } },
+  }).value as any;
+  expect(v.t, JSON.stringify(value)).toBe(value);
+  expect(v.d.dark, JSON.stringify(value)).toBe(value);
+}
+
 const UNCAPPED = { maxDepth: Infinity, maxNameLength: Infinity, maxTokens: Infinity };
 
 function timed<T>(fn: () => T): { result: T; ms: number } {
@@ -304,6 +329,34 @@ describe('fromDTCG CSS-safety of names and values', () => {
         'invalid-token',
       );
       expect(errorsOf({ t: { $value: ['ok', value] } })[0].code, label).toBe('invalid-token');
+    }
+  });
+
+  it('reads an unquoted url( like CSS: up to the first ")", with no quotes or "(" inside', () => {
+    for (const value of [
+      `url(a")")`,
+      `url(a')')`,
+      `url(a"x)" )`,
+      `URL(a"x)" )`,
+      `uRl(  a'x)' )`,
+      'url(a(b)',
+      'url(a',
+      'url( ',
+      "URL(a'b)",
+    ]) {
+      expectRejectedOnAllPaths(value);
+    }
+    for (const value of [
+      'url("a(b")',
+      "url('x')",
+      'url(x)',
+      'url(https://example.com/a.png)',
+      'url( x )',
+      'url(  "x" )',
+      'var(--x, url(y))',
+      'URL(x) url(y)',
+    ]) {
+      expectAccepted(value);
     }
   });
 
