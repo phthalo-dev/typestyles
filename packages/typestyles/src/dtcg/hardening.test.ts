@@ -246,6 +246,45 @@ describe('fromDTCG CSS-safety of names and values', () => {
     }
   });
 
+  it('rejects CSS comment delimiters and unbalanced quotes in values', () => {
+    const bad = ['a /* b', 'a */ b', '/**/', '"Inter, sans-serif', "'Inter", '"a" "b', "'a' 'b' '"];
+    for (const value of bad) {
+      const label = JSON.stringify(value);
+      expect(errorsOf({ t: { $value: value } })[0].code, label).toBe('invalid-token');
+      expect(
+        errorsOf({ t: { $value: '#fff', $extensions: { [EXT]: { dark: value } } } })[0].code,
+        label,
+      ).toBe('invalid-token');
+      expect(
+        errorsOf({ x: { $value: '{ext.a}' } }, { resolveExternal: () => value })[0].code,
+        label,
+      ).toBe('invalid-token');
+      expect(errorsOf({ t: { $value: { value, unit: 'px' } } })[0].code, label).toBe(
+        'invalid-token',
+      );
+      expect(errorsOf({ t: { $value: ['ok', value] } })[0].code, label).toBe('invalid-token');
+    }
+  });
+
+  it('keeps balanced quotes and lone slashes or asterisks in values', () => {
+    const values = [
+      '"Inter", sans-serif',
+      "'Segoe UI', sans-serif",
+      `"Inter", 'Segoe UI', system-ui`,
+      'calc(100% / 3)',
+      'calc(2 * 4px)',
+      '1px / 2px',
+      'url("a.png")',
+    ];
+    const tree: any = {};
+    values.forEach((v, i) => (tree['t' + i] = { $value: v }));
+    const out = okOf(tree).value as any;
+    values.forEach((v, i) => expect(out['t' + i]).toBe(v));
+    expect(okOf({ t: { $value: { family: '"Inter", sans-serif' } } }).value).toEqual({
+      t: { family: '"Inter", sans-serif' },
+    });
+  });
+
   it('keeps legitimate CSS values', () => {
     const values = [
       '"Inter", sans-serif',

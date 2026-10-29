@@ -40,8 +40,19 @@ const ALIAS = /^\{([^{}]+)\}$/;
  * It also keeps out the DTCG-forbidden `.`, `{` and `}`.
  */
 const NAME = /^[\p{L}\p{N}_-]+$/u;
-/** Characters a string value may not contain: they end a declaration, rule or `<style>`. */
+/**
+ * Characters a string value may not contain: they end a declaration, rule or `<style>`.
+ * `valueProblem` also rejects CSS comment delimiters (slash-star, star-slash) and unbalanced
+ * quotes, which would swallow the rest of the stylesheet.
+ */
 const BAD_VALUE = /[;{}<>\\\p{Cc}]/u;
+
+/** Whether `s` has an odd number of `quote` characters (an unterminated CSS string). */
+function oddCount(s: string, quote: string): boolean {
+  let odd = false;
+  for (let i = s.indexOf(quote); i !== -1; i = s.indexOf(quote, i + 1)) odd = !odd;
+  return odd;
+}
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -122,6 +133,12 @@ export function fromDTCG(
           return /\{[^{}]*\}/.test(v)
             ? 'Value contains an embedded alias, which is not resolved (DTCG only allows whole-value aliases such as "{group.token}"); braces are not allowed in values'
             : 'Value contains a character that is not allowed (; { } < > \\ or a control character)';
+        }
+        if (v.includes('/*') || v.includes('*/')) {
+          return 'Value contains a CSS comment delimiter (/* or */)';
+        }
+        if (oddCount(v, '"') || oddCount(v, "'")) {
+          return 'Value contains an unbalanced quote (an odd number of " or \')';
         }
       } else if (typeof v === 'number' || typeof v === 'boolean') {
         // fine
