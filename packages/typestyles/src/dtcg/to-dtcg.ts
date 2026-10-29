@@ -50,7 +50,7 @@ export function toDTCG(tokens: Record<string, unknown>, options?: ToDTCGOptions)
 
   const typeFor = (path: string): string | undefined =>
     attempt(() => {
-      const t = typeOf?.(path);
+      const t = typeOf?.call(opts, path);
       return typeof t === 'string' && t ? t : undefined;
     }, undefined);
 
@@ -78,8 +78,8 @@ export function toDTCG(tokens: Record<string, unknown>, options?: ToDTCGOptions)
         const plain = attempt(() => isPlainObject(value), undefined);
         if (plain === undefined) continue;
         if (plain && onPath.has(value)) continue;
-        const modeLeaf = plain && attempt(() => isModeLeaf(value), undefined);
-        if (modeLeaf === undefined) continue;
+        // A mode-leaf check that throws means "not a mode leaf": the object is walked as a group.
+        const modeLeaf = plain && attempt(() => isModeLeaf(value), false);
 
         let token: Record<string, unknown> | undefined;
         if (!plain || modeLeaf) {

@@ -106,6 +106,32 @@ describe('toDTCG unreadable input', () => {
     expect(out.z).toEqual({ $value: '2' });
   });
 
+  it('turns a nested object whose "in" check throws into a group like other unreadable objects', () => {
+    const hasThrows = new Proxy(
+      { x: '1' },
+      {
+        has() {
+          throw new Error('has');
+        },
+      },
+    );
+    const out = toDTCG({ a: '1', g: hasThrows, k: throwingKeys() } as any);
+    expect(out).toEqual({ a: { $value: '1' }, g: { x: { $value: '1' } }, k: {} });
+  });
+
+  it('calls a method-style typeOf with the options object as this', () => {
+    const options = {
+      prefix: 'color',
+      typeOf(this: { prefix: string }, path: string) {
+        return path.startsWith(this.prefix) ? 'color' : undefined;
+      },
+    };
+    expect(toDTCG({ color: { a: '1' }, space: { b: '2' } }, options)).toEqual({
+      color: { a: { $value: '1', $type: 'color' } },
+      space: { b: { $value: '2' } },
+    });
+  });
+
   it('does not throw on a revoked proxy or null options', () => {
     const { proxy, revoke } = Proxy.revocable({}, {});
     revoke();
