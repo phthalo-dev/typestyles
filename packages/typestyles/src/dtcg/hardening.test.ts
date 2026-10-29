@@ -1,6 +1,8 @@
 /* oxlint-disable typescript/no-explicit-any -- tests probe malformed input */
 import { describe, it, expect } from 'vite-plus/test';
 import { fromDTCG } from './from-dtcg';
+import { createTokens } from '../tokens';
+import { reset, flushSync, getRegisteredCss } from '../sheet';
 import type { DTCGGroup } from './types';
 
 const EXT = 'dev.typestyles';
@@ -196,16 +198,42 @@ describe('fromDTCG CSS-safety of names and values', () => {
     expect(errorsOf({ 'a b': { t: { $value: '1' } } })[0].code).toBe('invalid-token');
   });
 
+  it('only allows letters, digits, - and _ in names', () => {
+    for (const name of ['a/b', 'a+b', 'a%b', 'a#b', 'a&b', 'a*b', 'a b', 'a.b', 'a=b', 'a~b']) {
+      const errs = errorsOf({ g: { [name]: { $value: '1' } } });
+      expect(
+        errs.map((e) => e.code),
+        JSON.stringify(name),
+      ).toEqual(['invalid-token']);
+      expect(errs[0].path).toBe(`g.${name}`);
+    }
+    // Structured value keys follow the same rule.
+    expect(errorsOf({ t: { $value: { 'a/b': '1' } } })[0].code).toBe('invalid-token');
+  });
+
   it('keeps other names legal', () => {
-    const v = okOf({
-      g: {
-        '7': { $value: '1' },
-        ünïcødé: { $value: '1' },
-        'a-b_c/d+e%f': { $value: '1' },
-        '100': { $value: '1' },
-      },
-    }).value as any;
-    expect(Object.keys(v.g)).toEqual(expect.arrayContaining(['7', 'ünïcødé', 'a-b_c/d+e%f']));
+    const names = ['7', '100', '500', '10', '2xl', 'brand-500', 'snake_case', 'Über', 'ünïcødé'];
+    const g: any = {};
+    for (const n of names) g[n] = { $value: '1' };
+    const v = okOf({ g }).value as any;
+    expect(Object.keys(v.g)).toEqual(expect.arrayContaining(names));
+  });
+
+  it('accepted names give valid custom properties with tokens.create default naming', () => {
+    reset();
+    const names = ['500', '7', '10', '2xl', 'brand-500', 'snake_case', 'Über', '_x', '-y'];
+    const g: any = {};
+    for (const n of names) g[n] = { $value: '1px', $extensions: { [EXT]: { dark: '2px' } } };
+    const value = okOf({ space: g, plain: { $value: '3px' } }).value as any;
+    createTokens().create('dtcg', value);
+    flushSync();
+    const css = getRegisteredCss();
+    const props = [...css.matchAll(/(--[^\s:;{}]+)\s*:/g)].map((m) => m[1]);
+    expect(props.length).toBeGreaterThanOrEqual(names.length + 1);
+    // A CSS custom property name: "--" then name code points (ASCII letters, digits, - and _,
+    // or anything non-ASCII).
+    for (const p of props) expect(p, p).toMatch(/^--[a-zA-Z0-9_\-\u0080-\u{10FFFF}]+$/u);
+    for (const n of names) expect(props).toContain(`--dtcg-space-${n}`);
   });
 
   it('rejects values with characters that break CSS', () => {
