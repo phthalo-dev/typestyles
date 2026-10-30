@@ -32,6 +32,13 @@ export interface TypestylesExtractOptions {
    * `getRegisteredComponentRefs(styles)` — the extract entry alone is not enough.
    */
   include?: 'allRegisteredComponents';
+  /**
+   * When true, precede each extracted rule with a `/* path:line *\/` comment naming the
+   * `recipe()` / `style()` call (or other registration call) that produced it. Paths are
+   * relative to the project root. Off by default; costs one stack capture per rule at extract
+   * time and adds bytes to the CSS, so enable it for debugging.
+   */
+  sourceComments?: boolean;
 }
 
 /**

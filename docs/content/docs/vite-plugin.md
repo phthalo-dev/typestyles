@@ -132,6 +132,23 @@ export default defineConfig({
 });
 ```
 
+## Source comments
+
+Rules in the extracted CSS can carry a comment naming the call that registered them, so you can go from a rule in DevTools to the `recipe()` or `style()` call site. It is off by default:
+
+```ts
+typestyles({ extract: { sourceComments: true } });
+```
+
+```css
+/* src/Button.ts:12 */
+.button-base {
+  padding: 8px;
+}
+```
+
+Paths are relative to the project root; rules from a library bundled into the extract show the library's path. This applies to the extracted stylesheet only (dev `/typestyles.css` and `vite build`). Runtime injection goes through `CSSStyleSheet.insertRule`, which drops comments. Enable it for debugging rather than production, since it adds bytes and a stack capture per rule at extract time.
+
 ## How HMR works
 
 When you save a file that imports from `typestyles`, the plugin:
@@ -304,6 +321,6 @@ If you prefer full page reloads or use a different bundler, you don't need this 
 Planned enhancements (not yet implemented):
 
 - **Dead style detection**: Warn when styles are defined but never used
-- **Source maps**: Map generated CSS back to your style definitions
+- **Source maps**: A real CSS source map (today, [source comments](#source-comments) cover extracted CSS)
 
 Stay tuned to the [GitHub repository](https://github.com/phthalo-dev/typestyles) for updates.
