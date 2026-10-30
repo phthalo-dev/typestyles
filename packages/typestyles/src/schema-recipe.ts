@@ -143,11 +143,11 @@ export type RecipeStyles<Def extends RecipeDefinition> = {
 };
 
 /** The callable result of a schema recipe: a slot→result map, or a single result. */
-export type RecipeReturnValue<Def extends RecipeDefinition, Element> = Def extends {
-  readonly slots: readonly (infer S extends string)[];
-}
-  ? Record<S, Element>
-  : Element;
+export type RecipeReturnValue<Def extends RecipeDefinition, Element> = [Def['slots']] extends [
+  undefined,
+]
+  ? Element
+  : Record<NonNullable<Def['slots']>[number], Element>;
 
 /**
  * Makes an **extra key** in a variant style map a compile error instead of a silent
