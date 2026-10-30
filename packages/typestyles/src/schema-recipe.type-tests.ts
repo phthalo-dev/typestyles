@@ -247,3 +247,22 @@ const utilRecipe = utilApi.component({
   styles: { variants: { tone: { a: {}, b: {} } } },
 });
 void utilRecipe({ tone: 'a' }).attrs;
+
+// Issue #303: a slot recipe's call result is keyed by the declared slot names.
+const ts303 = createTypeStyles({ scopeId: 'issue-303' });
+const slotsOnly303 = ts303.recipe({
+  name: 'slots-only',
+  slots: ['root', 'label'],
+  styles: { base: { root: { color: 'red' }, label: { color: 'blue' } } },
+});
+const slotsVars303 = ts303.recipe({
+  name: 'slots-vars',
+  slots: ['root'],
+  vars: { x: { syntax: '<color>', initial: 'red', value: 'blue' } },
+  styles: ({ vars }) => ({ base: { root: { color: vars.x.var } } }),
+});
+export const _slotKeys303: Expect<Equal<keyof ReturnType<typeof slotsOnly303>, 'root' | 'label'>> =
+  true;
+export const _varsSlotKeys303: Expect<Equal<keyof ReturnType<typeof slotsVars303>, 'root'>> = true;
+// @ts-expect-error — `nonexistent` is not a declared slot
+export const _typo303 = slotsOnly303().nonexistent;
