@@ -105,4 +105,29 @@ describe('consolidateCascadeLayers', () => {
       }"
     `);
   });
+
+  it('keeps source comments with their rules when merging layers', () => {
+    const css = `@layer a, b;
+/* src/a.ts:1 */
+@layer a {
+.a { color: red; }
+}
+/* src/b.ts: it's; {odd} */
+.plain { color: blue; }
+/* src/a.ts:9 */
+@layer a {
+.a2 { color: green; }
+}`;
+    expect(consolidateCascadeLayers(css)).toMatchInlineSnapshot(`
+      "@layer a, b;
+      @layer a {
+      /* src/a.ts:1 */
+      .a { color: red; }
+      /* src/a.ts:9 */
+      .a2 { color: green; }
+      }
+      /* src/b.ts: it's; {odd} */
+      .plain { color: blue; }"
+    `);
+  });
 });

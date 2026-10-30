@@ -44,6 +44,12 @@ export function splitTopLevelCss(css: string): string[] {
         continue;
       }
 
+      if (ch === '/' && css[i + 1] === '*') {
+        const end = css.indexOf('*/', i + 2);
+        i = end === -1 ? len : end + 2;
+        continue;
+      }
+
       if (ch === '"' || ch === "'") {
         inString = ch;
         i++;
@@ -80,11 +86,17 @@ export function splitTopLevelCss(css: string): string[] {
   return chunks;
 }
 
+const LEADING_COMMENTS_RE = /^(?:\/\*[\s\S]*?\*\/\s*)+/;
+
 function parseChunk(chunk: string): CssChunk {
-  const trimmed = chunk.trim();
+  const whole = chunk.trim();
+  // Source comments (`/* path:line */`) lead the rule they describe; keep them with it.
+  const comment = LEADING_COMMENTS_RE.exec(whole)?.[0].trim() ?? '';
+  const trimmed = whole.slice(comment.length).trim();
+  const withComment = (css: string) => (comment ? `${comment}\n${css}` : css);
 
   if (LAYER_ORDER_PREAMBLE_RE.test(trimmed)) {
-    return { kind: 'preamble', css: trimmed };
+    return { kind: 'preamble', css: withComment(trimmed) };
   }
 
   const layerMatch = trimmed.match(LAYER_BLOCK_START_RE);
@@ -94,15 +106,15 @@ function parseChunk(chunk: string): CssChunk {
     const closeIdx = trimmed.lastIndexOf('}');
     if (openIdx !== -1 && closeIdx > openIdx) {
       const body = trimmed.slice(openIdx + 1, closeIdx).trim();
-      return { kind: 'layer', name, body };
+      return { kind: 'layer', name, body: withComment(body) };
     }
   }
 
   if (PROPERTY_START_RE.test(trimmed)) {
-    return { kind: 'property', css: trimmed };
+    return { kind: 'property', css: withComment(trimmed) };
   }
 
-  return { kind: 'other', css: trimmed };
+  return { kind: 'other', css: whole };
 }
 
 /**

@@ -5,6 +5,8 @@ export type SheetState = {
   allRules: string[];
   flushScheduled: boolean;
   ssrBuffer: string[] | null;
+  /** Rule CSS → `path:line`; only filled when source comments are enabled. */
+  sourceByCss: Map<string, string>;
 };
 
 export function createSheetState(): SheetState {
@@ -15,6 +17,7 @@ export function createSheetState(): SheetState {
     allRules: [],
     flushScheduled: false,
     ssrBuffer: null,
+    sourceByCss: new Map(),
   };
 }
 
@@ -25,6 +28,7 @@ export function resetSheetState(state: SheetState): void {
   state.allRules.length = 0;
   state.flushScheduled = false;
   state.ssrBuffer = null;
+  state.sourceByCss.clear();
 }
 
 const globalSheetState = createSheetState();

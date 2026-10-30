@@ -13,6 +13,11 @@ import {
   type SheetState,
 } from './sheet-context';
 import { consolidateCascadeLayers } from './consolidate-cascade-layers';
+import {
+  captureSourceLocation,
+  formatSourceComment,
+  sourceCommentsConfig,
+} from './source-comments';
 
 /** Stable id for the managed `<style>` element (SSR, hydration, and client runtime). */
 export const TYPESTYLES_STYLE_ID = 'typestyles';
@@ -506,6 +511,13 @@ export function invalidateOverrideRuleKeys(keys: readonly string[]): void {
   removeCssomRulesMatching(removedCss);
 }
 
+function recordSource(state: SheetState, css: string): void {
+  const config = sourceCommentsConfig();
+  if (!config) return;
+  const location = captureSourceLocation(config);
+  if (location) state.sourceByCss.set(css, location);
+}
+
 /**
  * Insert a CSS rule. Deduplicates by rule key.
  */
@@ -528,6 +540,7 @@ export function insertRule(key: string, css: string): void {
   state.insertedRules.add(key);
   state.ruleCssByKey.set(key, css);
   state.allRules.push(css);
+  recordSource(state, css);
   notifyRegisteredCssChanged();
   if (RUNTIME_DISABLED && !state.ssrBuffer) return;
   state.pendingRules.push(css);
@@ -559,6 +572,7 @@ export function insertRules(rules: Array<{ key: string; css: string }>): void {
     state.insertedRules.add(key);
     state.ruleCssByKey.set(key, css);
     state.allRules.push(css);
+    recordSource(state, css);
     registered = true;
     if (!RUNTIME_DISABLED || state.ssrBuffer) {
       state.pendingRules.push(css);
@@ -626,7 +640,16 @@ export function startCollection(): () => string {
  * ```
  */
 export function getRegisteredCss(): string {
-  return consolidateCascadeLayers(getSheetState().allRules.join('\n'));
+  const { allRules, sourceByCss } = getSheetState();
+  if (sourceByCss.size === 0) return consolidateCascadeLayers(allRules.join('\n'));
+  return consolidateCascadeLayers(
+    allRules
+      .map((css) => {
+        const source = sourceByCss.get(css);
+        return source ? `${formatSourceComment(source)}\n${css}` : css;
+      })
+      .join('\n'),
+  );
 }
 
 const registeredCssListeners = new Set<() => void>();

@@ -332,6 +332,7 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
             devExtractInFlight = runTypestylesBuild({
               root,
               modules: resolvedExtractModules,
+              sourceComments: extract?.sourceComments,
             })
               .then((css) => {
                 devExtractCss = css;
@@ -517,6 +518,7 @@ if (import.meta.hot) {
         const css = await runTypestylesBuild({
           root,
           modules: resolvedExtractModules,
+          sourceComments: extract?.sourceComments,
         });
         if (requestedFileName && cssFileNameHasPlaceholder(requestedFileName)) {
           builtCssFileName = renderCssFileName(requestedFileName, css);

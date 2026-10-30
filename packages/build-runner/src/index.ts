@@ -65,6 +65,11 @@ export interface RunTypestylesBuildOptions {
    * Module paths (relative to root) that register typestyles styles.
    */
   modules: string[];
+  /**
+   * Precede each rule with a `/* path:line *\/` comment for the call that registered it.
+   * Paths are relative to `root`. See {@link TypestylesExtractOptions.sourceComments}.
+   */
+  sourceComments?: boolean;
 }
 
 function toImportPath(modulePath: string): string {
@@ -84,6 +89,7 @@ function toImportPath(modulePath: string): string {
 export async function runTypestylesBuild({
   root,
   modules,
+  sourceComments = false,
 }: RunTypestylesBuildOptions): Promise<string> {
   if (!modules.length) return '';
 
@@ -117,6 +123,8 @@ export async function runTypestylesBuild({
     // a (correctly) tree-shakeable component library. Ignore both kinds of
     // annotation so every import in the extraction graph is included.
     ignoreAnnotations: true,
+    // Source-mapped stacks (with `--enable-source-maps` below) give original file:line.
+    ...(sourceComments ? { sourcemap: 'inline' as const } : {}),
     stdin: {
       contents: importLines,
       resolveDir: root,
@@ -131,15 +139,22 @@ export async function runTypestylesBuild({
   }
 
   const scriptPath = resolve(root, `.typestyles-extract-${process.pid}.cjs`);
-  const script = `${bundledCode}\nprocess.stdout.write(require('typestyles').getRegisteredCss());\n`;
+  const prelude = sourceComments
+    ? `globalThis.__TYPESTYLES_SOURCE_COMMENTS__ = { root: ${JSON.stringify(root)} };\n`
+    : '';
+  const script = `${prelude}${bundledCode}\nprocess.stdout.write(require('typestyles').getRegisteredCss());\n`;
 
   try {
     writeFileSync(scriptPath, script, 'utf8');
-    const result = spawnSync(process.execPath, [scriptPath], {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const result = spawnSync(
+      process.execPath,
+      [...(sourceComments ? ['--enable-source-maps'] : []), scriptPath],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
 
     if (result.error) {
       throw new Error(`[typestyles] Extraction failed: ${result.error.message}.`);
