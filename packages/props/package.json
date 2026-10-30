@@ -1,6 +1,6 @@
 {
   "name": "@typestyles/props",
-  "version": "0.4.41",
+  "version": "0.4.42",
   "description": "Type-safe atomic CSS utility generator for typestyles",
   "type": "module",
   "main": "./dist/index.cjs",

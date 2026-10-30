@@ -1,5 +1,15 @@
 # @typestyles/astro
 
+## 0.3.12
+
+### Patch Changes
+
+- [#300](https://github.com/phthalo-dev/typestyles/pull/300) [`1266ee6`](https://github.com/phthalo-dev/typestyles/commit/1266ee608f50dd812b863f41c310e8794e5bee16) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Emit Vite extracted CSS as a content-hashed asset by default so production deploys cannot pair new JavaScript with a cached `typestyles.css`. Dev still serves the stable `/typestyles.css` URL. Set `extract.fileName` to a literal path to opt out, or use `[hash]` placeholders for a custom name.
+  
+  `@typestyles/astro` keeps the stable `typestyles.css` name by default, because Astro pages do not pass through Vite's HTML rewrite.
+- Updated dependencies [[`6b862ab`](https://github.com/phthalo-dev/typestyles/commit/6b862abfe2a326997d5d99808174a7fe5acb6c14), [`1266ee6`](https://github.com/phthalo-dev/typestyles/commit/1266ee608f50dd812b863f41c310e8794e5bee16)]:
+  - @typestyles/vite@0.6.0
+
 ## 0.3.11
 
 ### Patch Changes

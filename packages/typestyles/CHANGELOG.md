@@ -1,5 +1,17 @@
 # typestyles
 
+## 0.34.0
+
+### Minor Changes
+
+- [#302](https://github.com/phthalo-dev/typestyles/pull/302) [`910b6e9`](https://github.com/phthalo-dev/typestyles/commit/910b6e9abb4ad6791864e30a30d6be9bcd230c15) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Add `typestyles/dtcg` runtime DTCG codec. `fromDTCG` treats input as untrusted: it enforces `maxDepth`, `maxNameLength`, `maxTokens`, `maxErrors` and `maxWarnings` limits (options with safe defaults), allows only letters (including combining marks), digits, `-` and `_` in names, rejects values that could break CSS (including comment delimiters, unterminated strings, unbalanced brackets and `url(`), and reports structured values and other likely mistakes in `warnings`. `toDTCG` never throws, skips cycles and stops after `maxNodes` groups and tokens.
+
+- [#306](https://github.com/phthalo-dev/typestyles/pull/306) [`6b862ab`](https://github.com/phthalo-dev/typestyles/commit/6b862abfe2a326997d5d99808174a7fe5acb6c14) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Add opt-in `extract.sourceComments` to precede each extracted CSS rule with a `/* path:line */` comment naming the `recipe()` / `style()` call that registered it. `@typestyles/vite` passes the option through to the extract; paths are relative to the project root. Runtime injection is unchanged because `insertRule` drops comments.
+
+### Patch Changes
+
+- [#305](https://github.com/phthalo-dev/typestyles/pull/305) [`d951a89`](https://github.com/phthalo-dev/typestyles/commit/d951a89de6a6b2568316cd9c6325b94d7f95ab81) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Fix slot recipe call results being typed as `Record<string, ComponentAttrsResult>`. The result is now keyed by the declared slot names, so a mistyped slot is a compile error.
+
 ## 0.33.0
 
 ### Minor Changes

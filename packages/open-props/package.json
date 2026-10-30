@@ -1,6 +1,6 @@
 {
   "name": "@typestyles/open-props",
-  "version": "0.3.41",
+  "version": "0.3.42",
   "description": "Type-safe Open Props integration for typestyles",
   "type": "module",
   "main": "./dist/index.cjs",
