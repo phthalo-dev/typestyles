@@ -87,7 +87,7 @@ Token + theme API bound to an optional `scopeId`. Prefer the `tokens` from **`cr
 
 Lower-level factory for a token + theme API alone. When `scopeId` is set, `tokens.create('color', …)` emits `--{scopeId}-color-*` variables and `tokens.createTheme({ name: 'dark', … })` registers `.theme-{scopeId}-dark` (sanitized segments). With **`layers`**, **`tokenLayer`** is required and token/theme CSS is wrapped in that layer. Optional **`nameTemplate`** on the instance or per `tokens.create` call controls emitted `--*` names (see [Tokens](/docs/tokens#custom-css-variable-names-nametemplate)). Optional **`colorModes`** registers mode keys for `{ light, dark }` token leaves (`light-dark()` emission); use the **`colorModes`** constant from `typestyles` (`['light', 'dark']`). Optional **`colorModeAttribute`** (default **`data-color-mode`**) names the HTML attribute for dark fallbacks of values that cannot compile to `light-dark()` — the attribute on `:root` or the theme class, or on a descendant.
 
-Exported types: **`TokenNameContext`**, **`TokenNameTemplate`**, **`FlatTokenPathEntry`**, **`TokenSchema`**, **`TokenSchemaLeaf`**, **`DeclaredTokenRef`**, **`CreateTokenValues`**, **`TokenDescriptor`** (for `ctx.vars()` / `property`), **`SyntaxRef`**, **`CssSyntax`**, **`SyntaxRefAccepts`**, **`CreateValueForSyntax`**, **`CompatibleSourceSyntax`**, **`SyntaxAwareLonghands`**, **`CSSPropertyValue`**, **`InferFromSchema`**, **`InferValuesFromSchema`**. Helper: **`flattenTokenPaths`** (segment-preserving flatten for custom templates).
+Exported types: **`TokenNameContext`**, **`TokenNameTemplate`**, **`FlatTokenPathEntry`**, **`TokenSchema`**, **`TokenSchemaLeaf`**, **`DeclaredTokenRef`**, **`CreateTokenValues`**, **`TokenDescriptor`** (for `ctx.vars()` / `property`), **`SyntaxRef`**, **`DesignTokenRef`**, **`CssSyntax`**, **`SyntaxRefAccepts`**, **`CreateValueForSyntax`**, **`CompatibleSourceSyntax`**, **`SyntaxAwareLonghands`**, **`CSSPropertyValue`**, **`InferFromSchema`**, **`InferValuesFromSchema`**. Helper: **`flattenTokenPaths`** (segment-preserving flatten for custom templates).
 
 ### `createStyles(options?)`
 
@@ -279,6 +279,13 @@ See [Attribute mode — React & Astro](/docs/attribute-mode-react).
 - `typestylesStyleHtml(css)`: Render `<style id="typestyles">…</style>` (empty string when `css` is empty)
 - `injectStylesIntoHtml(html, css)`: Insert collected CSS before `</head>`
 - `streamingDocumentShell(css)`: Open doctype + `<head>` + `<body>` for `renderToPipeableStream` (pair with `collectStyles` for the CSS pass)
+
+### Pure name-only build (`typestyles/core`)
+
+The same exports as the main entry, built without the CSS insertion runtime, the stylesheet state, or any DOM plumbing — calls compute the identical class names and data attributes but register nothing (`getRegisteredCss()` is a stub).
+
+- **Zero-runtime builds:** the bundler integrations (`@typestyles/vite`, `rollup`, `esbuild`, `webpack`, `next`) resolve `typestyles` → `typestyles/core` automatically in the client bundle (see [Zero-runtime extraction](/docs/zero-runtime#the-pure-core-typestylescore)).
+- **Manual use:** import from `typestyles/core` when every styled surface is extracted at build time. It never collects CSS on its own, so do not pair it with runtime-only injection.
 
 ### Class naming helpers
 

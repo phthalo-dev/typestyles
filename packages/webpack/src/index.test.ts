@@ -1,5 +1,5 @@
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vite-plus/test';
 import webpack from 'webpack';
@@ -118,5 +118,63 @@ createTheme('webpack-dark', { base: { 'webpack-color': { primary: '#66aaff' } } 
       ],
     });
     expect(result.cssBytes).toBeGreaterThan(0);
+  }, 15_000);
+
+  it('bundles typestyles/core instead of the runtime barrel in build mode', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-webpack-core-'));
+    const outdir = join(dir, 'dist');
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    mkdirSync(join(dir, 'node_modules'), { recursive: true });
+    symlinkSync(
+      resolve(import.meta.dirname, '../../typestyles'),
+      join(dir, 'node_modules/typestyles'),
+      'dir',
+    );
+    writeFileSync(
+      join(dir, 'src/typestyles-entry.js'),
+      `import { createTypeStyles } from 'typestyles';
+const { recipe } = createTypeStyles();
+recipe({ name: 'webpack-core', styles: { base: { color: 'red' } } });`,
+    );
+    writeFileSync(
+      join(dir, 'src/index.js'),
+      `import { createTypeStyles } from 'typestyles';
+const t = createTypeStyles({ scopeId: 'core' });
+export const noop = () => void t;`,
+    );
+
+    const errors: Error[] = [];
+    const compiler = webpack({
+      mode: 'production',
+      context: dir,
+      entry: './src/index.js',
+      output: { path: outdir, filename: 'index.js' },
+      plugins: [new TypestylesWebpackPlugin({ root: dir })],
+    });
+
+    await new Promise<void>((resolvePromise, reject) => {
+      compiler?.run((error, stats) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        if (stats?.hasErrors()) {
+          for (const detail of stats.compilation.errors) {
+            errors.push(detail as Error);
+          }
+        }
+        resolvePromise();
+      });
+    });
+
+    expect(errors).toEqual([]);
+
+    const bundle = await import('node:fs/promises').then((fs) =>
+      fs.readFile(join(outdir, 'index.js'), 'utf8'),
+    );
+    // The runtime sheet ships `typestyles-fallback` + `styleElement` DOM
+    // plumbing; the pure core build contains neither.
+    expect(bundle).not.toContain('typestyles-fallback');
+    expect(bundle).not.toContain('styleElement');
   }, 15_000);
 });

@@ -47,6 +47,64 @@ describe('withTypestylesExtract', () => {
     expect(hasDefine).toBe(true);
   });
 
+  it('adds the typestyles -> typestyles/core client alias only on client bundles', async () => {
+    const merged = withTypestylesExtract({});
+    const webpackHook = merged.webpack;
+    if (typeof webpackHook !== 'function') {
+      throw new Error('expected webpack hook');
+    }
+
+    const client = webpackHook(
+      { plugins: [] } as Configuration,
+      { isServer: false } as WebpackContext,
+    );
+    expect(client.resolve?.alias).toEqual({
+      typestyles$: 'typestyles/core',
+    });
+
+    const server = webpackHook(
+      { plugins: [] } as Configuration,
+      { isServer: true } as WebpackContext,
+    );
+    expect(server.resolve?.alias).toBeUndefined();
+  });
+
+  it('preserves existing resolve aliases when swapping to typestyles/core', () => {
+    const merged = withTypestylesExtract({});
+    const webpackHook = merged.webpack;
+    if (typeof webpackHook !== 'function') {
+      throw new Error('expected webpack hook');
+    }
+
+    const preserved = webpackHook(
+      {
+        plugins: [],
+        resolve: { alias: { '@typestyles/vite': '/abs/vite.js' } },
+      } as Configuration,
+      { isServer: false } as WebpackContext,
+    );
+    expect(preserved.resolve?.alias).toEqual({
+      '@typestyles/vite': '/abs/vite.js',
+      typestyles$: 'typestyles/core',
+    });
+  });
+
+  it('never drops the runtime key when the user aliased typestyles themselves', () => {
+    const merged = withTypestylesExtract({});
+    const webpackHook = merged.webpack;
+    if (typeof webpackHook !== 'function') {
+      throw new Error('expected webpack hook');
+    }
+    const webpackConfig = webpackHook(
+      {
+        plugins: [],
+        resolve: { alias: { typestyles: '/custom/core-override.js' } },
+      } as Configuration,
+      { isServer: false } as WebpackContext,
+    );
+    expect(webpackConfig.resolve?.alias).toEqual({ typestyles: '/custom/core-override.js' });
+  });
+
   it('applies extract in production when a convention entry exists under root', () => {
     const dir = mkdtempSync(join(tmpdir(), 'typestyles-next-cwd-'));
     mkdirSync(join(dir, 'styles'), { recursive: true });

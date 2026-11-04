@@ -7,6 +7,9 @@ import {
   buildManifestV2,
   collectAndWriteRouteCss,
   discoverDefaultExtractModules,
+  TYPESTYLES_CORE_SPECIFIER,
+  TYPESTYLES_RUNTIME_SPECIFIER,
+  aliasCapturesTypestylesRuntime,
   type TypestylesExtractManifestV1,
   type TypestylesExtractManifestV2,
 } from '@typestyles/build-runner';
@@ -184,7 +187,8 @@ export function withTypestyles(
 /**
  * Merge Next.js config so client bundles use pre-extracted CSS only (no runtime `<style>` injection).
  *
- * - **Webpack**: adds `DefinePlugin` for `__TYPESTYLES_RUNTIME_DISABLED__` on client bundles.
+ * - **Webpack**: adds `DefinePlugin` for `__TYPESTYLES_RUNTIME_DISABLED__` on client bundles and
+ *   resolves `typestyles` → `typestyles/core` (pure, name-only build — no CSS runtime in the client).
  * - **Turbopack** (`next dev --turbo` / Turbopack production): webpack hooks do not run; the same
  *   `next.config` `env` entry `NEXT_PUBLIC_TYPESTYLES_RUNTIME_DISABLED` is merged so the client
  *   bundle still disables runtime insertion (see `typestyles` `sheet` implementation).
@@ -227,6 +231,32 @@ export function withTypestylesExtract(
           console.warn(
             '[@typestyles/next/build] Could not load webpack; client bundles may still inject <style>.',
           );
+        }
+
+        // Zero-runtime: resolve the client's runtime barrel to the pure
+        // name-only build (`typestyles/core`). Class names / data attributes
+        // are computed identically; the CSS insertion runtime, stylesheet
+        // state, and DOM plumbing are absent from that entry. Server bundles
+        // keep the real runtime (SSR collection / route CSS depends on it).
+        const resolveOptions = nextWebpack.resolve ?? (nextWebpack.resolve = {});
+        const existingAlias = resolveOptions.alias;
+        const coreEntry = {
+          alias: TYPESTYLES_CORE_SPECIFIER,
+          name: TYPESTYLES_RUNTIME_SPECIFIER,
+          onlyModule: true,
+        };
+        if (Array.isArray(existingAlias)) {
+          if (!existingAlias.some((entry) => aliasCapturesTypestylesRuntime(entry.name))) {
+            resolveOptions.alias = [...existingAlias, coreEntry];
+          }
+        } else {
+          const aliasMap = existingAlias ?? {};
+          if (!Object.keys(aliasMap).some((key) => aliasCapturesTypestylesRuntime(key))) {
+            resolveOptions.alias = {
+              ...aliasMap,
+              [`${TYPESTYLES_RUNTIME_SPECIFIER}$`]: TYPESTYLES_CORE_SPECIFIER,
+            };
+          }
         }
       }
 

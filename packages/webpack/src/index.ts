@@ -1,11 +1,14 @@
 import type { Compiler, NormalModule, WebpackPluginInstance } from 'webpack';
 import {
+  aliasCapturesTypestylesRuntime,
   extractNamespaces,
   reportDuplicateNamespaces,
   resolveExtractMode,
   resolveExtractModules,
   runTypestylesBuild,
+  TYPESTYLES_CORE_SPECIFIER,
   TYPESTYLES_IMPORT_RE,
+  TYPESTYLES_RUNTIME_SPECIFIER,
   type TypestylesExtractOptions,
   type TypestylesIntegrationMode,
 } from '@typestyles/build-runner';
@@ -51,6 +54,16 @@ export default class TypestylesWebpackPlugin implements WebpackPluginInstance {
       new compiler.webpack.DefinePlugin({
         __TYPESTYLES_RUNTIME_DISABLED__: JSON.stringify('true'),
       }).apply(compiler);
+    }
+
+    if (this.resolvedMode === 'build') {
+      // Zero-runtime: resolve the client's runtime barrel to the pure
+      // name-only build. Class names / data attributes are computed
+      // identically; the CSS insertion runtime, stylesheet state, and DOM
+      // plumbing are absent from that entry and tree-shake away. Extraction
+      // still runs the real runtime in a node subprocess (see the asset
+      // hook below). `hybrid` keeps the runtime for dynamic styles.
+      this.applyCoreSwap(compiler);
     }
 
     compiler.hooks.thisCompilation.tap('typestyles', (compilation) => {
@@ -110,5 +123,34 @@ export default class TypestylesWebpackPlugin implements WebpackPluginInstance {
         },
       );
     });
+  }
+
+  /**
+   * Inject `typestyles` → `typestyles/core` into the compiler's resolve alias,
+   * preserving the user's existing aliases and staying idempotent when the
+   * user has already configured the swap themselves.
+   */
+  private applyCoreSwap(compiler: Compiler): void {
+    const resolveOptions = compiler.options.resolve ?? (compiler.options.resolve = {});
+    const existingAlias = resolveOptions.alias;
+    if (Array.isArray(existingAlias)) {
+      if (existingAlias.some((entry) => aliasCapturesTypestylesRuntime(entry.name))) return;
+      resolveOptions.alias = [
+        ...existingAlias,
+        {
+          name: TYPESTYLES_RUNTIME_SPECIFIER,
+          alias: TYPESTYLES_CORE_SPECIFIER,
+          onlyModule: true,
+        },
+      ];
+      return;
+    }
+    const aliasMap = existingAlias ?? {};
+    const keys = Object.keys(aliasMap);
+    if (keys.some((key) => aliasCapturesTypestylesRuntime(key))) return;
+    resolveOptions.alias = {
+      ...aliasMap,
+      [`${TYPESTYLES_RUNTIME_SPECIFIER}$`]: TYPESTYLES_CORE_SPECIFIER,
+    };
   }
 }

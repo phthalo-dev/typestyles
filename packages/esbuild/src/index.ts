@@ -8,6 +8,7 @@ import {
   resolveExtractMode,
   resolveExtractModules,
   runTypestylesBuild,
+  TYPESTYLES_CORE_SPECIFIER,
   TYPESTYLES_IMPORT_RE,
   type TypestylesExtractOptions,
   type TypestylesIntegrationMode,
@@ -117,6 +118,24 @@ export default function typestylesEsbuildPlugin(
           ...build.initialOptions.define,
           __TYPESTYLES_RUNTIME_DISABLED__: JSON.stringify('true'),
         };
+      }
+
+      if (resolvedMode === 'build') {
+        // Zero-runtime: resolve the client's runtime barrel to the pure
+        // name-only build. Class names / data attributes are computed
+        // identically; the CSS insertion runtime, stylesheet state, and DOM
+        // plumbing are absent from that entry and tree-shake away. Extraction
+        // still runs the real runtime in a node subprocess (see onEnd).
+        // `hybrid` keeps the runtime for dynamic styles. esbuild matches
+        // `external` against the original specifiers, so bare `typestyles`
+        // entries still go external (emitted as `typestyles/core`).
+        const existingAlias = build.initialOptions.alias ?? {};
+        if (!('typestyles' in existingAlias)) {
+          build.initialOptions.alias = {
+            ...existingAlias,
+            typestyles: TYPESTYLES_CORE_SPECIFIER,
+          };
+        }
       }
 
       attachHooks(build, {
