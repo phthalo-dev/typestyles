@@ -12,6 +12,11 @@ export {
   type DuplicateNamespaceReporter,
 } from './namespaces';
 export {
+  TYPESTYLES_CORE_SPECIFIER,
+  TYPESTYLES_RUNTIME_SPECIFIER,
+  aliasCapturesTypestylesRuntime,
+} from './core-swap';
+export {
   resolveExtractMode,
   resolveExtractModules,
   type TypestylesExtractOptions,

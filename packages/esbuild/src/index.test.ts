@@ -7,6 +7,53 @@ import { verifyTypestylesBuild } from '@typestyles/build-runner';
 import typestylesEsbuildPlugin from './index';
 
 describe('typestylesEsbuildPlugin', () => {
+  it('rewrites the external `typestyles` import to typestyles/core in build mode', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-esbuild-core-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(
+      join(dir, 'src/typestyles-entry.ts'),
+      `import { createTypeStyles } from 'typestyles';
+const { recipe } = createTypeStyles();
+recipe({ name: 'esbuild-core', styles: { base: { color: 'red' } } });`,
+    );
+    writeFileSync(
+      join(dir, 'src/main.ts'),
+      `import { createTypeStyles } from 'typestyles';
+const t = createTypeStyles({ scopeId: 'core' });
+export const noop = () => void t;`,
+    );
+
+    const result = await build({
+      entryPoints: [join(dir, 'src/main.ts')],
+      bundle: true,
+      write: false,
+      platform: 'browser',
+      external: ['typestyles'],
+      plugins: [typestylesEsbuildPlugin({ root: dir })],
+    });
+    const text = result.outputFiles?.[0]?.text ?? '';
+    // esbuild matches `external` against the original specifier but rewrites
+    // the emitted import through the alias — the runtime barrel becomes core.
+    expect(text).toContain('typestyles/core');
+    expect(text).not.toContain('require("typestyles")');
+  });
+
+  it('leaves the typestyles import untouched outside the client build swap', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-esbuild-runtime-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, 'src/main.ts'), `export const noop = () => {};`);
+
+    const result = await build({
+      entryPoints: [join(dir, 'src/main.ts')],
+      bundle: true,
+      write: false,
+      platform: 'browser',
+      external: ['typestyles'],
+      plugins: [typestylesEsbuildPlugin({ root: dir })],
+    });
+    expect(result.outputFiles?.[0]?.text).not.toContain('typestyles/core');
+  });
+
   it('discovers a convention entry and writes typestyles.css on build', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'typestyles-esbuild-disco-'));
     const outdir = join(dir, 'dist');

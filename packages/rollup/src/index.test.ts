@@ -131,4 +131,71 @@ recipe({ name: 'rollup-dup', styles: { base: { color: 'blue' } } });`;
       /\[typestyles\] Style namespace "rollup-dup"/,
     );
   });
+
+  describe('typestyles -> typestyles/core resolve swap', () => {
+    function makeSwapContext(): {
+      context: { resolve(source: string, importer?: string): Promise<unknown> };
+      lastResolveArgs: () => { source: string; importer: string | undefined } | null;
+    } {
+      let last: { source: string; importer: string | undefined } | null = null;
+      return {
+        lastResolveArgs: () => last,
+        context: {
+          async resolve(source: string, importer?: string) {
+            last = { source, importer };
+            return { id: `/node_modules/typestyles/dist/${source.replace('typestyles/', '')}.js` };
+          },
+        },
+      };
+    }
+
+    async function swapResolution(
+      plugin: ReturnType<typeof typestylesRollupPlugin>,
+      source: string,
+      importer: string,
+    ): Promise<{
+      resolved: unknown;
+      resolveArgs: { source: string; importer: string | undefined } | null;
+    }> {
+      const buildStart = rollupHookFn(plugin.buildStart);
+      const resolveId = rollupHookFn(plugin.resolveId);
+      if (buildStart == null || resolveId == null) {
+        throw new Error('expected buildStart and resolveId hooks');
+      }
+      const { context, lastResolveArgs } = makeSwapContext();
+      await buildStart.call(context as never);
+      const resolved = await resolveId.call(context as never, source, importer);
+      return { resolved, resolveArgs: lastResolveArgs() };
+    }
+
+    it('resolves the runtime barrel to the core build in build mode', async () => {
+      const plugin = typestylesRollupPlugin({
+        mode: 'build',
+        extract: { modules: ['src/typestyles-entry.ts'] },
+      });
+      const result = await swapResolution(plugin, 'typestyles', '/src/main.ts');
+      expect(result.resolveArgs).toEqual({ source: 'typestyles/core', importer: '/src/main.ts' });
+      expect(result.resolved).toEqual({ id: '/node_modules/typestyles/dist/core.js' });
+    });
+
+    it('leaves subpath imports untouched', async () => {
+      const plugin = typestylesRollupPlugin({
+        mode: 'build',
+        extract: { modules: ['src/typestyles-entry.ts'] },
+      });
+      expect(
+        (await swapResolution(plugin, 'typestyles/server', '/src/ssr.ts')).resolved,
+      ).toBeNull();
+    });
+
+    it('does not swap in runtime or hybrid mode', async () => {
+      for (const mode of ['runtime', 'hybrid'] as const) {
+        const plugin = typestylesRollupPlugin({
+          mode,
+          extract: { modules: ['src/typestyles-entry.ts'] },
+        });
+        expect((await swapResolution(plugin, 'typestyles', '/src/main.ts')).resolved).toBeNull();
+      }
+    });
+  });
 });

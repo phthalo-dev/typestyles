@@ -8,7 +8,7 @@ Without a bundler integration, typestyles injects CSS at runtime when components
 Typestyles supports an optional **build extraction** mode through its bundler integrations. When enabled:
 
 - All styles are extracted at build time and written to a static `.css` asset.
-- The typestyles runtime is replaced with a no-op stub (`~0 bytes` when tree-shaken).
+- The client bundle resolves the `typestyles` runtime barrel to the pure name-only build (`typestyles/core`) via the bundler integrations, so the CSS insertion runtime is absent — not merely disabled.
 - No `<style>` injection happens in the browser — the CSS file is served directly.
 
 The same `recipe()`, `tokens.create()`, and `keyframes.create()` APIs work identically in both modes.
@@ -43,6 +43,59 @@ The Vite plugin implements this split when at least one extraction module is res
 3. `getRegisteredCss()` collects all CSS that was registered during that execution.
 4. The collected CSS is written as a static asset (e.g. `typestyles.css`) and linked in the HTML.
 5. The `__TYPESTYLES_RUNTIME_DISABLED__` flag is defined as `"true"` so the browser bundle uses a no-op sheet that never injects CSS.
+6. In the client bundle, the bundler integration resolves the `typestyles` runtime barrel to the **pure, name-only build** (`typestyles/core`), so the CSS insertion runtime is not just no-op'd — it is absent from the bundle (see [The pure core: `typestyles/core`](#the-pure-core-typestylescore)).
+
+---
+
+## The pure core: `typestyles/core`
+
+The package ships a second build of the exact same API surface, minus everything a client cannot need in zero-runtime mode: the stylesheet state machine, the DOM `<style>` plumbing, and the insertion registry. Serialization, class naming, and data-attribute generation are unchanged — producing the same class names / data attributes never required CSS registration, only computing them.
+
+|                                             | `typestyles` (runtime entry) | `typestyles/core`                        |
+| ------------------------------------------- | ---------------------------- | ---------------------------------------- |
+| Class names, data attributes                | ✓                            | ✓ identical output                       |
+| `tokens.create`, `createTheme`, `keyframes` | registers CSS                | computes refs/classes, registers nothing |
+| `getRegisteredCss()`                        | full sheet                   | always `''` (stub)                       |
+| DOM `<style>` plumbing, stylesheet state    | present                      | absent — not in the graph at all         |
+
+### Automatic swap (bundler integrations)
+
+When an integration resolves to `mode: 'build'` (the default when a convention entry or `extract.modules` resolves), it redirects `typestyles` → `typestyles/core` in the client bundle. No source changes are needed. Two properties make the swap safe:
+
+- **Output parity** — core and the runtime barrel compute identical class names and data attributes; extraction CSS and client class names therefore always agree.
+- **Dev and hybrid are untouched** — the swap exists only for `mode: 'build'`. Development builds and `mode: 'runtime'` / `mode: 'hybrid'` keep the real runtime (and HMR) exactly as before.
+
+`mode: 'hybrid'` intentionally does **not** swap: dynamic runtime styles need real registration, so the full runtime stays.
+
+Imports of `typestyles/server`, `typestyles/build`, `typestyles/hmr`, … are **not** affected: the swap matches the bare `typestyles` specifier only, so extraction and SSR pipelines keep running the full runtime in Node. Same for `@typestyles/react`'s internal imports — only `cx` and types cross that boundary.
+
+Mechanics differ per integration, but the semantics are identical:
+
+| Integration                                                           | How the swap is applied                                                                                                |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `@typestyles/vite` (and `@typestyles/astro`, which wraps it)          | `resolve.alias` entry `/^typestyles$/` → `typestyles/core` injected in the plugin's `config()` hook                    |
+| `@typestyles/rollup`                                                  | `resolveId` hook re-resolves the bare `typestyles` specifier to `typestyles/core`                                      |
+| `@typestyles/esbuild`                                                 | native `alias` option `{ typestyles: 'typestyles/core' }` injected by the plugin's `setup()`                           |
+| `@typestyles/webpack`                                                 | exact `typestyles$` entry appended to `resolve.alias` (array or object form is preserved)                              |
+| `@typestyles/next/build` (`withTypestyles` / `withTypestylesExtract`) | same exact alias injected on **client** webpack bundles only — server bundles keep the real runtime for SSR collection |
+
+All swaps are idempotent and user-alias-preserving: if you already redirect `typestyles` yourself (e.g. to a custom build or a different package name), your alias wins and nothing is double-applied.
+
+One esbuild nuance: esbuild matches `external` against the **original** specifiers but rewrites the emitted import through the alias. A bare `typestyles` entry in `external` therefore stays external and is emitted as `require("typestyles/core")` / `import … from "typestyles/core"`.
+
+### Manual use
+
+Without a plugin you can import the pure build directly:
+
+```ts
+import { createTypeStyles } from 'typestyles/core';
+```
+
+Only do this when every styled surface is extracted at build time (or the calls are used purely for their returned strings, e.g. walking a design system). `typestyles/core` never collects CSS — `getRegisteredCss()` is a stub — so pairing it with runtime injection produces an empty sheet.
+
+### Package metadata
+
+The published package declares a conservative `sideEffects` allowlist — `hmr`, `server`, `build`, and `testing` are the only entries marked as having side effects (e.g. `import 'typestyles/hmr'` registers its hooks on import, and must never be tree-shaken away). All other entry points and modules are side-effect-free, which lets consumer bundlers drop unreferenced dev machinery even when imports resolve through the runtime barrel.
 
 ---
 
@@ -263,7 +316,7 @@ Install the Next.js integration:
 npm install --save-dev @typestyles/next
 ```
 
-Use **`withTypestyles`** so behavior matches **`@typestyles/vite`**: when `NODE_ENV === 'production'` and a **convention entry file** exists under the project root (same discovery order as Vite — see the list above), the client bundle disables `<style>` injection (`withTypestylesExtract` under the hood). In **development**, the config is left unchanged so the runtime stays on (no need to branch on `NODE_ENV` yourself).
+Use **`withTypestyles`** so behavior matches **`@typestyles/vite`**: when `NODE_ENV === 'production'` and a **convention entry file** exists under the project root (same discovery order as Vite — see the list above), the client bundle disables `<style>` injection **and** resolves `typestyles` → `typestyles/core` (pure, name-only build — no CSS runtime in the browser bundle; see [The pure core](#the-pure-core-typestylescore)). Server bundles keep the full runtime so SSR collection and per-route CSS keep working (`withTypestylesExtract` under the hood). In **development**, the config is left unchanged so the runtime stays on (no need to branch on `NODE_ENV` yourself).
 
 ```js
 // next.config.mjs

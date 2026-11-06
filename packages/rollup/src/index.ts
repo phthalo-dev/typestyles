@@ -5,7 +5,9 @@ import {
   resolveExtractMode,
   resolveExtractModules,
   runTypestylesBuild,
+  TYPESTYLES_CORE_SPECIFIER,
   TYPESTYLES_IMPORT_RE,
+  TYPESTYLES_RUNTIME_SPECIFIER,
   type TypestylesExtractOptions,
   type TypestylesIntegrationMode,
 } from '@typestyles/build-runner';
@@ -70,6 +72,20 @@ export default function typestylesRollupPlugin(
     buildStart() {
       resolvedExtractModules = resolveExtractModules(root, extract);
       resolvedMode = resolveExtractMode(options.mode, resolvedExtractModules);
+    },
+
+    async resolveId(source, importer) {
+      // Zero-runtime (mode: 'build'): resolve the client's runtime barrel to
+      // the pure name-only build. Class names / data attributes are computed
+      // identically; the CSS insertion runtime, stylesheet state, and DOM
+      // plumbing are absent from that entry and tree-shake away. Extraction
+      // still runs the real runtime in a node subprocess (see
+      // generateBundle). `hybrid` keeps the runtime for dynamic styles.
+      if (resolvedMode !== 'build' || source !== TYPESTYLES_RUNTIME_SPECIFIER) return null;
+      const resolved = await this.resolve(TYPESTYLES_CORE_SPECIFIER, importer, {
+        skipSelf: true,
+      });
+      return resolved ?? null;
     },
 
     transform(code, id) {

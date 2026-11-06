@@ -231,6 +231,67 @@ describe('typestyles vite plugin', () => {
     expect(build?.define?.__TYPESTYLES_RUNTIME_DISABLED__).toBe(JSON.stringify('true'));
   });
 
+  it('resolves the client barrel to typestyles/core in build mode only', async () => {
+    const mod = await import('./index');
+    const plugin = mod.default({ extract: { modules: ['src/entry.ts'] } });
+    const config = viteHookFn(plugin.config);
+
+    const serve = await Promise.resolve(config?.({}, { command: 'serve', mode: 'development' }));
+    expect(serve?.resolve?.alias).toBeUndefined();
+
+    const build = await Promise.resolve(config?.({}, { command: 'build', mode: 'production' }));
+    const alias = build?.resolve?.alias as
+      | Array<{ find: string | RegExp; replacement: string }>
+      | undefined;
+    expect(alias).toEqual([{ find: /^typestyles$/, replacement: 'typestyles/core' }]);
+  });
+
+  it('appends the typestyles/core alias without clobbering user aliases', async () => {
+    const mod = await import('./index');
+    const plugin = mod.default({ extract: { modules: ['src/entry.ts'] } });
+    const config = viteHookFn(plugin.config);
+
+    const withObjectAlias = await Promise.resolve(
+      config?.(
+        { resolve: { alias: { '@var-ui': './node_modules/@var-ui' } } },
+        { command: 'build', mode: 'production' },
+      ),
+    );
+    const objectAlias = withObjectAlias?.resolve?.alias as
+      | Array<{ find: string | RegExp; replacement: string }>
+      | undefined;
+    expect(objectAlias).toContainEqual({
+      find: '@var-ui',
+      replacement: './node_modules/@var-ui',
+    });
+    expect(objectAlias).toContainEqual({ find: /^typestyles$/, replacement: 'typestyles/core' });
+
+    const withArrayAlias = await Promise.resolve(
+      config?.(
+        {
+          resolve: {
+            alias: [{ find: /^@typestyles\/(?!core)/, replacement: './packages' }],
+          },
+        },
+        { command: 'build', mode: 'production' },
+      ),
+    );
+    const arrayAlias = withArrayAlias?.resolve?.alias as
+      | Array<{ find: string | RegExp; replacement: string }>
+      | undefined;
+    expect(arrayAlias).toHaveLength(2);
+    expect(arrayAlias).toContainEqual({ find: /^typestyles$/, replacement: 'typestyles/core' });
+  });
+
+  it('does not alias typestyles to core in hybrid mode (runtime must stay)', async () => {
+    const mod = await import('./index');
+    const plugin = mod.default({ mode: 'hybrid', extract: { modules: ['src/entry.ts'] } });
+    const config = viteHookFn(plugin.config);
+    const build = await Promise.resolve(config?.({}, { command: 'build', mode: 'production' }));
+    expect(build?.define?.__TYPESTYLES_RUNTIME_DISABLED__).toBe(JSON.stringify('true'));
+    expect(build?.resolve?.alias).toBeUndefined();
+  });
+
   it('defaults to runtime mode when no extraction modules resolve', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'typestyles-vite-empty-'));
     const mod = await import('./index');
@@ -240,6 +301,7 @@ describe('typestyles vite plugin', () => {
       config?.({ root: dir }, { command: 'build', mode: 'production' }),
     );
     expect(build?.define?.__TYPESTYLES_RUNTIME_DISABLED__).toBeUndefined();
+    expect(build?.resolve?.alias).toBeUndefined();
   });
 
   it('discovers a convention entry and defaults to build on vite build', async () => {

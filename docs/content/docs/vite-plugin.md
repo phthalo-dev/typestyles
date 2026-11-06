@@ -271,7 +271,7 @@ export default defineConfig({
 
 ## SSR with Vite
 
-HMR hooks are dev-only (`import.meta.hot`). For build-time extraction, production client bundles get `__TYPESTYLES_RUNTIME_DISABLED__` so the sheet does not inject `<style>` tags; pair that with the emitted CSS file or SSR helpers. For SSR without extraction, use `collectStyles()` from `typestyles/server` as described in the [SSR guide](/docs/ssr).
+HMR hooks are dev-only (`import.meta.hot`). For build-time extraction, production client bundles get `__TYPESTYLES_RUNTIME_DISABLED__` so the sheet does not inject `<style>` tags; the plugin also resolves `typestyles` → `typestyles/core` in the client, so the CSS insertion runtime, stylesheet state, and DOM plumbing are absent from the bundle entirely (see [Zero-runtime extraction — the pure core](/docs/zero-runtime#the-pure-core-typestylescore)). Pair the emitted CSS file or SSR helpers with imports of `typestyles/server` (unaffected by the alias) as described in the [SSR guide](/docs/ssr).
 
 ## Troubleshooting
 
@@ -312,7 +312,7 @@ No. TypeStyles works perfectly without it. The plugin improves DX for:
 
 - Faster iteration with HMR
 - Early warning about duplicate namespaces
-- Optional production CSS extraction via `extract` (see [Zero-runtime extraction](/docs/zero-runtime))
+- Optional production CSS extraction via `extract` (see [Zero-runtime extraction](/docs/zero-runtime)), including the `typestyles` → `typestyles/core` resolve swap that removes the CSS runtime from production client bundles
 
 If you prefer full page reloads or use a different bundler, you don't need this plugin.
 

@@ -116,8 +116,28 @@
         "types": "./dist/testing.d.cts",
         "default": "./dist/testing.cjs"
       }
+    },
+    "./core": {
+      "import": {
+        "types": "./dist/core.d.ts",
+        "default": "./dist/core.js"
+      },
+      "require": {
+        "types": "./dist/core.d.cts",
+        "default": "./dist/core.cjs"
+      }
     }
   },
+  "sideEffects": [
+    "./dist/hmr.js",
+    "./dist/hmr.cjs",
+    "./dist/server.js",
+    "./dist/server.cjs",
+    "./dist/build.js",
+    "./dist/build.cjs",
+    "./dist/testing.js",
+    "./dist/testing.cjs"
+  ],
   "files": [
     "dist",
     "llms.txt"

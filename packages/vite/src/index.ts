@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { posix as posixPath, resolve as resolvePath } from 'node:path';
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite';
 import {
+  aliasCapturesTypestylesRuntime,
   extractNamespaces,
   findUnextractedRecipes,
   moduleNeedsOverrideHmr,
@@ -9,6 +10,7 @@ import {
   resolveExtractMode,
   resolveExtractModules,
   runTypestylesBuild,
+  TYPESTYLES_CORE_SPECIFIER,
   type TypestylesExtractOptions,
   type TypestylesIntegrationMode,
   type UnextractedRecipe,
@@ -270,6 +272,30 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
           // Inlined by the bundler so typestyles sheet skips creating <style> in production
           __TYPESTYLES_RUNTIME_DISABLED__: JSON.stringify('true'),
         };
+      }
+
+      if (env.command === 'build' && resolvedMode === 'build' && !env.isSsrBuild) {
+        // Zero-runtime (client builds only; SSR keeps the full runtime): resolve the client's `typestyles` runtime barrel to the
+        // pure name-only build (`typestyles/core`). Class names / data attributes
+        // are computed identically; the CSS insertion runtime, stylesheet state,
+        // and DOM plumbing are absent from that entry and tree-shake away.
+        // Extraction still runs the real runtime in a node subprocess.
+        config.resolve ??= {};
+        const existingAlias = config.resolve.alias;
+        const entries: Array<{ find: string | RegExp; replacement: string }> = Array.isArray(
+          existingAlias,
+        )
+          ? existingAlias.map((entry) =>
+              typeof entry === 'string' ? { find: entry, replacement: entry } : { ...entry },
+            )
+          : existingAlias
+            ? Object.entries(existingAlias).map(([find, replacement]) => ({ find, replacement }))
+            : [];
+        const alreadyAliased = entries.some((entry) => aliasCapturesTypestylesRuntime(entry.find));
+        if (!alreadyAliased) {
+          entries.push({ find: /^typestyles$/, replacement: TYPESTYLES_CORE_SPECIFIER });
+        }
+        config.resolve.alias = entries;
       }
 
       return config;
