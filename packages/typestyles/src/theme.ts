@@ -18,7 +18,7 @@ import type {
 import { flattenTokenEntries, flattenTokenPaths } from './types';
 import { sanitizeClassSegment, scopedTokenNamespace } from './class-naming';
 import type { ThemeTokenNaming } from './token-naming';
-import { insertRule, insertRules } from './sheet';
+import { insertRule, insertRules } from '#sheet';
 import type { ResolvedCascadeLayers } from './layers';
 import { applyLayerToRules } from './layers';
 import {

@@ -231,65 +231,55 @@ describe('typestyles vite plugin', () => {
     expect(build?.define?.__TYPESTYLES_RUNTIME_DISABLED__).toBe(JSON.stringify('true'));
   });
 
-  it('resolves the client barrel to typestyles/core in build mode only', async () => {
-    const mod = await import('./index');
-    const plugin = mod.default({ extract: { modules: ['src/entry.ts'] } });
-    const config = viteHookFn(plugin.config);
+  describe('zero-runtime sheet redirect', () => {
+    const REAL = '/n/node_modules/typestyles/dist/sheet.js';
 
-    const serve = await Promise.resolve(config?.({}, { command: 'serve', mode: 'development' }));
-    expect(serve?.resolve?.alias).toBeUndefined();
-
-    const build = await Promise.resolve(config?.({}, { command: 'build', mode: 'production' }));
-    const alias = build?.resolve?.alias as
-      | Array<{ find: string | RegExp; replacement: string }>
-      | undefined;
-    expect(alias).toEqual([{ find: /^typestyles$/, replacement: 'typestyles/core' }]);
-  });
-
-  it('appends the typestyles/core alias without clobbering user aliases', async () => {
-    const mod = await import('./index');
-    const plugin = mod.default({ extract: { modules: ['src/entry.ts'] } });
-    const config = viteHookFn(plugin.config);
-
-    const withObjectAlias = await Promise.resolve(
-      config?.(
-        { resolve: { alias: { '@var-ui': './node_modules/@var-ui' } } },
-        { command: 'build', mode: 'production' },
-      ),
-    );
-    const objectAlias = withObjectAlias?.resolve?.alias as
-      | Array<{ find: string | RegExp; replacement: string }>
-      | undefined;
-    expect(objectAlias).toContainEqual({
-      find: '@var-ui',
-      replacement: './node_modules/@var-ui',
-    });
-    expect(objectAlias).toContainEqual({ find: /^typestyles$/, replacement: 'typestyles/core' });
-
-    const withArrayAlias = await Promise.resolve(
-      config?.(
+    async function redirect(
+      pluginOptions: Record<string, unknown>,
+      command: 'build' | 'serve',
+      ssr = false,
+      resolvedId = REAL,
+    ): Promise<unknown> {
+      const mod = await import('./index');
+      const plugin = mod.default({ extract: { modules: ['src/entry.ts'] }, ...pluginOptions });
+      const config = viteHookFn(plugin.config);
+      await Promise.resolve(config?.({}, { command, mode: 'production' }));
+      const resolveId = viteHookFn(plugin.resolveId);
+      const ctx = { resolve: async () => ({ id: resolvedId }) };
+      return resolveId?.call(
+        ctx as never,
+        './sheet.js',
+        '/n/node_modules/typestyles/dist/index.js',
         {
-          resolve: {
-            alias: [{ find: /^@typestyles\/(?!core)/, replacement: './packages' }],
-          },
-        },
-        { command: 'build', mode: 'production' },
-      ),
-    );
-    const arrayAlias = withArrayAlias?.resolve?.alias as
-      | Array<{ find: string | RegExp; replacement: string }>
-      | undefined;
-    expect(arrayAlias).toHaveLength(2);
-    expect(arrayAlias).toContainEqual({ find: /^typestyles$/, replacement: 'typestyles/core' });
-  });
+          ssr,
+        } as never,
+      );
+    }
 
-  it('does not alias typestyles to core in hybrid mode (runtime must stay)', async () => {
-    const mod = await import('./index');
-    const plugin = mod.default({ mode: 'hybrid', extract: { modules: ['src/entry.ts'] } });
-    const config = viteHookFn(plugin.config);
-    const build = await Promise.resolve(config?.({}, { command: 'build', mode: 'production' }));
-    expect(build?.define?.__TYPESTYLES_RUNTIME_DISABLED__).toBe(JSON.stringify('true'));
-    expect(build?.resolve?.alias).toBeUndefined();
+    it('points the sheet at the no-op sheet on client builds in build mode', async () => {
+      expect(await redirect({}, 'build')).toEqual({
+        id: '/n/node_modules/typestyles/dist/sheet-noop.js',
+      });
+    });
+
+    it('leaves the sheet alone for serve, SSR, hybrid and runtime modes', async () => {
+      expect(await redirect({}, 'serve')).toBeNull();
+      expect(await redirect({}, 'build', true)).toBeNull();
+      expect(await redirect({ mode: 'hybrid' }, 'build')).toBeNull();
+      expect(await redirect({ mode: 'runtime' }, 'build')).toBeNull();
+    });
+
+    it("leaves another package's sheet alone", async () => {
+      expect(await redirect({}, 'build', false, '/n/node_modules/other/dist/sheet.js')).toBeNull();
+    });
+
+    it('does not touch resolve.alias or resolve.conditions', async () => {
+      const mod = await import('./index');
+      const plugin = mod.default({ extract: { modules: ['src/entry.ts'] } });
+      const config = viteHookFn(plugin.config);
+      const build = await Promise.resolve(config?.({}, { command: 'build', mode: 'production' }));
+      expect(build?.resolve).toBeUndefined();
+    });
   });
 
   it('defaults to runtime mode when no extraction modules resolve', async () => {
@@ -301,7 +291,6 @@ describe('typestyles vite plugin', () => {
       config?.({ root: dir }, { command: 'build', mode: 'production' }),
     );
     expect(build?.define?.__TYPESTYLES_RUNTIME_DISABLED__).toBeUndefined();
-    expect(build?.resolve?.alias).toBeUndefined();
   });
 
   it('discovers a convention entry and defaults to build on vite build', async () => {

@@ -1,6 +1,8 @@
 /**
  * Shared registry for detecting duplicate namespace registrations.
  */
+import { devDiagnosticsEnabled } from '#sheet';
+
 export const registeredNamespaces = new Set<string>();
 
 /**
@@ -12,7 +14,7 @@ export const registeredNamespaces = new Set<string>();
 const emittedClassNameOwners = new Map<string, string>();
 
 function isDev(): boolean {
-  return typeof process === 'undefined' || process.env.NODE_ENV !== 'production';
+  return devDiagnosticsEnabled();
 }
 
 /**

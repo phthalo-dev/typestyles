@@ -35,9 +35,24 @@ export const TYPESTYLES_FALLBACK_STYLE_ID = 'typestyles-fallback';
 const STYLE_ELEMENT_ID = TYPESTYLES_STYLE_ID;
 const FALLBACK_STYLE_ELEMENT_ID = TYPESTYLES_FALLBACK_STYLE_ID;
 
+/**
+ * Whether development-time diagnostics (namespace/class-name collision
+ * tracking, duplicate-rule warnings) run. Read at call time so tests and
+ * bundlers that replace `process.env.NODE_ENV` both work; `false` in
+ * production. The zero-runtime sheet (`sheet-noop`) exports a constant
+ * `false` instead, which lets bundlers drop the registry bookkeeping.
+ */
+export function devDiagnosticsEnabled(): boolean {
+  try {
+    return process.env.NODE_ENV !== 'production';
+  } catch {
+    // `process` is not defined (native browser ESM): treat as development.
+    return true;
+  }
+}
+
 function duplicateRuleKeyConflictWarningsEnabled(): boolean {
-  if (typeof process === 'undefined') return true;
-  return process.env.NODE_ENV !== 'production';
+  return devDiagnosticsEnabled();
 }
 
 /**

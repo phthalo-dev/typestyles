@@ -1,5 +1,5 @@
 import { sanitizeClassSegment } from './class-naming';
-import { invalidateKeys, removeCssomRulesForExactThemeClass } from './sheet';
+import { invalidateKeys, removeCssomRulesForExactThemeClass } from '#sheet';
 import { getSheetState } from './sheet-context';
 
 export function resolveThemeSegment(scopeId: string | undefined, name: string): string {

@@ -1,5 +1,5 @@
 import './sheet-node';
-import { startCollection, flushSync } from './sheet';
+import { startCollection, flushSync } from '#sheet';
 import { runWithIsolatedSheet } from './sheet-context';
 
 /**

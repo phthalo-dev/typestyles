@@ -1,5 +1,12 @@
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { build } from 'esbuild';
 import { describe, expect, it } from 'vite-plus/test';
@@ -7,52 +14,102 @@ import { verifyTypestylesBuild } from '@typestyles/build-runner';
 import typestylesEsbuildPlugin from './index';
 
 describe('typestylesEsbuildPlugin', () => {
-  it('rewrites the external `typestyles` import to typestyles/core in build mode', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'typestyles-esbuild-core-'));
+  async function bundleWith(mode: 'build' | 'runtime', name: string): Promise<string> {
+    const dir = mkdtempSync(join(tmpdir(), `typestyles-esbuild-${name}-`));
     mkdirSync(join(dir, 'src'), { recursive: true });
+    mkdirSync(join(dir, 'node_modules'), { recursive: true });
+    symlinkSync(
+      resolve(import.meta.dirname, '../../typestyles'),
+      join(dir, 'node_modules/typestyles'),
+      'dir',
+    );
     writeFileSync(
       join(dir, 'src/typestyles-entry.ts'),
       `import { createTypeStyles } from 'typestyles';
 const { recipe } = createTypeStyles();
-recipe({ name: 'esbuild-core', styles: { base: { color: 'red' } } });`,
+recipe({ name: 'esbuild-${name}', styles: { base: { color: 'red' } } });`,
     );
     writeFileSync(
       join(dir, 'src/main.ts'),
       `import { createTypeStyles } from 'typestyles';
-const t = createTypeStyles({ scopeId: 'core' });
+import { atProperty } from 'typestyles/css';
+const t = createTypeStyles({ scopeId: '${name}' });
+atProperty('--x', { syntax: '<color>', inherits: false, initialValue: 'red' });
 export const noop = () => void t;`,
     );
-
     const result = await build({
       entryPoints: [join(dir, 'src/main.ts')],
       bundle: true,
       write: false,
       platform: 'browser',
-      external: ['typestyles'],
-      plugins: [typestylesEsbuildPlugin({ root: dir })],
+      format: 'esm',
+      logLevel: 'silent',
+      plugins: [typestylesEsbuildPlugin({ root: dir, mode })],
     });
-    const text = result.outputFiles?.[0]?.text ?? '';
-    // esbuild matches `external` against the original specifier but rewrites
-    // the emitted import through the alias — the runtime barrel becomes core.
-    expect(text).toContain('typestyles/core');
-    expect(text).not.toContain('require("typestyles")');
-  });
+    return result.outputFiles?.[0]?.text ?? '';
+  }
 
-  it('leaves the typestyles import untouched outside the client build swap', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'typestyles-esbuild-runtime-'));
-    mkdirSync(join(dir, 'src'), { recursive: true });
-    writeFileSync(join(dir, 'src/main.ts'), `export const noop = () => {};`);
+  it('bundles the no-op sheet (for every subpath) in build mode', async () => {
+    const text = await bundleWith('build', 'zero');
+    // The real sheet ships `typestyles-fallback` + `styleElement` DOM plumbing.
+    expect(text).not.toContain('typestyles-fallback');
+    expect(text).not.toContain('styleElement');
+  }, 20_000);
 
-    const result = await build({
-      entryPoints: [join(dir, 'src/main.ts')],
-      bundle: true,
-      write: false,
-      platform: 'browser',
-      external: ['typestyles'],
-      plugins: [typestylesEsbuildPlugin({ root: dir })],
-    });
-    expect(result.outputFiles?.[0]?.text).not.toContain('typestyles/core');
-  });
+  // Regression guard for the "zero runtime really counts" promise: every
+  // client-reachable typestyles entry point must end up without the real sheet.
+  // Entry points come from typestyles' own `exports`, so a new subpath is
+  // covered automatically (node-only ones are skipped).
+  const NODE_ONLY = new Set(['./server', './build', './hmr', './testing', './package.json']);
+  const typestylesPkg = JSON.parse(
+    readFileSync(resolve(import.meta.dirname, '../../typestyles/package.json'), 'utf8'),
+  ) as { exports: Record<string, unknown> };
+  const clientSubpaths = Object.keys(typestylesPkg.exports).filter((k) => !NODE_ONLY.has(k));
+
+  it.each(clientSubpaths)(
+    'ships no CSS runtime when importing %s in build mode',
+    async (sub) => {
+      const specifier = sub === '.' ? 'typestyles' : `typestyles/${sub.slice(2)}`;
+      const dir = mkdtempSync(join(tmpdir(), 'typestyles-esbuild-guard-'));
+      mkdirSync(join(dir, 'src'), { recursive: true });
+      mkdirSync(join(dir, 'node_modules'), { recursive: true });
+      symlinkSync(
+        resolve(import.meta.dirname, '../../typestyles'),
+        join(dir, 'node_modules/typestyles'),
+        'dir',
+      );
+      writeFileSync(
+        join(dir, 'src/typestyles-entry.ts'),
+        `import { createTypeStyles } from 'typestyles';
+const { recipe } = createTypeStyles();
+recipe({ name: 'guard', styles: { base: { color: 'red' } } });`,
+      );
+      writeFileSync(
+        join(dir, 'src/main.ts'),
+        `import * as m from '${specifier}';\nexport default m;\n`,
+      );
+      const result = await build({
+        entryPoints: [join(dir, 'src/main.ts')],
+        bundle: true,
+        write: false,
+        platform: 'browser',
+        format: 'esm',
+        logLevel: 'silent',
+        metafile: true,
+        plugins: [typestylesEsbuildPlugin({ root: dir, mode: 'build' })],
+      });
+      const inputs = Object.keys(result.metafile?.inputs ?? {});
+      // Compare on the compiled file the bundler actually read, not source maps.
+      expect(inputs.filter((id) => /typestyles\/dist\/sheet\.c?js$/.test(id))).toEqual([]);
+      expect(result.outputFiles?.[0]?.text ?? '').not.toContain('typestyles-fallback');
+    },
+    20_000,
+  );
+
+  it('keeps the CSS runtime in runtime mode', async () => {
+    const text = await bundleWith('runtime', 'full');
+    expect(text).toContain('typestyles-fallback');
+  }, 20_000);
 
   it('discovers a convention entry and writes typestyles.css on build', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'typestyles-esbuild-disco-'));

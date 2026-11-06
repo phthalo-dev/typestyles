@@ -280,13 +280,6 @@ See [Attribute mode — React & Astro](/docs/attribute-mode-react).
 - `injectStylesIntoHtml(html, css)`: Insert collected CSS before `</head>`
 - `streamingDocumentShell(css)`: Open doctype + `<head>` + `<body>` for `renderToPipeableStream` (pair with `collectStyles` for the CSS pass)
 
-### Pure name-only build (`typestyles/core`)
-
-The same exports as the main entry, built without the CSS insertion runtime, the stylesheet state, or any DOM plumbing — calls compute the identical class names and data attributes but register nothing (`getRegisteredCss()` is a stub).
-
-- **Zero-runtime builds:** the bundler integrations (`@typestyles/vite`, `rollup`, `esbuild`, `webpack`, `next`) resolve `typestyles` → `typestyles/core` automatically in the client bundle (see [Zero-runtime extraction](/docs/zero-runtime#the-pure-core-typestylescore)).
-- **Manual use:** import from `typestyles/core` when every styled surface is extracted at build time. It never collects CSS on its own, so do not pair it with runtime-only injection.
-
 ### Class naming helpers
 
 - `mergeClassNaming(partial?)`: Build a full `ClassNamingConfig` from partial options

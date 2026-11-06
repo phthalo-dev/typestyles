@@ -19,7 +19,7 @@ import {
   reset,
   flushSync,
   ensureDocumentStylesAttached,
-} from './sheet';
+} from '#sheet';
 import { createVar, assignVars } from './vars';
 import { cx } from './cx';
 import { mergeProps, combine } from './binding';

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve as resolvePath } from 'node:path';
 import type { Plugin, PluginBuild } from 'esbuild';
 import {
   extractNamespaces,
@@ -8,8 +8,8 @@ import {
   resolveExtractMode,
   resolveExtractModules,
   runTypestylesBuild,
-  TYPESTYLES_CORE_SPECIFIER,
-  aliasCapturesTypestylesRuntime,
+  isSheetRequest,
+  toZeroRuntimeSheetId,
   TYPESTYLES_IMPORT_RE,
   type TypestylesExtractOptions,
   type TypestylesIntegrationMode,
@@ -123,33 +123,16 @@ export default function typestylesEsbuildPlugin(
 
       if (resolvedMode === 'build' && build.initialOptions.platform !== 'node') {
         // Zero-runtime (client builds only; node builds keep the full runtime):
-        // resolve the bare `typestyles` runtime barrel to the pure name-only
-        // build. Class names / data attributes are computed identically; the
-        // CSS insertion runtime, stylesheet state, and DOM plumbing are absent
-        // from that entry and tree-shake away. Extraction still runs the real
-        // runtime in a node subprocess (see onEnd). `hybrid` keeps the runtime
-        // for dynamic styles.
-        //
-        // An `onResolve` hook is used instead of `alias` because esbuild
-        // aliases also match subpaths (`typestyles/color` would become
-        // `typestyles/core/color`). Honors the user's own aliases and
-        // `external`, via `build.resolve`.
-        const userAliased = Object.keys(build.initialOptions.alias ?? {}).some(
-          aliasCapturesTypestylesRuntime,
-        );
-        if (!userAliased) {
-          build.onResolve({ filter: /^typestyles$/ }, async (args) => {
-            if (args.pluginData?.typestylesCoreSwap) return undefined;
-            const result = await build.resolve(TYPESTYLES_CORE_SPECIFIER, {
-              importer: args.importer,
-              namespace: args.namespace,
-              resolveDir: args.resolveDir,
-              kind: args.kind,
-              pluginData: { typestylesCoreSwap: true },
-            });
-            return result.errors.length > 0 ? undefined : result;
-          });
-        }
+        // redirect typestyles' `sheet` module to its no-op sibling. Class names / data attributes are
+        // computed identically; the CSS insertion runtime, stylesheet state, and
+        // DOM plumbing never enter the module graph. Extraction still runs the
+        // real runtime in a node subprocess (see onEnd). `hybrid` keeps the
+        // runtime for dynamic styles.
+        build.onResolve({ filter: /sheet\.c?js$/ }, (args) => {
+          if (!isSheetRequest(args.path) || !args.resolveDir) return undefined;
+          const noop = toZeroRuntimeSheetId(resolvePath(args.resolveDir, args.path));
+          return noop ? { path: noop } : undefined;
+        });
       }
 
       attachHooks(build, {

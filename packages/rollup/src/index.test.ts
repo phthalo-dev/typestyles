@@ -132,69 +132,52 @@ recipe({ name: 'rollup-dup', styles: { base: { color: 'blue' } } });`;
     );
   });
 
-  describe('typestyles -> typestyles/core resolve swap', () => {
-    function makeSwapContext(): {
-      context: { resolve(source: string, importer?: string): Promise<unknown> };
-      lastResolveArgs: () => { source: string; importer: string | undefined } | null;
-    } {
-      let last: { source: string; importer: string | undefined } | null = null;
-      return {
-        lastResolveArgs: () => last,
-        context: {
-          async resolve(source: string, importer?: string) {
-            last = { source, importer };
-            return { id: `/node_modules/typestyles/dist/${source.replace('typestyles/', '')}.js` };
-          },
-        },
-      };
-    }
+  describe('zero-runtime sheet redirect', () => {
+    const REAL = '/n/node_modules/typestyles/dist/sheet.js';
 
-    async function swapResolution(
+    async function redirect(
       plugin: ReturnType<typeof typestylesRollupPlugin>,
       source: string,
-      importer: string,
-    ): Promise<{
-      resolved: unknown;
-      resolveArgs: { source: string; importer: string | undefined } | null;
-    }> {
+      resolvedId = REAL,
+    ): Promise<unknown> {
       const buildStart = rollupHookFn(plugin.buildStart);
       const resolveId = rollupHookFn(plugin.resolveId);
       if (buildStart == null || resolveId == null) {
         throw new Error('expected buildStart and resolveId hooks');
       }
-      const { context, lastResolveArgs } = makeSwapContext();
+      const context = { resolve: async () => ({ id: resolvedId }) };
       await buildStart.call(context as never);
-      const resolved = await resolveId.call(context as never, source, importer);
-      return { resolved, resolveArgs: lastResolveArgs() };
+      return resolveId.call(context as never, source, '/n/node_modules/typestyles/dist/index.js');
     }
 
-    it('resolves the runtime barrel to the core build in build mode', async () => {
+    it('points the sheet at the no-op sheet in build mode', async () => {
       const plugin = typestylesRollupPlugin({
         mode: 'build',
         extract: { modules: ['src/typestyles-entry.ts'] },
       });
-      const result = await swapResolution(plugin, 'typestyles', '/src/main.ts');
-      expect(result.resolveArgs).toEqual({ source: 'typestyles/core', importer: '/src/main.ts' });
-      expect(result.resolved).toEqual({ id: '/node_modules/typestyles/dist/core.js' });
+      expect(await redirect(plugin, './sheet.js')).toEqual({
+        id: '/n/node_modules/typestyles/dist/sheet-noop.js',
+      });
     });
 
-    it('leaves subpath imports untouched', async () => {
+    it('leaves other specifiers and other packages untouched', async () => {
       const plugin = typestylesRollupPlugin({
         mode: 'build',
         extract: { modules: ['src/typestyles-entry.ts'] },
       });
+      expect(await redirect(plugin, 'typestyles')).toBeNull();
       expect(
-        (await swapResolution(plugin, 'typestyles/server', '/src/ssr.ts')).resolved,
+        await redirect(plugin, './sheet.js', '/n/node_modules/other/dist/sheet.js'),
       ).toBeNull();
     });
 
-    it('does not swap in runtime or hybrid mode', async () => {
+    it('does not redirect in runtime or hybrid mode', async () => {
       for (const mode of ['runtime', 'hybrid'] as const) {
         const plugin = typestylesRollupPlugin({
           mode,
           extract: { modules: ['src/typestyles-entry.ts'] },
         });
-        expect((await swapResolution(plugin, 'typestyles', '/src/main.ts')).resolved).toBeNull();
+        expect(await redirect(plugin, './sheet.js')).toBeNull();
       }
     });
   });

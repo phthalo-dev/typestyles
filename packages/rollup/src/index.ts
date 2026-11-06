@@ -5,9 +5,11 @@ import {
   resolveExtractMode,
   resolveExtractModules,
   runTypestylesBuild,
-  TYPESTYLES_CORE_SPECIFIER,
+  findRealSheetModules,
+  isSheetRequest,
   TYPESTYLES_IMPORT_RE,
-  TYPESTYLES_RUNTIME_SPECIFIER,
+  toZeroRuntimeSheetId,
+  zeroRuntimeLeakMessage,
   type TypestylesExtractOptions,
   type TypestylesIntegrationMode,
 } from '@typestyles/build-runner';
@@ -75,17 +77,18 @@ export default function typestylesRollupPlugin(
     },
 
     async resolveId(source, importer) {
-      // Zero-runtime (mode: 'build'): resolve the client's runtime barrel to
-      // the pure name-only build. Class names / data attributes are computed
-      // identically; the CSS insertion runtime, stylesheet state, and DOM
-      // plumbing are absent from that entry and tree-shake away. Extraction
-      // still runs the real runtime in a node subprocess (see
-      // generateBundle). `hybrid` keeps the runtime for dynamic styles.
-      if (resolvedMode !== 'build' || source !== TYPESTYLES_RUNTIME_SPECIFIER) return null;
-      const resolved = await this.resolve(TYPESTYLES_CORE_SPECIFIER, importer, {
-        skipSelf: true,
-      });
-      return resolved ?? null;
+      // Zero-runtime (mode: 'build'): typestyles reaches its stylesheet through
+      // the `sheet` module. Resolve it normally, then point it at the
+      // no-op sheet so the CSS insertion runtime, stylesheet state, and DOM
+      // plumbing never enter the bundle. Class names / data attributes are
+      // computed identically; extraction still runs the real runtime in a node
+      // subprocess (see generateBundle). `hybrid` keeps the runtime for dynamic
+      // styles.
+      if (resolvedMode !== 'build' || !isSheetRequest(source)) return null;
+      const resolved = await this.resolve(source, importer, { skipSelf: true });
+      if (!resolved) return null;
+      const noop = toZeroRuntimeSheetId(resolved.id);
+      return noop ? { ...resolved, id: noop } : null;
     },
 
     transform(code, id) {
@@ -114,7 +117,15 @@ export default function typestylesRollupPlugin(
       return null;
     },
 
-    async generateBundle() {
+    async generateBundle(_options, bundle) {
+      if (resolvedMode === 'build') {
+        const leaked = findRealSheetModules(
+          Object.values(bundle ?? {}).flatMap((chunk) =>
+            chunk.type === 'chunk' ? Object.keys(chunk.modules) : [],
+          ),
+        );
+        if (leaked.length > 0) this.warn(zeroRuntimeLeakMessage(leaked));
+      }
       if (resolvedMode === 'runtime') return;
       if (!resolvedExtractModules.length) return;
 

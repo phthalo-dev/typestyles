@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, it, expect, vi } from 'vite-plus/test';
 import type { NextConfig } from 'next';
 import type { Configuration } from 'webpack';
+import { ZeroRuntimeSheetWebpackPlugin } from '@typestyles/build-runner';
 import { withTypestyles, withTypestylesExtract } from './build';
 
 type WebpackContext = Parameters<NonNullable<NextConfig['webpack']>>[1];
@@ -47,62 +48,40 @@ describe('withTypestylesExtract', () => {
     expect(hasDefine).toBe(true);
   });
 
-  it('adds the typestyles -> typestyles/core client alias only on client bundles', async () => {
+  it('adds the zero-runtime sheet plugin only on client bundles', async () => {
     const merged = withTypestylesExtract({});
     const webpackHook = merged.webpack;
     if (typeof webpackHook !== 'function') {
       throw new Error('expected webpack hook');
     }
+    const hasPlugin = (config: Configuration): boolean =>
+      (config.plugins ?? []).some((p) => p instanceof ZeroRuntimeSheetWebpackPlugin);
 
     const client = webpackHook(
       { plugins: [] } as Configuration,
       { isServer: false } as WebpackContext,
     );
-    expect(client.resolve?.alias).toEqual({
-      typestyles$: 'typestyles/core',
-    });
+    expect(hasPlugin(client)).toBe(true);
+    expect(client.resolve?.alias).toBeUndefined();
 
     const server = webpackHook(
       { plugins: [] } as Configuration,
       { isServer: true } as WebpackContext,
     );
-    expect(server.resolve?.alias).toBeUndefined();
+    expect(hasPlugin(server)).toBe(false);
   });
 
-  it('preserves existing resolve aliases when swapping to typestyles/core', () => {
+  it('leaves existing resolve aliases untouched', () => {
     const merged = withTypestylesExtract({});
     const webpackHook = merged.webpack;
     if (typeof webpackHook !== 'function') {
       throw new Error('expected webpack hook');
     }
-
     const preserved = webpackHook(
-      {
-        plugins: [],
-        resolve: { alias: { '@typestyles/vite': '/abs/vite.js' } },
-      } as Configuration,
+      { plugins: [], resolve: { alias: { '@typestyles/vite': '/abs/vite.js' } } } as Configuration,
       { isServer: false } as WebpackContext,
     );
-    expect(preserved.resolve?.alias).toEqual({
-      '@typestyles/vite': '/abs/vite.js',
-      typestyles$: 'typestyles/core',
-    });
-  });
-
-  it('never drops the runtime key when the user aliased typestyles themselves', () => {
-    const merged = withTypestylesExtract({});
-    const webpackHook = merged.webpack;
-    if (typeof webpackHook !== 'function') {
-      throw new Error('expected webpack hook');
-    }
-    const webpackConfig = webpackHook(
-      {
-        plugins: [],
-        resolve: { alias: { typestyles: '/custom/core-override.js' } },
-      } as Configuration,
-      { isServer: false } as WebpackContext,
-    );
-    expect(webpackConfig.resolve?.alias).toEqual({ typestyles: '/custom/core-override.js' });
+    expect(preserved.resolve?.alias).toEqual({ '@typestyles/vite': '/abs/vite.js' });
   });
 
   it('applies extract in production when a convention entry exists under root', () => {

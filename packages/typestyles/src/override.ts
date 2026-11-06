@@ -17,7 +17,7 @@ import {
 } from './component-var-overrides';
 import { serializeStyle } from './serialize-style';
 import { applyLayerToRules, assertOwnLayer } from './layers';
-import { insertRules } from './sheet';
+import { insertRules } from '#sheet';
 import { joinSelectorAlternatives } from './compound-selector';
 import { when } from './theme';
 import {

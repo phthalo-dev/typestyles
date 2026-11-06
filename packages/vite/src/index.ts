@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { posix as posixPath, resolve as resolvePath } from 'node:path';
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite';
 import {
-  aliasCapturesTypestylesRuntime,
   extractNamespaces,
   findUnextractedRecipes,
   moduleNeedsOverrideHmr,
@@ -10,7 +9,10 @@ import {
   resolveExtractMode,
   resolveExtractModules,
   runTypestylesBuild,
-  TYPESTYLES_CORE_SPECIFIER,
+  findRealSheetModules,
+  isSheetRequest,
+  toZeroRuntimeSheetId,
+  zeroRuntimeLeakMessage,
   type TypestylesExtractOptions,
   type TypestylesIntegrationMode,
   type UnextractedRecipe,
@@ -274,31 +276,24 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
         };
       }
 
-      if (env.command === 'build' && resolvedMode === 'build' && !env.isSsrBuild) {
-        // Zero-runtime (client builds only; SSR keeps the full runtime): resolve the client's `typestyles` runtime barrel to the
-        // pure name-only build (`typestyles/core`). Class names / data attributes
-        // are computed identically; the CSS insertion runtime, stylesheet state,
-        // and DOM plumbing are absent from that entry and tree-shake away.
-        // Extraction still runs the real runtime in a node subprocess.
-        config.resolve ??= {};
-        const existingAlias = config.resolve.alias;
-        const entries: Array<{ find: string | RegExp; replacement: string }> = Array.isArray(
-          existingAlias,
-        )
-          ? existingAlias.map((entry) =>
-              typeof entry === 'string' ? { find: entry, replacement: entry } : { ...entry },
-            )
-          : existingAlias
-            ? Object.entries(existingAlias).map(([find, replacement]) => ({ find, replacement }))
-            : [];
-        const alreadyAliased = entries.some((entry) => aliasCapturesTypestylesRuntime(entry.find));
-        if (!alreadyAliased) {
-          entries.push({ find: /^typestyles$/, replacement: TYPESTYLES_CORE_SPECIFIER });
-        }
-        config.resolve.alias = entries;
-      }
-
       return config;
+    },
+
+    async resolveId(source, importer, resolveOptions) {
+      // Zero-runtime (client builds only; SSR keeps the full runtime):
+      // typestyles reaches its stylesheet through the `sheet` module.
+      // Resolve it normally, then point it at the no-op sheet so the CSS
+      // insertion runtime, stylesheet state, and DOM plumbing never enter the
+      // bundle. Class names / data attributes are computed identically;
+      // extraction still runs the real runtime in a node subprocess.
+      if (!isBuildCommand || resolvedMode !== 'build' || !isSheetRequest(source)) {
+        return null;
+      }
+      if (resolveOptions?.ssr) return null;
+      const resolved = await this.resolve(source, importer, { ...resolveOptions, skipSelf: true });
+      if (!resolved) return null;
+      const noop = toZeroRuntimeSheetId(resolved.id);
+      return noop ? { ...resolved, id: noop } : null;
     },
 
     configResolved(config) {
@@ -513,6 +508,14 @@ if (import.meta.hot) {
 
     async generateBundle(_options, bundle) {
       if (!isBuildCommand) return;
+      if (resolvedMode === 'build' && !resolvedConfig?.build?.ssr) {
+        const leaked = findRealSheetModules(
+          Object.values(bundle ?? {}).flatMap((chunk) =>
+            chunk.type === 'chunk' ? Object.keys(chunk.modules) : [],
+          ),
+        );
+        if (leaked.length > 0) this.warn(zeroRuntimeLeakMessage(leaked));
+      }
       if (resolvedMode === 'runtime') return;
       if (!resolvedExtractModules.length) return;
       if (!resolvedConfig) return;

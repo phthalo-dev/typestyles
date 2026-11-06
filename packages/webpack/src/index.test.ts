@@ -120,7 +120,7 @@ createTheme('webpack-dark', { base: { 'webpack-color': { primary: '#66aaff' } } 
     expect(result.cssBytes).toBeGreaterThan(0);
   }, 15_000);
 
-  it('bundles typestyles/core instead of the runtime barrel in build mode', async () => {
+  it('bundles the no-op sheet instead of the CSS runtime in build mode', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'typestyles-webpack-core-'));
     const outdir = join(dir, 'dist');
     mkdirSync(join(dir, 'src'), { recursive: true });
@@ -173,7 +173,7 @@ export const noop = () => void t;`,
       fs.readFile(join(outdir, 'index.js'), 'utf8'),
     );
     // The runtime sheet ships `typestyles-fallback` + `styleElement` DOM
-    // plumbing; the pure core build contains neither.
+    // plumbing; the no-op sheet contains neither.
     expect(bundle).not.toContain('typestyles-fallback');
     expect(bundle).not.toContain('styleElement');
   }, 15_000);
