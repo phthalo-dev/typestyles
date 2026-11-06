@@ -129,14 +129,14 @@
     }
   },
   "sideEffects": [
-    "./hmr.js",
-    "./hmr.cjs",
-    "./server.js",
-    "./server.cjs",
-    "./build.js",
-    "./build.cjs",
-    "./testing.js",
-    "./testing.cjs"
+    "./dist/hmr.js",
+    "./dist/hmr.cjs",
+    "./dist/server.js",
+    "./dist/server.cjs",
+    "./dist/build.js",
+    "./dist/build.cjs",
+    "./dist/testing.js",
+    "./dist/testing.cjs"
   ],
   "files": [
     "dist",

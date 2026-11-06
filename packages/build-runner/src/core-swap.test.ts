@@ -32,3 +32,14 @@ describe('aliasCapturesTypestylesRuntime', () => {
     expect(aliasCapturesTypestylesRuntime(/^@typestyles\/(?!core)/)).toBe(false);
   });
 });
+
+describe('aliasCapturesTypestylesRuntime with stateful regex flags', () => {
+  it('gives the same answer on repeated calls for /g and /y patterns', () => {
+    const g = /^typestyles$/g;
+    expect(aliasCapturesTypestylesRuntime(g)).toBe(true);
+    expect(aliasCapturesTypestylesRuntime(g)).toBe(true);
+    const y = /^typestyles$/y;
+    expect(aliasCapturesTypestylesRuntime(y)).toBe(true);
+    expect(aliasCapturesTypestylesRuntime(y)).toBe(true);
+  });
+});

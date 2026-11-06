@@ -9,6 +9,7 @@ import {
   resolveExtractModules,
   runTypestylesBuild,
   TYPESTYLES_CORE_SPECIFIER,
+  aliasCapturesTypestylesRuntime,
   TYPESTYLES_IMPORT_RE,
   type TypestylesExtractOptions,
   type TypestylesIntegrationMode,
@@ -120,21 +121,34 @@ export default function typestylesEsbuildPlugin(
         };
       }
 
-      if (resolvedMode === 'build') {
-        // Zero-runtime: resolve the client's runtime barrel to the pure
-        // name-only build. Class names / data attributes are computed
-        // identically; the CSS insertion runtime, stylesheet state, and DOM
-        // plumbing are absent from that entry and tree-shake away. Extraction
-        // still runs the real runtime in a node subprocess (see onEnd).
-        // `hybrid` keeps the runtime for dynamic styles. esbuild matches
-        // `external` against the original specifiers, so bare `typestyles`
-        // entries still go external (emitted as `typestyles/core`).
-        const existingAlias = build.initialOptions.alias ?? {};
-        if (!('typestyles' in existingAlias)) {
-          build.initialOptions.alias = {
-            ...existingAlias,
-            typestyles: TYPESTYLES_CORE_SPECIFIER,
-          };
+      if (resolvedMode === 'build' && build.initialOptions.platform !== 'node') {
+        // Zero-runtime (client builds only; node builds keep the full runtime):
+        // resolve the bare `typestyles` runtime barrel to the pure name-only
+        // build. Class names / data attributes are computed identically; the
+        // CSS insertion runtime, stylesheet state, and DOM plumbing are absent
+        // from that entry and tree-shake away. Extraction still runs the real
+        // runtime in a node subprocess (see onEnd). `hybrid` keeps the runtime
+        // for dynamic styles.
+        //
+        // An `onResolve` hook is used instead of `alias` because esbuild
+        // aliases also match subpaths (`typestyles/color` would become
+        // `typestyles/core/color`). Honors the user's own aliases and
+        // `external`, via `build.resolve`.
+        const userAliased = Object.keys(build.initialOptions.alias ?? {}).some(
+          aliasCapturesTypestylesRuntime,
+        );
+        if (!userAliased) {
+          build.onResolve({ filter: /^typestyles$/ }, async (args) => {
+            if (args.pluginData?.typestylesCoreSwap) return undefined;
+            const result = await build.resolve(TYPESTYLES_CORE_SPECIFIER, {
+              importer: args.importer,
+              namespace: args.namespace,
+              resolveDir: args.resolveDir,
+              kind: args.kind,
+              pluginData: { typestylesCoreSwap: true },
+            });
+            return result.errors.length > 0 ? undefined : result;
+          });
         }
       }
 

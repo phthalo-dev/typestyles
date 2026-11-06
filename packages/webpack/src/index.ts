@@ -56,8 +56,10 @@ export default class TypestylesWebpackPlugin implements WebpackPluginInstance {
       }).apply(compiler);
     }
 
-    if (this.resolvedMode === 'build') {
-      // Zero-runtime: resolve the client's runtime barrel to the pure
+    const target = [compiler.options.target].flat();
+    const isNodeTarget = target.some((t) => typeof t === 'string' && /^(async-)?node/.test(t));
+    if (this.resolvedMode === 'build' && !isNodeTarget) {
+      // Zero-runtime (client targets only; node targets keep the full runtime): resolve the client's runtime barrel to the pure
       // name-only build. Class names / data attributes are computed
       // identically; the CSS insertion runtime, stylesheet state, and DOM
       // plumbing are absent from that entry and tree-shake away. Extraction

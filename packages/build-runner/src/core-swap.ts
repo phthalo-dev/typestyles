@@ -25,5 +25,10 @@ export function aliasCapturesTypestylesRuntime(find: string | RegExp): boolean {
   if (typeof find === 'string') {
     return find === TYPESTYLES_RUNTIME_SPECIFIER || find === `${TYPESTYLES_RUNTIME_SPECIFIER}$`;
   }
-  return find.test(TYPESTYLES_RUNTIME_SPECIFIER) && !find.test(`${TYPESTYLES_RUNTIME_SPECIFIER}/`);
+  // Drop stateful flags so repeated `.test()` calls are independent.
+  const pattern =
+    find.global || find.sticky ? new RegExp(find.source, find.flags.replace(/[gy]/g, '')) : find;
+  return (
+    pattern.test(TYPESTYLES_RUNTIME_SPECIFIER) && !pattern.test(`${TYPESTYLES_RUNTIME_SPECIFIER}/`)
+  );
 }

@@ -274,8 +274,8 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
         };
       }
 
-      if (env.command === 'build' && resolvedMode === 'build') {
-        // Zero-runtime: resolve the client's `typestyles` runtime barrel to the
+      if (env.command === 'build' && resolvedMode === 'build' && !env.isSsrBuild) {
+        // Zero-runtime (client builds only; SSR keeps the full runtime): resolve the client's `typestyles` runtime barrel to the
         // pure name-only build (`typestyles/core`). Class names / data attributes
         // are computed identically; the CSS insertion runtime, stylesheet state,
         // and DOM plumbing are absent from that entry and tree-shake away.
@@ -286,9 +286,7 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
           existingAlias,
         )
           ? existingAlias.map((entry) =>
-              typeof entry === 'string'
-                ? { find: entry, replacement: entry }
-                : { find: entry.find, replacement: entry.replacement },
+              typeof entry === 'string' ? { find: entry, replacement: entry } : { ...entry },
             )
           : existingAlias
             ? Object.entries(existingAlias).map(([find, replacement]) => ({ find, replacement }))
