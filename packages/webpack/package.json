@@ -45,9 +45,10 @@
     "@typestyles/build-runner": "workspace:*"
   },
   "devDependencies": {
+    "@rspack/core": "^1.7.12",
     "@types/node": "^24.13.0",
     "typescript": "catalog:",
-    "webpack": "^5.98.0",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "webpack": "^5.98.0"
   }
 }

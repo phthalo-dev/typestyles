@@ -76,8 +76,8 @@ Mechanics differ per integration, but the semantics are identical:
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `@typestyles/vite` (and `@typestyles/astro`, which wraps it)          | `resolveId` hook on client builds (not SSR); re-points the resolved sheet to `sheet-noop`   |
 | `@typestyles/rollup`                                                  | same `resolveId` approach (also works for Rolldown, which accepts Rollup plugins)           |
-| `@typestyles/esbuild`                                                 | `onResolve` hook, skipped when `platform: 'node'`                                           |
-| `@typestyles/webpack`                                                 | module-factory hook on non-node targets that rewrites the resolved resource                 |
+| `@typestyles/esbuild` (also **Bun**)                                  | `onResolve` hook, skipped when `platform: 'node'` (Bun's `bun` / `node` targets)            |
+| `@typestyles/webpack` (also **Rspack**)                               | module-factory hook on non-node targets that rewrites the resolved resource                 |
 | `@typestyles/next/build` (`withTypestyles` / `withTypestylesExtract`) | same webpack hook on **client** bundles only — server bundles keep the real runtime for SSR |
 
 The redirect is a plain relative-file swap on purpose: it needs no package `imports`/`exports` condition support, so it behaves the same in every bundler and does not affect tools that don't understand conditions (Parcel without flags, Metro, older Jest) — those simply keep the full runtime.
@@ -94,7 +94,7 @@ The published package declares a conservative `sideEffects` allowlist — `hmr`,
 
 ## Theme extraction
 
-Theme and token CSS needs no separate build step. Because extraction is execute-and-collect, everything a module registers when it runs — including the `:root { --… }` blocks from **`tokens.create`** and the `.theme-*` classes from **`createTheme`** — lands in the same static CSS asset as your component styles. Theme CSS is a byproduct of normal extraction across all six bundler integrations: **Vite**, **Rollup / Rolldown**, **esbuild**, **webpack**, **Next.js**, and **Astro**.
+Theme and token CSS needs no separate build step. Because extraction is execute-and-collect, everything a module registers when it runs — including the `:root { --… }` blocks from **`tokens.create`** and the `.theme-*` classes from **`createTheme`** — lands in the same static CSS asset as your component styles. Theme CSS is a byproduct of normal extraction across all bundler integrations: **Vite**, **Rollup / Rolldown**, **esbuild / Bun**, **webpack / Rspack**, **Next.js**, and **Astro**.
 
 ```ts
 // src/typestyles-entry.ts
@@ -277,6 +277,24 @@ await build({
 
 Convention entry discovery matches Vite and Rollup. The plugin writes `typestyles.css` to esbuild’s `outdir` (default: `dist/typestyles.css`).
 
+### Bun
+
+`Bun.build` accepts esbuild-style plugins, so the same plugin works there with no extra package:
+
+```js
+import { build } from 'bun';
+import typestylesEsbuildPlugin from '@typestyles/esbuild';
+
+await build({
+  entrypoints: ['src/main.ts'],
+  outdir: 'dist',
+  target: 'browser',
+  plugins: [typestylesEsbuildPlugin()],
+});
+```
+
+The zero-runtime swap applies to `target: 'browser'` only. `target: 'bun'` and `target: 'node'` builds keep the full runtime, the same as esbuild's `platform: 'node'`.
+
 ---
 
 ## webpack
@@ -298,6 +316,22 @@ export default {
 ```
 
 When a convention entry resolves, the plugin emits `typestyles.css` as a build asset and defines `__TYPESTYLES_RUNTIME_DISABLED__` for client bundles.
+
+### Rspack
+
+Rspack implements webpack's plugin API, so the same plugin is the Rspack integration — no extra package:
+
+```js
+// rspack.config.mjs
+import TypestylesWebpackPlugin from '@typestyles/webpack';
+
+export default {
+  entry: './src/index.ts',
+  plugins: [new TypestylesWebpackPlugin()],
+};
+```
+
+Extraction, the no-op sheet swap (non-node targets) and the leak warning all behave as they do in webpack.
 
 ---
 
