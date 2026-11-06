@@ -1,4 +1,4 @@
-import { insertRule, invalidateKeys } from './sheet';
+import { insertRule, invalidateKeys } from '#sheet';
 
 const selectorMaps = new Map<string, Map<string, string>>();
 

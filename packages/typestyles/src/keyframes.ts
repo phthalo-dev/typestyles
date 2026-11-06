@@ -1,6 +1,6 @@
 import type { CSSProperties } from './types';
 import { toKebabCase } from './serialize-style';
-import { insertRule } from './sheet';
+import { insertRule } from '#sheet';
 
 /**
  * A keyframe stop is either 'from', 'to', or a percentage like '50%'.

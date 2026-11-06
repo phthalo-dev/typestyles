@@ -33,7 +33,7 @@ import {
   type ThemeTokenNaming,
 } from './token-naming';
 import { formatCustomPropertiesCss } from './custom-properties';
-import { insertRule, insertRules, invalidateKeys } from './sheet';
+import { insertRule, insertRules, invalidateKeys } from '#sheet';
 import { createRegisteredPropertyRef, registerAtPropertySchema } from './registered-property';
 import {
   createTheme,

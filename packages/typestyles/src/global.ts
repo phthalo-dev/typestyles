@@ -1,5 +1,5 @@
 import type { FontFaceProps, FontFaceSrc } from './types';
-import { insertRule } from './sheet';
+import { insertRule } from '#sheet';
 
 /** Join `src` fragments for CSS `src` and for dedupe keys. */
 function normalizeFontFaceSrc(src: FontFaceSrc): string {

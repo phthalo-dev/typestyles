@@ -20,7 +20,7 @@ import type {
   MultiSlotReturn,
   SlotAttrsReturn,
 } from './types';
-import { insertRules, invalidateComponentNamespaceForDev } from './sheet';
+import { devDiagnosticsEnabled, insertRules, invalidateComponentNamespaceForDev } from '#sheet';
 import { applyLayerToRules, assertOwnLayer } from './layers';
 import { joinSelectorAlternatives } from './compound-selector';
 import { registeredNamespaces, warnUnscopedCollision } from './registry';
@@ -573,7 +573,8 @@ function registryKeyForComponent(classNaming: ClassNamingConfig, namespace: stri
  */
 function claimComponentNamespace(classNaming: ClassNamingConfig, namespace: string): void {
   const key = registryKeyForComponent(classNaming, namespace);
-  if (process.env.NODE_ENV !== 'production' && registeredNamespaces.has(key)) {
+  if (!devDiagnosticsEnabled()) return;
+  if (registeredNamespaces.has(key)) {
     if (!classNaming.scopeId) {
       warnUnscopedCollision(namespace, 'recipe');
     }

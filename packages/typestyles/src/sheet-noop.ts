@@ -1,16 +1,22 @@
 /**
  * Zero-runtime sheet stub.
  *
- * `vp pack`'s `core` config aliases `./sheet` to this module (see
- * `vite.config.ts`, the `core` pack entry). Every export is signature-
- * compatible with the real `sheet` module, but performs no registration and
- * no DOM work — pure, name-only builds (`typestyles/core`) therefore never
- * reach the CSS insertion / stylesheet state machine, and consumer bundlers
- * can tree-shake it out of the client bundle entirely.
+ * Ships beside the real `sheet` module. Every other module imports the sheet
+ * through one stable relative path (`./sheet.js`, rewritten after the build),
+ * and the bundler integrations redirect that single file to this one in
+ * zero-runtime builds. Every export is signature-compatible with the real
+ * module but performs no registration and no DOM work, so consumer bundles
+ * never include the CSS insertion / stylesheet state machine, and all entry
+ * points (`typestyles`, `typestyles/css`, …) still share one registry.
  *
  * Signatures intentionally mirror `sheet.ts` so importers compile unchanged
  * in both graphs.
  */
+
+/** Diagnostics are a development concern; zero-runtime builds never run them. */
+export function devDiagnosticsEnabled(): boolean {
+  return false;
+}
 
 export function registerCascadeLayerOrder(_preambleKey: string, _css: string): void {}
 

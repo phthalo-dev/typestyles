@@ -10,4 +10,4 @@ export {
   invalidateOverrideRuleKeys,
   createOverrideHmrSlot,
   type OverrideHmrSlot,
-} from './sheet';
+} from '#sheet';

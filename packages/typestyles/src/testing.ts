@@ -1,4 +1,4 @@
-import { reset } from './sheet';
+import { reset } from '#sheet';
 
 const afterResetListeners = new Set<() => void>();
 

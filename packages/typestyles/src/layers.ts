@@ -1,5 +1,5 @@
 import { stableSerialize, hashString } from './class-naming';
-import { registerCascadeLayerOrder } from './sheet';
+import { registerCascadeLayerOrder } from '#sheet';
 
 /**
  * Declare cascade layer order and optionally prepend framework layer names

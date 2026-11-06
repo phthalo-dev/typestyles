@@ -8,7 +8,7 @@ import type {
   StylesPropertyFn,
 } from './types';
 import { serializeStyle } from './serialize-style';
-import { insertRules, invalidateClassNamespaceForDev } from './sheet';
+import { devDiagnosticsEnabled, insertRules, invalidateClassNamespaceForDev } from '#sheet';
 import type { CascadeLayersInput } from './layers';
 import { applyLayerToRules, assertOwnLayer, resolveCascadeLayers } from './layers';
 import { registeredNamespaces, trackEmittedClassName, warnUnscopedCollision } from './registry';
@@ -106,7 +106,8 @@ function registryKeyForClass(classNaming: ClassNamingConfig, name: string): stri
  */
 function claimClassNamespace(classNaming: ClassNamingConfig, name: string): void {
   const regKey = registryKeyForClass(classNaming, name);
-  if (process.env.NODE_ENV !== 'production' && registeredNamespaces.has(regKey)) {
+  if (!devDiagnosticsEnabled()) return;
+  if (registeredNamespaces.has(regKey)) {
     if (!classNaming.scopeId) {
       warnUnscopedCollision(name, 'style');
     }

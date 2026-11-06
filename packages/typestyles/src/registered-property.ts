@@ -8,7 +8,7 @@ import type {
 import { sanitizeClassSegment, scopedTokenNamespace, type ClassNamingConfig } from './class-naming';
 import { syntaxPlaceholderFor } from './at-property';
 import { registerCustomProperty } from './custom-properties';
-import { insertRule } from './sheet';
+import { insertRule } from '#sheet';
 
 const propertyRegistrations = new Map<
   string,

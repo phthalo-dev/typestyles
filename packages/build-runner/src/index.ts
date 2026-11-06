@@ -12,10 +12,12 @@ export {
   type DuplicateNamespaceReporter,
 } from './namespaces';
 export {
-  TYPESTYLES_CORE_SPECIFIER,
-  TYPESTYLES_RUNTIME_SPECIFIER,
-  aliasCapturesTypestylesRuntime,
-} from './core-swap';
+  ZeroRuntimeSheetWebpackPlugin,
+  findRealSheetModules,
+  isSheetRequest,
+  toZeroRuntimeSheetId,
+  zeroRuntimeLeakMessage,
+} from './zero-runtime';
 export {
   resolveExtractMode,
   resolveExtractModules,

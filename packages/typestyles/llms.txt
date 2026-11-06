@@ -84,7 +84,6 @@ Guide: https://typestyles.dev/docs/zero-runtime.md
 | Import | Use |
 | ------ | --- |
 | `typestyles` | Core runtime |
-| `typestyles/core` | Same API, pure name-only build (no CSS insertion / DOM runtime); bundler integrations resolve the client to this in zero-runtime production builds |
 | `typestyles/server` | SSR (`collectStyles`, …) |
 | `typestyles/build` | Build stubs when runtime disabled |
 | `typestyles/color` | Color helpers (off main bundle) |

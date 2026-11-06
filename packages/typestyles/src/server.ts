@@ -5,7 +5,7 @@ import {
   getRegisteredCss,
   subscribeRegisteredCss,
   TYPESTYLES_STYLE_ID,
-} from './sheet';
+} from '#sheet';
 import { runWithIsolatedSheet } from './sheet-context';
 
 export { getRegisteredCss, subscribeRegisteredCss, TYPESTYLES_STYLE_ID };
