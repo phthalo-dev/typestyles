@@ -16,12 +16,12 @@ export default defineConfig({
   pack: {
     fixedExtension: false,
     outputOptions: { comments: false },
-    entry: ['src/index.ts'],
+    entry: ['src/index.ts', 'src/compile-loader.ts'],
     format: ['esm', 'cjs'],
     dts: true,
     clean: true,
     deps: {
-      neverBundle: ['typestyles', '@typestyles/build-runner'],
+      neverBundle: ['typestyles', '@typestyles/build-runner', 'webpack'],
     },
   },
 });

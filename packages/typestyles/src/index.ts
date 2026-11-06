@@ -19,6 +19,7 @@ import {
   reset,
   flushSync,
   ensureDocumentStylesAttached,
+  getClientPlans,
 } from '#sheet';
 import { createVar, assignVars } from './vars';
 import { cx } from './cx';
@@ -144,7 +145,8 @@ export type {
 } from './theme-component-types';
 
 /** Primary app/library entry. Prefer this over the lower-level factories. */
-export { createTypeStyles };
+export type { AttrsRecipePlan } from './attrs-runtime';
+export { createTypeStyles, getClientPlans };
 export type { TypeStylesApi, TypeStylesLayersConfig, StyleFn, HashFn } from './create-type-styles';
 
 /**

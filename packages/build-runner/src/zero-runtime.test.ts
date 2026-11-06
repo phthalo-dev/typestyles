@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vite-plus/test';
 import {
+  findLingeringRuntime,
   findRealSheetModules,
+  lingeringRuntimeMessage,
   isSheetRequest,
   toZeroRuntimeSheetId,
   zeroRuntimeLeakMessage,
@@ -75,5 +77,34 @@ describe('findRealSheetModules / zeroRuntimeLeakMessage', () => {
     expect(zeroRuntimeLeakMessage(['/n/typestyles/dist/sheet.js'])).toContain(
       '/n/typestyles/dist/sheet.js',
     );
+  });
+});
+
+describe('findLingeringRuntime', () => {
+  const mod = (id: string, renderedLength: number) => ({ id, renderedLength });
+
+  it('ignores what the lite runtime ships and small leftovers', () => {
+    expect(
+      findLingeringRuntime([
+        mod('/n/typestyles/dist/chunks/attrs-runtime.js', 3000),
+        mod('/n/typestyles/dist/sheet-noop.js', 500),
+        mod('/n/typestyles/dist/index.js', 400), // e.g. only mergeProps survived
+        mod('/n/app/src/main.js', 99999),
+      ]),
+    ).toBeNull();
+  });
+
+  it('reports substantial full-runtime modules', () => {
+    const found = findLingeringRuntime([
+      mod('/n/typestyles/dist/index.js', 40_000),
+      mod('/n/typestyles/dist/chunks/breakpoints.js', 20_000),
+      mod('/n/typestyles/dist/chunks/attrs-runtime.js', 3000),
+    ]);
+    expect(found?.ids).toEqual([
+      '/n/typestyles/dist/index.js',
+      '/n/typestyles/dist/chunks/breakpoints.js',
+    ]);
+    expect(found?.bytes).toBe(60_000);
+    expect(lingeringRuntimeMessage(found!, ['src/theme.ts'])).toContain('src/theme.ts');
   });
 });

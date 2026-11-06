@@ -1,3 +1,6 @@
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Compiler, NormalModule, WebpackPluginInstance } from 'webpack';
 import {
   ZeroRuntimeSheetWebpackPlugin,
@@ -7,7 +10,8 @@ import {
   reportDuplicateNamespaces,
   resolveExtractMode,
   resolveExtractModules,
-  runTypestylesBuild,
+  runTypestylesExtract,
+  type TypestylesExtractResult,
   TYPESTYLES_IMPORT_RE,
   type TypestylesExtractOptions,
   type TypestylesIntegrationMode,
@@ -26,6 +30,13 @@ export interface TypestylesWebpackPluginOptions {
   mode?: TypestylesIntegrationMode;
   extract?: TypestylesExtractOptions;
   root?: string;
+  /**
+   * Experimental. In `"build"` mode on non-node targets, replace `recipe()` definitions with the
+   * small call-behavior plans recorded during extraction, so style configs and CSS machinery
+   * tree-shake out of the bundle. Works via a post loader, so it sees plain JS after
+   * ts-loader/babel-loader/swc-loader. Also works with Rspack.
+   */
+  compile?: boolean;
 }
 
 /**
@@ -39,12 +50,16 @@ export default class TypestylesWebpackPlugin implements WebpackPluginInstance {
   private readonly moduleNamespaces = new Map<string, { keys: string[]; prefixes: string[] }>();
   private readonly resolvedExtractModules: string[];
   private readonly resolvedMode: TypestylesIntegrationMode;
+  private readonly compile: boolean;
+  /** One extraction run per compilation: it feeds both the emitted CSS and the compile plans. */
+  private extraction: Promise<TypestylesExtractResult> | null = null;
 
   constructor(options: TypestylesWebpackPluginOptions = {}) {
     this.warnDuplicates = options.warnDuplicates ?? true;
     this.mode = options.mode;
     this.extract = options.extract;
     this.root = options.root ?? process.cwd();
+    this.compile = options.compile ?? false;
     this.resolvedExtractModules = resolveExtractModules(this.root, this.extract);
     this.resolvedMode = resolveExtractMode(this.mode, this.resolvedExtractModules);
   }
@@ -68,7 +83,12 @@ export default class TypestylesWebpackPlugin implements WebpackPluginInstance {
       this.applyZeroRuntimeSheet(compiler);
     }
 
+    if (this.compile && this.resolvedMode === 'build' && !isNodeTarget) {
+      this.applyCompile(compiler);
+    }
+
     compiler.hooks.thisCompilation.tap('typestyles', (compilation) => {
+      this.extraction = null; // fresh extraction per compilation (watch rebuilds)
       compilation.hooks.succeedModule.tap('typestyles', (module) => {
         const resource = (module as NormalModule).resource;
         if (!resource || !/\.[jt]sx?$/.test(resource) || resource.includes('node_modules')) {
@@ -98,8 +118,6 @@ export default class TypestylesWebpackPlugin implements WebpackPluginInstance {
       }
 
       const fileName = this.extract?.fileName ?? 'typestyles.css';
-      let cssPromise: Promise<string> | null = null;
-
       compilation.hooks.processAssets.tapPromise(
         {
           name: 'typestyles',
@@ -107,13 +125,7 @@ export default class TypestylesWebpackPlugin implements WebpackPluginInstance {
         },
         async () => {
           try {
-            if (!cssPromise) {
-              cssPromise = runTypestylesBuild({
-                root: this.root,
-                modules: this.resolvedExtractModules,
-              });
-            }
-            const css = await cssPromise;
+            const { css } = await this.extractOnce();
             compilation.emitAsset(fileName, new compiler.webpack.sources.RawSource(css));
           } catch (error) {
             compilation.errors.push(
@@ -125,6 +137,42 @@ export default class TypestylesWebpackPlugin implements WebpackPluginInstance {
         },
       );
     });
+  }
+
+  private extractOnce(): Promise<TypestylesExtractResult> {
+    return (this.extraction ??= runTypestylesExtract({
+      root: this.root,
+      modules: this.resolvedExtractModules,
+    }));
+  }
+
+  /** Add the post loader that swaps recipe definitions for their recorded plans. */
+  private applyCompile(compiler: Compiler): void {
+    if (!this.resolvedExtractModules.length) return;
+    const here =
+      typeof __dirname === 'string' ? __dirname : dirname(fileURLToPath(import.meta.url));
+    // Published layout: next to this file. Running from source (tests): the built package.
+    const loader = [
+      join(here, 'compile-loader.cjs'),
+      join(here, '../dist/compile-loader.cjs'),
+    ].find((candidate) => existsSync(candidate));
+    if (!loader) return;
+    const moduleOptions = compiler.options.module;
+    moduleOptions.rules = [
+      ...moduleOptions.rules,
+      {
+        test: /\.[cm]?[jt]sx?$/,
+        enforce: 'post',
+        use: [
+          {
+            loader,
+            options: {
+              getPlans: async () => (await this.extractOnce()).plans,
+            },
+          },
+        ],
+      },
+    ];
   }
 
   /**

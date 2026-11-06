@@ -107,6 +107,16 @@
         "default": "./dist/dtcg.cjs"
       }
     },
+    "./lite": {
+      "import": {
+        "types": "./dist/lite.d.ts",
+        "default": "./dist/lite.js"
+      },
+      "require": {
+        "types": "./dist/lite.d.cts",
+        "default": "./dist/lite.cjs"
+      }
+    },
     "./testing": {
       "import": {
         "types": "./dist/testing.d.ts",

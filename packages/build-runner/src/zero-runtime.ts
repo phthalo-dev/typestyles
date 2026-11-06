@@ -90,3 +90,47 @@ export function zeroRuntimeLeakMessage(moduleIds: readonly string[]): string {
     `a second copy of typestyles?). Client JS is larger than it needs to be.`
   );
 }
+
+/** Modules of typestyles' dist that the lite runtime legitimately ships. */
+const LITE_DIST_MODULE =
+  /[\\/]typestyles[\\/]dist[\\/](?:lite|sheet-noop|chunks[\\/](?:attrs-runtime|rolldown-runtime|color|sheet-context))\.c?js$/;
+const ANY_DIST_MODULE = /[\\/]typestyles[\\/]dist[\\/].*\.c?js$/;
+
+/** Rendered typestyles runtime (excluding what the lite runtime needs) above this is worth a warning. */
+const LINGERING_RUNTIME_BYTES = 8 * 1024;
+
+export interface LingeringRuntime {
+  /** Module ids of the full runtime still in the bundle. */
+  ids: string[];
+  /** Their combined rendered size. */
+  bytes: number;
+}
+
+/**
+ * After `compile`, report any substantial piece of the full typestyles runtime that is still in
+ * the bundle (something the transform couldn't replace kept it alive). `null` when it's gone.
+ */
+export function findLingeringRuntime(
+  modules: Iterable<{ id: string; renderedLength: number }>,
+): LingeringRuntime | null {
+  const ids: string[] = [];
+  let bytes = 0;
+  for (const { id, renderedLength } of modules) {
+    if (!ANY_DIST_MODULE.test(id) || LITE_DIST_MODULE.test(id)) continue;
+    if (renderedLength === 0) continue;
+    ids.push(id);
+    bytes += renderedLength;
+  }
+  return bytes >= LINGERING_RUNTIME_BYTES ? { ids, bytes } : null;
+}
+
+/** Warning text for a `compile` build that still ships the full runtime. */
+export function lingeringRuntimeMessage(runtime: LingeringRuntime, importers: string[]): string {
+  const kb = (runtime.bytes / 1024).toFixed(1);
+  const from = importers.length > 0 ? ` It is still reached from: ${importers.join(', ')}.` : '';
+  return (
+    `[typestyles] compile: ${kb} KB of the typestyles runtime is still in the client bundle.${from} ` +
+    `Those modules call typestyles APIs the compile step can't replace yet (themes, tokens, ` +
+    `class helpers, or recipes it can't plan), and use their results at runtime.`
+  );
+}

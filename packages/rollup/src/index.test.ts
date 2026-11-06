@@ -182,3 +182,62 @@ recipe({ name: 'rollup-dup', styles: { base: { color: 'blue' } } });`;
     });
   });
 });
+
+describe('compile option (real bundle)', () => {
+  async function bundleApp(compile: boolean): Promise<string> {
+    const { rollup } = await import('rollup');
+    const { mkdtempSync, mkdirSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join, resolve } = await import('node:path');
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-rollup-compile-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    const tsDist = resolve(import.meta.dirname, '../../typestyles/dist');
+    writeFileSync(
+      join(dir, 'src/styles.js'),
+      `import { createTypeStyles, variant } from 'typestyles';
+export const ts = createTypeStyles({ scopeId: 'app', mode: 'attribute' });
+export const button = ts.recipe({
+  name: 'button',
+  variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) },
+  styles: () => ({ base: { color: 'rebeccapurple-DISTINCTIVE' }, variants: { tone: { a: {}, b: {} } } }),
+});`,
+    );
+    writeFileSync(
+      join(dir, 'src/main.js'),
+      `import { button } from './styles.js';\nconsole.log(JSON.stringify(button({ tone: 'b' }).props));`,
+    );
+    writeFileSync(join(dir, 'src/entry.js'), `import './styles.js';`);
+    const resolveTypestyles = {
+      name: 'resolve-typestyles',
+      resolveId(source: string) {
+        if (source === 'typestyles') return join(tsDist, 'index.js');
+        if (source === 'typestyles/lite') return join(tsDist, 'lite.js');
+        return null;
+      },
+    };
+    const bundle = await rollup({
+      input: join(dir, 'src/main.js'),
+      onwarn() {},
+      plugins: [
+        resolveTypestyles,
+        typestylesRollupPlugin({
+          root: dir,
+          mode: 'build',
+          compile,
+          extract: { modules: ['src/entry.js'] },
+        }),
+      ],
+    });
+    const { output } = await bundle.generate({ format: 'es' });
+    return output.map((o) => (o.type === 'chunk' ? o.code : '')).join('\n');
+  }
+
+  it('drops the style config and runtime from the bundle', async () => {
+    const plain = await bundleApp(false);
+    const compiled = await bundleApp(true);
+    expect(plain).toContain('DISTINCTIVE');
+    expect(compiled).not.toContain('DISTINCTIVE');
+    expect(compiled).toContain('app-button');
+    expect(compiled.length).toBeLessThan(plain.length / 2);
+  }, 60_000);
+});

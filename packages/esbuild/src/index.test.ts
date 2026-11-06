@@ -178,3 +178,64 @@ createTheme('esbuild-dark', { base: { 'esbuild-color': { primary: '#66aaff' } } 
     expect(result.cssBytes).toBeGreaterThan(0);
   });
 });
+
+describe('compile option (real bundle)', () => {
+  async function bundleApp(compile: boolean, ext: 'js' | 'ts'): Promise<string> {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-esbuild-compile-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    mkdirSync(join(dir, 'node_modules'), { recursive: true });
+    symlinkSync(
+      resolve(import.meta.dirname, '../../typestyles'),
+      join(dir, 'node_modules/typestyles'),
+      'dir',
+    );
+    const typeAnnotation = ext === 'ts' ? ': string' : '';
+    writeFileSync(
+      join(dir, `src/styles.${ext}`),
+      `import { createTypeStyles, variant } from 'typestyles';
+const label${typeAnnotation} = 'x';
+export const ts = createTypeStyles({ scopeId: 'app', mode: 'attribute' });
+export const button = ts.recipe({
+  name: 'button',
+  variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) },
+  styles: () => ({ base: { color: 'rebeccapurple-DISTINCTIVE' }, variants: { tone: { a: {}, b: {} } } }),
+});
+export { label };`,
+    );
+    writeFileSync(
+      join(dir, 'src/main.js'),
+      `import { button } from './styles';\nconsole.log(JSON.stringify(button({ tone: 'b' }).props));`,
+    );
+    writeFileSync(join(dir, 'src/typestyles-entry.js'), `import './styles';`);
+    const result = await build({
+      entryPoints: [join(dir, 'src/main.js')],
+      bundle: true,
+      write: false,
+      platform: 'browser',
+      format: 'esm',
+      logLevel: 'silent',
+      plugins: [
+        typestylesEsbuildPlugin({
+          root: dir,
+          mode: 'build',
+          compile,
+          extract: { modules: ['src/typestyles-entry.js'] },
+        }),
+      ],
+    });
+    return result.outputFiles?.[0]?.text ?? '';
+  }
+
+  it.each(['js', 'ts'] as const)(
+    'drops the style config and runtime (%s source)',
+    async (ext) => {
+      const plain = await bundleApp(false, ext);
+      const compiled = await bundleApp(true, ext);
+      expect(plain).toContain('DISTINCTIVE');
+      expect(compiled).not.toContain('DISTINCTIVE');
+      expect(compiled).toContain('app-button');
+      expect(compiled.length).toBeLessThan(plain.length / 2);
+    },
+    60_000,
+  );
+});

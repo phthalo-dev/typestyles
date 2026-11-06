@@ -12,8 +12,20 @@ export {
   type DuplicateNamespaceReporter,
 } from './namespaces';
 export {
+  LITE_SPECIFIER,
+  indexPlans,
+  isTransformableId,
+  mightContainRecipeCalls,
+  parseModule,
+  transformRecipeCalls,
+  type ParseFn,
+  type PlanIndex,
+} from './compile-transform';
+export {
   ZeroRuntimeSheetWebpackPlugin,
+  findLingeringRuntime,
   findRealSheetModules,
+  lingeringRuntimeMessage,
   isSheetRequest,
   toZeroRuntimeSheetId,
   zeroRuntimeLeakMessage,
@@ -93,12 +105,47 @@ function toImportPath(modulePath: string): string {
  * This is shared by integrations (Vite, Rollup, Rolldown, etc.) so app code
  * does not need an external TS runtime loader like tsx.
  */
-export async function runTypestylesBuild({
+export async function runTypestylesBuild(options: RunTypestylesBuildOptions): Promise<string> {
+  return (await runTypestylesExtract(options)).css;
+}
+
+/** What a recipe call needs at runtime; mirrors `AttrsRecipePlan` from `typestyles`. */
+export type ClientRecipePlan =
+  | {
+      kind: 'attrs';
+      namespace: string;
+      base: string;
+      dimensions: Record<string, string[]>;
+      defaults: Record<string, unknown>;
+    }
+  | {
+      kind: 'attrs-slots';
+      namespace: string;
+      slots: Record<string, string>;
+      dimensions: Record<string, string[]>;
+      defaults: Record<string, unknown>;
+    };
+
+export interface TypestylesExtractResult {
+  /** Collected CSS (what {@link runTypestylesBuild} returns). */
+  css: string;
+  /**
+   * Call-behavior plans recorded while the real runtime ran, for the
+   * compile-time transform. Empty with a `typestyles` that predates plans.
+   */
+  plans: ClientRecipePlan[];
+}
+
+/**
+ * Like {@link runTypestylesBuild}, but also returns the client plans recorded
+ * during the same execution (one extraction run feeds both outputs).
+ */
+export async function runTypestylesExtract({
   root,
   modules,
   sourceComments = false,
-}: RunTypestylesBuildOptions): Promise<string> {
-  if (!modules.length) return '';
+}: RunTypestylesBuildOptions): Promise<TypestylesExtractResult> {
+  if (!modules.length) return { css: '', plans: [] };
 
   const importLines = modules
     .map((mod) => `import ${JSON.stringify(toImportPath(mod))};`)
@@ -149,7 +196,11 @@ export async function runTypestylesBuild({
   const prelude = sourceComments
     ? `globalThis.__TYPESTYLES_SOURCE_COMMENTS__ = { root: ${JSON.stringify(root)} };\n`
     : '';
-  const script = `${prelude}${bundledCode}\nprocess.stdout.write(require('typestyles').getRegisteredCss());\n`;
+  const script =
+    `${prelude}${bundledCode}\n` +
+    `const __ts = require('typestyles');\n` +
+    `process.stdout.write(JSON.stringify({ css: __ts.getRegisteredCss(), ` +
+    `plans: typeof __ts.getClientPlans === 'function' ? __ts.getClientPlans() : [] }));\n`;
 
   try {
     writeFileSync(scriptPath, script, 'utf8');
@@ -172,7 +223,7 @@ export async function runTypestylesBuild({
       );
     }
 
-    return result.stdout ?? '';
+    return JSON.parse(result.stdout || '{"css":"","plans":[]}') as TypestylesExtractResult;
   } finally {
     if (existsSync(scriptPath)) {
       try {

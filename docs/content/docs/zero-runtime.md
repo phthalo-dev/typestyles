@@ -90,6 +90,34 @@ If the real sheet ends up in a `mode: 'build'` client bundle anyway (a pre-bundl
 
 The published package declares a conservative `sideEffects` allowlist — `hmr`, `server`, `build`, and `testing` are the only entries marked as having side effects (e.g. `import 'typestyles/hmr'` registers its hooks on import, and must never be tree-shaken away). All other entry points and modules are side-effect-free, which lets consumer bundlers drop unreferenced dev machinery.
 
+## Compile-time transform (experimental)
+
+Swapping the sheet removes CSS _insertion_, but a client bundle still runs `recipe()` and friends to compute class names, so the serializer, the variant and override machinery and every style config still ship. With `compile: true` the build removes those calls instead.
+
+During extraction (the Node pass that already produces your CSS), typestyles records a small JSON **plan** for each recipe: its base classes, slots, dimensions and defaults — everything a _call_ of that recipe needs. In client bundles, `recipe({ name: 'button', ... })` is then replaced by `createAttrsRecipeFromPlan(<plan>)` from `typestyles/lite` (under 1 KB gzipped). The style config, the token tables only it used and the CSS machinery have no remaining references and tree-shake away. Class names and `data-*` attributes are identical; the CSS file is unchanged, and extraction still runs exactly once.
+
+```js
+// vite.config.js — returns two plugins when compile is on
+import typestyles from '@typestyles/vite';
+export default { plugins: [typestyles({ compile: true })] };
+```
+
+| Integration                        | Option          | Notes                                                                                                                                                      |
+| ---------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@typestyles/vite`                 | `compile: true` | Runs after Vite's TypeScript/JSX transforms, so it handles app sources and dependencies.                                                                   |
+| `@typestyles/rollup`               | `compile: true` | List the plugin **after** any TypeScript/JSX plugin: only plain-JS modules are rewritten.                                                                  |
+| `@typestyles/esbuild` (and Bun)    | `compile: true` | Handles `.js`/`.mjs`/`.cjs` and `.ts`/`.mts`/`.cts` (types stripped with esbuild first); `.jsx`/`.tsx` are left alone.                                     |
+| `@typestyles/webpack` (and Rspack) | `compile: true` | A post loader, so it sees plain JS after ts-loader/babel/swc. Relies on the minifier (on by default in production) to drop the now-unused style factories. |
+| `@typestyles/next`                 | not yet         |                                                                                                                                                            |
+
+**What is planned.** Recipes whose call behavior is fully determined by names: attribute mode (dimensioned and slot recipes), flat and multi-slot recipes, and class-name modes (`semantic`, `bem`, `template`, `hashed`, `compact`, `atomic`) for dimensioned recipes with compound variants, plus slot recipes in `semantic`/`bem`/`template`. Hashed/compact/atomic slot recipes are not planned yet.
+
+**What is left alone.** Calls that can't be matched safely keep the full runtime: names that aren't string literals, a name used in more than one scope, and any API whose result is read at runtime from a call the transform can't see — notably `tokens.createTheme()` / `tokens.declare()` and anything wrapped in your own helper (`createMyTheme({ name })`). If that keeps a meaningful part of the runtime in your bundle, the Vite and Rollup integrations print a warning naming the modules that still reach it.
+
+**Known differences from the full runtime.** The lite handle does not carry `.vars` component var refs or recipe metadata (`getComponentMeta`), does not emit development warnings (unknown variant dimensions, invalid options), and exposes `defaults` from the recipe schema only. Apps that read those at runtime should leave `compile` off.
+
+Parity is tested by running every plan shape against the real runtime for a grid of selections.
+
 ---
 
 ## Theme extraction

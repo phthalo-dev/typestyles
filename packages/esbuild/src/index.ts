@@ -1,13 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join, resolve as resolvePath } from 'node:path';
+import { dirname, join, resolve as resolvePath } from 'node:path';
 import type { Plugin, PluginBuild } from 'esbuild';
 import {
   extractNamespaces,
   reportDuplicateNamespaces,
   resolveExtractMode,
   resolveExtractModules,
-  runTypestylesBuild,
+  indexPlans,
+  mightContainRecipeCalls,
+  runTypestylesExtract,
+  transformRecipeCalls,
+  type PlanIndex,
+  type TypestylesExtractResult,
   isSheetRequest,
   toZeroRuntimeSheetId,
   TYPESTYLES_IMPORT_RE,
@@ -28,6 +33,14 @@ export interface TypestylesEsbuildPluginOptions {
   mode?: TypestylesIntegrationMode;
   extract?: TypestylesExtractOptions;
   root?: string;
+  /**
+   * Experimental. In `"build"` mode on non-node builds, replace `recipe()` definitions with the
+   * small call-behavior plans recorded during extraction, so style configs and CSS machinery
+   * tree-shake out of the bundle. Handles `.js`/`.mjs`/`.cjs` and `.ts`/`.mts`/`.cts` modules
+   * (types are stripped with esbuild's own transform first); `.jsx`/`.tsx` modules are left
+   * alone.
+   */
+  compile?: boolean;
 }
 
 function loaderForPath(path: string): 'js' | 'jsx' | 'ts' | 'tsx' {
@@ -46,10 +59,18 @@ function attachHooks(
     resolvedExtractModules: string[];
     resolvedMode: TypestylesIntegrationMode;
     moduleNamespaces: Map<string, { keys: string[]; prefixes: string[] }>;
+    extractOnce: () => Promise<TypestylesExtractResult>;
   },
 ): void {
-  const { warnDuplicates, extract, root, resolvedExtractModules, resolvedMode, moduleNamespaces } =
-    options;
+  const {
+    warnDuplicates,
+    extract,
+    root,
+    resolvedExtractModules,
+    resolvedMode,
+    moduleNamespaces,
+    extractOnce,
+  } = options;
 
   build.onLoad({ filter: /\.[jt]sx?$/ }, (args) => {
     if (args.path.includes('node_modules')) return null;
@@ -88,10 +109,7 @@ function attachHooks(
     if (resolvedMode === 'runtime') return;
     if (!resolvedExtractModules.length) return;
 
-    const css = await runTypestylesBuild({
-      root,
-      modules: resolvedExtractModules,
-    });
+    const { css } = await extractOnce();
     const fileName = extract?.fileName ?? 'typestyles.css';
     const outdir = build.initialOptions.outdir ?? join(root, 'dist');
     await mkdir(outdir, { recursive: true });
@@ -105,7 +123,7 @@ function attachHooks(
 export default function typestylesEsbuildPlugin(
   options: TypestylesEsbuildPluginOptions = {},
 ): Plugin {
-  const { warnDuplicates = true, extract, root = process.cwd() } = options;
+  const { warnDuplicates = true, extract, root = process.cwd(), compile = false } = options;
   const moduleNamespaces = new Map<string, { keys: string[]; prefixes: string[] }>();
 
   return {
@@ -113,6 +131,16 @@ export default function typestylesEsbuildPlugin(
     setup(build) {
       const resolvedExtractModules = resolveExtractModules(root, extract);
       const resolvedMode = resolveExtractMode(options.mode, resolvedExtractModules);
+
+      /** One extraction run per build: it feeds both the emitted CSS and the compile plans. */
+      let extraction: Promise<TypestylesExtractResult> | null = null;
+      let planIndex: PlanIndex | null = null;
+      const extractOnce = (): Promise<TypestylesExtractResult> =>
+        (extraction ??= runTypestylesExtract({ root, modules: resolvedExtractModules }));
+      build.onStart(() => {
+        extraction = null;
+        planIndex = null;
+      });
 
       if (resolvedMode === 'build' || resolvedMode === 'hybrid') {
         build.initialOptions.define = {
@@ -135,6 +163,34 @@ export default function typestylesEsbuildPlugin(
         });
       }
 
+      if (
+        compile &&
+        resolvedMode === 'build' &&
+        resolvedExtractModules.length > 0 &&
+        build.initialOptions.platform !== 'node'
+      ) {
+        build.onLoad({ filter: /\.[cm]?[jt]s$/ }, async (args) => {
+          const source = readFileSync(args.path, 'utf8');
+          if (!mightContainRecipeCalls(source)) return undefined;
+          let js = source;
+          if (/\.[cm]?ts$/.test(args.path)) {
+            const { transform } = await import('esbuild');
+            js = (
+              await transform(source, {
+                loader: 'ts',
+                sourcefile: args.path,
+                tsconfigRaw: build.initialOptions.tsconfigRaw,
+              })
+            ).code;
+          }
+          planIndex ??= indexPlans((await extractOnce()).plans);
+          const out = transformRecipeCalls(js, planIndex);
+          return out === null
+            ? undefined
+            : { contents: out, loader: 'js', resolveDir: dirname(args.path) };
+        });
+      }
+
       attachHooks(build, {
         warnDuplicates,
         extract,
@@ -142,6 +198,7 @@ export default function typestylesEsbuildPlugin(
         resolvedExtractModules,
         resolvedMode,
         moduleNamespaces,
+        extractOnce,
       });
     },
   };

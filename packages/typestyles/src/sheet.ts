@@ -12,6 +12,7 @@ import {
   resetSheetState,
   type SheetState,
 } from './sheet-context';
+import type { AttrsRecipePlan } from './attrs-runtime';
 import { consolidateCascadeLayers } from './consolidate-cascade-layers';
 import {
   captureSourceLocation,
@@ -42,6 +43,22 @@ const FALLBACK_STYLE_ELEMENT_ID = TYPESTYLES_FALLBACK_STYLE_ID;
  * production. The zero-runtime sheet (`sheet-noop`) exports a constant
  * `false` instead, which lets bundlers drop the registry bookkeeping.
  */
+const clientPlans: AttrsRecipePlan[] = [];
+
+/**
+ * Remember how a recipe *call* behaves (see `AttrsRecipePlan`) so extraction can
+ * hand it to the compile-time transform. Bookkeeping only: the zero-runtime
+ * sheet drops it.
+ */
+export function recordClientPlan(plan: AttrsRecipePlan): void {
+  clientPlans.push(plan);
+}
+
+/** Plans recorded since the last `reset()`. */
+export function getClientPlans(): readonly AttrsRecipePlan[] {
+  return clientPlans;
+}
+
 export function devDiagnosticsEnabled(): boolean {
   try {
     return process.env.NODE_ENV !== 'production';
@@ -704,6 +721,7 @@ export function reset(): void {
     resetSheetState(active);
   }
   registeredNamespaces.clear();
+  clientPlans.length = 0;
   resetEmittedClassNameTracking();
   resetPropertyRegistrations();
   resetCustomProperties();

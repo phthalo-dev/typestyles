@@ -18,6 +18,12 @@ export function devDiagnosticsEnabled(): boolean {
   return false;
 }
 
+export function recordClientPlan(_plan: unknown): void {}
+
+export function getClientPlans(): readonly never[] {
+  return [];
+}
+
 export function registerCascadeLayerOrder(_preambleKey: string, _css: string): void {}
 
 export function insertRule(_key: string, _css: string): void {}
