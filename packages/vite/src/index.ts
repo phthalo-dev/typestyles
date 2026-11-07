@@ -8,8 +8,16 @@ import {
   reportDuplicateNamespaces,
   resolveExtractMode,
   resolveExtractModules,
+  indexPlans,
+  isTransformableId,
   runTypestylesBuild,
+  runTypestylesExtract,
+  transformRecipeCalls,
+  mayNeedRecompile,
+  type PlanIndex,
+  type TypestylesExtractResult,
   findRealSheetModules,
+  lingeringRuntimeWarning,
   isSheetRequest,
   toZeroRuntimeSheetId,
   zeroRuntimeLeakMessage,
@@ -76,6 +84,14 @@ export interface TypestylesPluginOptions {
    * {@link discoverDefaultExtractModules}); if none exist, stays in runtime-only mode.
    */
   extract?: TypestylesExtractOptions;
+  /**
+   * Experimental. In `"build"` mode on client builds, replace `recipe()` definitions with
+   * the small call-behavior plans recorded during extraction, so the style configs, token
+   * tables and CSS machinery they reference tree-shake out of the client bundle. Class
+   * names and `data-*` attributes are unchanged. Calls whose behavior can't be planned keep
+   * the runtime. Returns an array of two plugins when `true`.
+   */
+  compile?: boolean;
 }
 
 function resolveExtractModulesForVite(
@@ -233,8 +249,12 @@ function formatUnextractedRecipeError(
  * before re-execution. Files may import from a local re-export such as `./typestyles` rather
  * than `from 'typestyles'` directly — we key off API call patterns in the source, not the import path.
  */
-export default function typestylesPlugin(options: TypestylesPluginOptions = {}): Plugin {
-  const { warnDuplicates = true, coverage = true, extract } = options;
+export default function typestylesPlugin(
+  options: TypestylesPluginOptions & { compile: true },
+): Plugin[];
+export default function typestylesPlugin(options?: TypestylesPluginOptions): Plugin;
+export default function typestylesPlugin(options: TypestylesPluginOptions = {}): Plugin | Plugin[] {
+  const { warnDuplicates = true, coverage = true, extract, compile = false } = options;
 
   /** Effective module list after optional convention discovery; set in `config`. */
   let resolvedExtractModules: string[] = [];
@@ -254,10 +274,31 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
   let devExtractCss: string | null = null;
   let devExtractInFlight: Promise<string> | null = null;
 
+  /**
+   * One extraction run per build: it feeds both the emitted CSS (`generateBundle`) and the
+   * compile-time transform's plans, which must be known before client modules transform.
+   */
+  let extraction: Promise<TypestylesExtractResult> | null = null;
+  let planIndex: PlanIndex | null = null;
+  function extractOnce(root: string): Promise<TypestylesExtractResult> {
+    extraction ??= runTypestylesExtract({
+      root,
+      modules: resolvedExtractModules,
+      sourceComments: extract?.sourceComments,
+    });
+    return extraction;
+  }
+  const compileEnabled = (): boolean =>
+    compile &&
+    isBuildCommand &&
+    resolvedMode === 'build' &&
+    !resolvedConfig?.build?.ssr &&
+    resolvedExtractModules.length > 0;
+
   /** Final production CSS path, set in `generateBundle` before HTML is emitted. */
   let builtCssFileName: string | null = null;
 
-  return {
+  const main: Plugin = {
     name: 'typestyles',
     enforce: 'pre',
 
@@ -294,6 +335,12 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
       if (!resolved) return null;
       const noop = toZeroRuntimeSheetId(resolved.id);
       return noop ? { ...resolved, id: noop } : null;
+    },
+
+    async buildStart() {
+      extraction = null;
+      planIndex = null;
+      if (compileEnabled()) await extractOnce(resolvedConfig?.root ?? process.cwd());
     },
 
     configResolved(config) {
@@ -515,6 +562,14 @@ if (import.meta.hot) {
           ),
         );
         if (leaked.length > 0) this.warn(zeroRuntimeLeakMessage(leaked));
+        if (compileEnabled()) {
+          const warning = lingeringRuntimeWarning(
+            bundle ?? {},
+            (id) => this.getModuleInfo(id)?.importers,
+            resolvedConfig?.root ?? process.cwd(),
+          );
+          if (warning) this.warn(warning);
+        }
       }
       if (resolvedMode === 'runtime') return;
       if (!resolvedExtractModules.length) return;
@@ -544,11 +599,7 @@ if (import.meta.hot) {
       }
 
       try {
-        const css = await runTypestylesBuild({
-          root,
-          modules: resolvedExtractModules,
-          sourceComments: extract?.sourceComments,
-        });
+        const { css } = await extractOnce(root);
         if (requestedFileName && cssFileNameHasPlaceholder(requestedFileName)) {
           builtCssFileName = renderCssFileName(requestedFileName, css);
           this.emitFile({
@@ -586,4 +637,25 @@ if (import.meta.hot) {
       }
     },
   };
+
+  if (!compile) return main;
+
+  // Must run after Vite's own TypeScript/JSX transforms so the code is plain JS, hence a
+  // second plugin (a plugin has one `transform` order). It shares `extractOnce` with `main`.
+  const compilePlugin: Plugin = {
+    name: 'typestyles:compile',
+    apply: 'build',
+    enforce: 'post',
+    async transform(code, id) {
+      if (!compileEnabled() || !isTransformableId(id)) return null;
+      planIndex ??= indexPlans((await extractOnce(resolvedConfig?.root ?? process.cwd())).plans);
+      return transformRecipeCalls(code, planIndex, (source) => this.parse(source), id);
+    },
+    // `build --watch` reuses a module's cached transform when its own file is unchanged, but the
+    // inlined plan depends on other modules (tokens, config) and on this build's extraction run.
+    shouldTransformCachedModule({ code }) {
+      return compileEnabled() && mayNeedRecompile(code);
+    },
+  };
+  return [main, compilePlugin];
 }

@@ -88,6 +88,7 @@ Guide: https://typestyles.dev/docs/zero-runtime.md
 | `typestyles/build` | Build stubs when runtime disabled |
 | `typestyles/color` | Color helpers (off main bundle) |
 | `typestyles/testing` | Test-state reset (`resetAll`, `onAfterReset`, `createTestHarness`) |
+| `typestyles/lite` | Tiny runtime for compile-time-transformed zero-runtime builds (`createAttrsRecipeFromPlan`); bundler plugins import it, you normally don't |
 
 ## More
 

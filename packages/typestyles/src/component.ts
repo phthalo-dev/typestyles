@@ -20,7 +20,12 @@ import type {
   MultiSlotReturn,
   SlotAttrsReturn,
 } from './types';
-import { devDiagnosticsEnabled, insertRules, invalidateComponentNamespaceForDev } from '#sheet';
+import {
+  devDiagnosticsEnabled,
+  insertRules,
+  invalidateComponentNamespaceForDev,
+  recordClientPlan,
+} from '#sheet';
 import { applyLayerToRules, assertOwnLayer } from './layers';
 import { joinSelectorAlternatives } from './compound-selector';
 import { registeredNamespaces, warnUnscopedCollision } from './registry';
@@ -37,6 +42,16 @@ import {
   stripAndRegisterConfigVars,
 } from './component-config-context';
 import { attachComposeMeta } from './compose-meta';
+import {
+  createComponentAttrsResult,
+  isBooleanOptionKeys,
+  makeCallableObject,
+  makeMultiSlotObject,
+  normalizeSelection,
+  toDataAttributeName,
+} from './attrs-runtime';
+
+export { createComponentAttrsResult };
 import {
   attachComponentMeta,
   attachComponentSchema,
@@ -388,6 +403,7 @@ export function createComponent(
         ),
       );
     }
+    recordUnplanned(namespace);
     return finish(
       createMultiSlotComponent(
         classNaming,
@@ -423,6 +439,7 @@ export function createComponent(
         ),
       );
     }
+    recordUnplanned(namespace);
     return finish(
       createSlotComponent(
         classNaming,
@@ -462,9 +479,19 @@ export function createComponent(
       ),
     );
   }
+  recordUnplanned(namespace);
   return finish(
     createFlatComponent(classNaming, namespace, resolved as FlatComponentConfig<string>, emitLayer),
   );
+}
+
+/**
+ * Shapes the lite runtime can't reproduce (hashed/compact/atomic flat, multi-slot and slot
+ * recipes) still claim their name, so the compile transform never hands another scope's
+ * same-named plan to them.
+ */
+function recordUnplanned(namespace: string): void {
+  recordClientPlan(() => ({ kind: 'unplanned', namespace }));
 }
 
 // ---------------------------------------------------------------------------
@@ -730,6 +757,26 @@ function createDimensionedComponent<V extends VariantDefinitions>(
     classMap,
   ) as ComponentReturn<V>;
 
+  recordClientPlan(() => ({
+    kind: 'classes',
+    namespace,
+    base: base && baseClassName ? baseClassName : undefined,
+    classMap: { ...classMap },
+    dimensions: Object.fromEntries(
+      Object.entries(variants as Record<string, Record<string, unknown>>).map(
+        ([dimension, options]) => [dimension, Object.keys(options)],
+      ),
+    ),
+    defaults: { ...(defaultVariants as Record<string, unknown>) },
+    variantClasses: { ...variantClassByKey },
+    compounds: (
+      compoundVariants as Array<{ variants: Record<string, unknown>; style: CSSProperties }>
+    ).flatMap((cv, index) =>
+      compoundClassByIndex[index]
+        ? [{ when: cv.variants, className: compoundClassByIndex[index] }]
+        : [],
+    ),
+  }));
   attachComposeMeta(result, Object.keys(variants));
   attachComponentMeta(result, {
     namespace,
@@ -875,6 +922,20 @@ function createTemplateDimensionedComponent<V extends VariantDefinitions>(
     classMap,
   ) as ComponentReturn<V>;
 
+  recordClientPlan(() => ({
+    kind: 'classes',
+    namespace,
+    base: hasBase ? blockClassName : undefined,
+    classMap: { ...classMap },
+    dimensions: Object.fromEntries(
+      Object.entries(variants as Record<string, Record<string, unknown>>).map(
+        ([dimension, options]) => [dimension, Object.keys(options)],
+      ),
+    ),
+    defaults: { ...(defaultVariants as Record<string, unknown>) },
+    variantClasses: { ...variantClassByKey },
+    compounds: [],
+  }));
   attachComposeMeta(result, Object.keys(variants));
   attachComponentMeta(result, {
     namespace,
@@ -900,18 +961,6 @@ function createTemplateDimensionedComponent<V extends VariantDefinitions>(
  * convention already used by `normalizeSelection` / the docs. Boolean dimensions compile to a
  * presence selector (`&[data-x]` / `&:not([data-x])`) instead of a value match.
  */
-function isBooleanOptionKeys(optionKeys: readonly string[]): boolean {
-  return optionKeys.length === 2 && optionKeys.includes('true') && optionKeys.includes('false');
-}
-
-function toDataAttributeName(dimension: string): string {
-  const kebab = dimension
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/_/g, '-')
-    .toLowerCase();
-  return `data-${kebab}`;
-}
-
 function warnKebabAttributeCollisions(namespace: string, dimensions: string[]): void {
   if (process.env.NODE_ENV === 'production') return;
   const seen = new Map<string, string>();
@@ -1113,25 +1162,21 @@ function createAttributeDimensionedComponent<V extends VariantDefinitions>(
     variants: buildAttributeVariantSelectorMap(variants as Record<string, Record<string, unknown>>),
   });
 
-  return result;
-}
+  // Everything a *call* of this recipe does is determined by this plan, so a
+  // zero-runtime build can replace the whole definition with it (see `typestyles/lite`).
+  recordClientPlan(() => ({
+    kind: 'attrs',
+    namespace,
+    base: baseClassName,
+    dimensions: Object.fromEntries(
+      Object.entries(variants as Record<string, Record<string, unknown>>).map(
+        ([dimension, options]) => [dimension, Object.keys(options)],
+      ),
+    ),
+    defaults: { ...(defaultVariants as Record<string, unknown>) },
+  }));
 
-export function createComponentAttrsResult(
-  className: string,
-  attrs: Record<string, string> = {},
-): ComponentAttrsResult {
-  const props = { className, ...attrs };
-  return {
-    className,
-    attrs,
-    props,
-    toString() {
-      return className;
-    },
-    [Symbol.toPrimitive]() {
-      return className;
-    },
-  };
+  return result;
 }
 
 function createAttributeSlotComponent<
@@ -1237,6 +1282,18 @@ function createAttributeSlotComponent<
     ),
   });
 
+  recordClientPlan(() => ({
+    kind: 'attrs-slots',
+    namespace,
+    slots: { ...baseClassBySlot },
+    dimensions: Object.fromEntries(
+      Object.entries(variants as Record<string, Record<string, unknown>>).map(
+        ([dimension, options]) => [dimension, Object.keys(options)],
+      ),
+    ),
+    defaults: { ...(defaultVariants as Record<string, unknown>) },
+  }));
+
   return result;
 }
 
@@ -1327,6 +1384,13 @@ function createSemanticFlatComponent<K extends string>(
       variantKeys.map((key) => [key, firstClassToken(classMap[key] ?? '')]),
     ),
   });
+
+  recordClientPlan(() => ({
+    kind: 'flat',
+    namespace,
+    classMap: { ...classMap },
+    variantKeys: [...variantKeys],
+  }));
 
   return result;
 }
@@ -1519,6 +1583,7 @@ function createTemplateMultiSlotComponent<Slots extends readonly string[]>(
       (slots as readonly string[]).map((slot) => [slot, firstClassToken(slotClassMap[slot] ?? '')]),
     ),
   });
+  recordClientPlan(() => ({ kind: 'multi-slot', namespace, slots: { ...slotClassMap } }));
   return result;
 }
 
@@ -1674,6 +1739,19 @@ function createTemplateSlotComponent<
     ) as Record<Slots[number], string>;
   }) as SlotComponentFunction<Slots, V>;
 
+  recordClientPlan(() => ({
+    kind: 'class-slots',
+    namespace,
+    slots: { ...baseClassBySlot },
+    dimensions: Object.fromEntries(
+      Object.entries(variants as Record<string, Record<string, unknown>>).map(
+        ([dimension, options]) => [dimension, Object.keys(options)],
+      ),
+    ),
+    defaults: { ...(defaultVariants as Record<string, unknown>) },
+    variantClasses: { ...variantClassByKey },
+  }));
+
   attachComponentMeta(result, {
     namespace,
     kind: 'slot',
@@ -1693,35 +1771,6 @@ function createTemplateSlotComponent<
   });
 
   return result;
-}
-
-function makeMultiSlotObject(
-  selectorFn: () => Record<string, string>,
-  slotClassMap: Record<string, string>,
-): unknown {
-  const fn = function (this: unknown) {
-    return selectorFn();
-  };
-
-  Object.defineProperties(
-    fn,
-    Object.fromEntries(
-      Object.entries(slotClassMap).map(([key, value]) => [
-        key,
-        { value, enumerable: true, writable: false, configurable: false },
-      ]),
-    ),
-  );
-
-  // Non-enumerable brand for OverrideFn overload discrimination (see MultiSlotReturn).
-  Object.defineProperty(fn, '__tsMultiSlot', {
-    value: true,
-    enumerable: false,
-    writable: false,
-    configurable: true,
-  });
-
-  return fn;
 }
 
 // ---------------------------------------------------------------------------
@@ -1899,48 +1948,3 @@ function createSlotComponent<
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function normalizeSelection(value: unknown, options: Record<string, unknown>): string | undefined {
-  if (value == null) return undefined;
-
-  if (typeof value === 'boolean') {
-    const boolKey = String(value);
-    if (Object.prototype.hasOwnProperty.call(options, boolKey)) return boolKey;
-    if (value === false) return undefined;
-    return boolKey;
-  }
-
-  return String(value);
-}
-
-/**
- * Create an object that is both callable as a function and has properties
- * for each class in the classMap. This is the CVA-style return.
- *
- * Uses a Proxy so that:
- * - Calling it invokes selectorFn
- * - Property access returns the class string from classMap
- * - Destructuring works via standard property enumeration
- */
-function makeCallableObject(
-  selectorFn: (...args: unknown[]) => unknown,
-  classMap: Record<string, string>,
-): unknown {
-  // Create the function as the base (makes it callable)
-  const fn = function (this: unknown, ...args: unknown[]) {
-    return selectorFn(...args);
-  };
-
-  // Copy class map properties onto the function
-  Object.defineProperties(
-    fn,
-    Object.fromEntries(
-      Object.entries(classMap).map(([key, value]) => [
-        key,
-        { value, enumerable: true, writable: false, configurable: false },
-      ]),
-    ),
-  );
-
-  return fn;
-}

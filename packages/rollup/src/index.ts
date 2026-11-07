@@ -1,11 +1,19 @@
-import type { Plugin } from 'rollup';
+import type { Plugin, TransformPluginContext } from 'rollup';
 import {
   extractNamespaces,
   reportDuplicateNamespaces,
   resolveExtractMode,
   resolveExtractModules,
-  runTypestylesBuild,
+  indexPlans,
+  isTransformableId,
+  runTypestylesExtract,
+  transformRecipeCalls,
+  mayNeedRecompile,
+  type CompileTransformResult,
+  type PlanIndex,
+  type TypestylesExtractResult,
   findRealSheetModules,
+  lingeringRuntimeWarning,
   isSheetRequest,
   TYPESTYLES_IMPORT_RE,
   toZeroRuntimeSheetId,
@@ -50,6 +58,13 @@ export interface TypestylesRollupPluginOptions {
    * Defaults to `process.cwd()`.
    */
   root?: string;
+  /**
+   * Experimental. In `"build"` mode, replace `recipe()` definitions with the small call-behavior
+   * plans recorded during extraction, so style configs and CSS machinery tree-shake out of the
+   * bundle. Rollup applies `transform` hooks in plugin order, so list this plugin **after** any
+   * TypeScript/JSX plugin: only plain-JS modules are rewritten.
+   */
+  compile?: boolean;
 }
 
 export { extractNamespaces };
@@ -63,17 +78,66 @@ export { extractNamespaces };
 export default function typestylesRollupPlugin(
   options: TypestylesRollupPluginOptions = {},
 ): Plugin {
-  const { warnDuplicates = true, extract, root = process.cwd() } = options;
+  const { warnDuplicates = true, extract, root = process.cwd(), compile = false } = options;
   const moduleNamespaces = new Map<string, { keys: string[]; prefixes: string[] }>();
   let resolvedExtractModules: string[] = [];
   let resolvedMode: TypestylesIntegrationMode = 'runtime';
+  /** One extraction run per build: it feeds both the emitted CSS and the compile plans. */
+  let extraction: Promise<TypestylesExtractResult> | null = null;
+  let planIndex: PlanIndex | null = null;
+  const extractOnce = (): Promise<TypestylesExtractResult> =>
+    (extraction ??= runTypestylesExtract({ root, modules: resolvedExtractModules }));
+  const compileEnabled = (): boolean =>
+    compile && resolvedMode === 'build' && resolvedExtractModules.length > 0;
+
+  /**
+   * Namespace bookkeeping always runs on the module's own source, so compiled modules still
+   * report duplicate recipe names; the compiled code (and its map) is what's returned.
+   */
+  function finishTransform(
+    this: TransformPluginContext,
+    source: string,
+    id: string,
+    compiled: CompileTransformResult | null,
+  ): { code: string; map: CompileTransformResult['map'] | null } | null {
+    const code = compiled?.code ?? source;
+    if (
+      (resolvedMode === 'build' || resolvedMode === 'hybrid') &&
+      code.includes('__TYPESTYLES_RUNTIME_DISABLED__')
+    ) {
+      return {
+        code: code.replace(/__TYPESTYLES_RUNTIME_DISABLED__/g, '"true"'),
+        map: compiled?.map ?? null,
+      };
+    }
+    trackNamespaces.call(this, source, id);
+    return compiled ? { code: compiled.code, map: compiled.map } : null;
+  }
+
+  function trackNamespaces(this: TransformPluginContext, code: string, id: string): void {
+    if (!/\.[jt]sx?$/.test(id)) return;
+    if (id.includes('node_modules')) return;
+    if (!TYPESTYLES_IMPORT_RE.test(code)) return;
+
+    const { keys, prefixes } = extractNamespaces(code);
+    if (keys.length === 0 && prefixes.length === 0) return;
+
+    if (warnDuplicates) {
+      reportDuplicateNamespaces(moduleNamespaces, id, prefixes, this);
+    }
+
+    moduleNamespaces.set(id, { keys, prefixes });
+  }
 
   return {
     name: 'typestyles-rollup',
 
-    buildStart() {
+    async buildStart() {
       resolvedExtractModules = resolveExtractModules(root, extract);
       resolvedMode = resolveExtractMode(options.mode, resolvedExtractModules);
+      extraction = null;
+      planIndex = null;
+      if (compileEnabled()) await extractOnce();
     },
 
     async resolveId(source, importer) {
@@ -91,30 +155,23 @@ export default function typestylesRollupPlugin(
       return noop ? { ...resolved, id: noop } : null;
     },
 
-    transform(code, id) {
-      if (
-        (resolvedMode === 'build' || resolvedMode === 'hybrid') &&
-        code.includes('__TYPESTYLES_RUNTIME_DISABLED__')
-      ) {
-        return {
-          code: code.replace(/__TYPESTYLES_RUNTIME_DISABLED__/g, '"true"'),
-          map: null,
-        };
-      }
+    transform(source, id) {
+      // Sync unless the compile step needs the (async) extraction result: callers and tests
+      // rely on duplicate-namespace errors being thrown synchronously.
+      if (!(compileEnabled() && isTransformableId(id)))
+        return finishTransform.call(this, source, id, null);
+      return extractOnce().then(({ plans }) => {
+        planIndex ??= indexPlans(plans);
+        const compiled = transformRecipeCalls(source, planIndex, (text) => this.parse(text), id);
+        return finishTransform.call(this, source, id, compiled);
+      });
+    },
 
-      if (!/\.[jt]sx?$/.test(id)) return null;
-      if (id.includes('node_modules')) return null;
-      if (!TYPESTYLES_IMPORT_RE.test(code)) return null;
-
-      const { keys, prefixes } = extractNamespaces(code);
-      if (keys.length === 0 && prefixes.length === 0) return null;
-
-      if (warnDuplicates) {
-        reportDuplicateNamespaces(moduleNamespaces, id, prefixes, this);
-      }
-
-      moduleNamespaces.set(id, { keys, prefixes });
-      return null;
+    // In watch mode Rollup reuses a module's cached transform when its own file is unchanged,
+    // but the inlined plan depends on other modules (tokens, config) and on this build's
+    // extraction run. Re-run the transform for modules it rewrites.
+    shouldTransformCachedModule({ code }) {
+      return compileEnabled() && mayNeedRecompile(code);
     },
 
     async generateBundle(_options, bundle) {
@@ -125,15 +182,20 @@ export default function typestylesRollupPlugin(
           ),
         );
         if (leaked.length > 0) this.warn(zeroRuntimeLeakMessage(leaked));
+        if (compileEnabled()) {
+          const warning = lingeringRuntimeWarning(
+            bundle ?? {},
+            (id) => this.getModuleInfo(id)?.importers,
+            root,
+          );
+          if (warning) this.warn(warning);
+        }
       }
       if (resolvedMode === 'runtime') return;
       if (!resolvedExtractModules.length) return;
 
       try {
-        const css = await runTypestylesBuild({
-          root,
-          modules: resolvedExtractModules,
-        });
+        const { css } = await extractOnce();
         this.emitFile({
           type: 'asset',
           fileName: extract?.fileName ?? 'typestyles.css',

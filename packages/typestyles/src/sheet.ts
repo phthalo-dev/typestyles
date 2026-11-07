@@ -12,6 +12,7 @@ import {
   resetSheetState,
   type SheetState,
 } from './sheet-context';
+import type { ClientPlanEntry } from './attrs-runtime';
 import { consolidateCascadeLayers } from './consolidate-cascade-layers';
 import {
   captureSourceLocation,
@@ -34,6 +35,29 @@ export const TYPESTYLES_FALLBACK_STYLE_ID = 'typestyles-fallback';
 
 const STYLE_ELEMENT_ID = TYPESTYLES_STYLE_ID;
 const FALLBACK_STYLE_ELEMENT_ID = TYPESTYLES_FALLBACK_STYLE_ID;
+
+declare global {
+  /** Set by the extraction script so recipe definitions record their client plans. */
+  var __TYPESTYLES_RECORD_PLANS__: boolean | undefined;
+}
+
+const clientPlans: ClientPlanEntry[] = [];
+
+/**
+ * Remember how a recipe *call* behaves (see `AttrsRecipePlan`) so extraction can
+ * hand it to the compile-time transform. Only the extraction run turns this on
+ * (`globalThis.__TYPESTYLES_RECORD_PLANS__`); everywhere else the plan is never
+ * built, so normal runtime builds and dev servers don't accumulate plans.
+ */
+export function recordClientPlan(build: () => ClientPlanEntry): void {
+  if (globalThis.__TYPESTYLES_RECORD_PLANS__ !== true) return;
+  clientPlans.push(build());
+}
+
+/** Plans recorded since the last `reset()` (empty unless recording is on). */
+export function getClientPlans(): readonly ClientPlanEntry[] {
+  return clientPlans;
+}
 
 /**
  * Whether development-time diagnostics (namespace/class-name collision
@@ -704,6 +728,7 @@ export function reset(): void {
     resetSheetState(active);
   }
   registeredNamespaces.clear();
+  clientPlans.length = 0;
   resetEmittedClassNameTracking();
   resetPropertyRegistrations();
   resetCustomProperties();

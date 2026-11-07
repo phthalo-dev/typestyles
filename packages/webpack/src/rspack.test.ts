@@ -80,3 +80,65 @@ describe('TypestylesWebpackPlugin on Rspack', () => {
     expect(bundle).toContain('typestyles-fallback');
   }, 30_000);
 });
+
+describe('compile option on Rspack', () => {
+  async function bundleApp(compile: boolean): Promise<string> {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-rspack-compile-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    mkdirSync(join(dir, 'node_modules'), { recursive: true });
+    symlinkSync(
+      resolve(import.meta.dirname, '../../typestyles'),
+      join(dir, 'node_modules/typestyles'),
+      'dir',
+    );
+    writeFileSync(
+      join(dir, 'src/styles.js'),
+      `import { createTypeStyles, variant } from 'typestyles';
+export const ts = createTypeStyles({ scopeId: 'app', mode: 'attribute' });
+export const button = ts.recipe({
+  name: 'button',
+  variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) },
+  styles: () => ({ base: { color: 'rebeccapurple-DISTINCTIVE' }, variants: { tone: { a: {}, b: {} } } }),
+});`,
+    );
+    writeFileSync(
+      join(dir, 'src/index.js'),
+      `import { button } from './styles.js';\nconsole.log(JSON.stringify(button({ tone: 'b' }).props));`,
+    );
+    writeFileSync(join(dir, 'src/typestyles-entry.js'), `import './styles.js';`);
+    const outdir = join(dir, 'dist');
+    await new Promise<void>((resolvePromise, reject) => {
+      rspack(
+        {
+          mode: 'production',
+          context: dir,
+          entry: './src/index.js',
+          target: 'web',
+          output: { path: outdir, filename: 'index.js' },
+          plugins: [
+            new TypestylesWebpackPlugin({
+              root: dir,
+              mode: 'build',
+              compile,
+              extract: { modules: ['src/typestyles-entry.js'] },
+            }),
+          ],
+        },
+        (error, stats) => {
+          if (error) reject(error);
+          else if (stats?.hasErrors()) reject(new Error(stats.toString()));
+          else resolvePromise();
+        },
+      );
+    });
+    return readFileSync(join(outdir, 'index.js'), 'utf8');
+  }
+
+  it('drops the style config and runtime from the bundle', async () => {
+    const plain = await bundleApp(false);
+    const compiled = await bundleApp(true);
+    expect(compiled).not.toContain('DISTINCTIVE');
+    expect(compiled).toContain('app-button');
+    expect(compiled.length).toBeLessThan(plain.length / 2);
+  }, 60_000);
+});
