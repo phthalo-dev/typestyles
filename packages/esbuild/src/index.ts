@@ -51,6 +51,16 @@ function loaderForPath(path: string): 'js' | 'jsx' | 'ts' | 'tsx' {
   return 'js';
 }
 
+/**
+ * The `sourceMappingURL` comment for an inline map. The marker is assembled from two pieces so
+ * this file doesn't contain a literal map comment: tools that scan source for one (Vite's
+ * source-map loader, for instance) would otherwise treat it as this file's own map.
+ */
+function inlineSourceMapComment(map: object): string {
+  const encoded = Buffer.from(JSON.stringify(map)).toString('base64');
+  return `//# source` + `MappingURL=data:application/json;base64,${encoded}`;
+}
+
 /** Record a module's style namespaces and report duplicates across modules (throws). */
 function namespaceTracker(
   warnDuplicates: boolean,
@@ -211,9 +221,7 @@ export default function typestylesEsbuildPlugin(
           const out = transformRecipeCalls(js, planIndex, undefined, args.path);
           if (out === null) return undefined;
           const contents = wantMaps
-            ? `${out.code}\n//# sourceMappingURL=data:application/json;base64,${Buffer.from(
-                JSON.stringify(chainSourceMap(out.map, tsMap)),
-              ).toString('base64')}\n`
+            ? `${out.code}\n${inlineSourceMapComment(chainSourceMap(out.map, tsMap))}\n`
             : out.code;
           return { contents, loader: 'js', resolveDir: dirname(args.path) };
         });
