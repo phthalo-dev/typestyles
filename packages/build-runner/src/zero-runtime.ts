@@ -1,3 +1,5 @@
+import { relative } from 'node:path';
+
 /**
  * Zero-runtime build seam.
  *
@@ -133,4 +135,44 @@ export function lingeringRuntimeMessage(runtime: LingeringRuntime, importers: st
     `Those modules call typestyles APIs the compile step can't replace yet (themes, tokens, ` +
     `class helpers, or recipes it can't plan), and use their results at runtime.`
   );
+}
+
+/** A rendered chunk, as Rollup/Vite's `generateBundle` sees it (only what we read). */
+interface BundleChunkLike {
+  type: string;
+  modules?: Record<string, { renderedLength: number }>;
+}
+
+/**
+ * Warning for a `compile` build whose bundle still ships the full runtime, naming the app
+ * modules that keep it alive; `null` when the runtime is gone. Shared by the Rollup and Vite
+ * `generateBundle` hooks.
+ */
+export function lingeringRuntimeWarning(
+  bundle: Record<string, BundleChunkLike>,
+  getImporters: (id: string) => readonly string[] | undefined,
+  root: string,
+): string | null {
+  const modules = Object.values(bundle).flatMap((chunk) =>
+    chunk.type === 'chunk' && chunk.modules
+      ? Object.entries(chunk.modules).map(([id, info]) => ({
+          id,
+          renderedLength: info.renderedLength,
+        }))
+      : [],
+  );
+  const lingering = findLingeringRuntime(modules);
+  if (!lingering) return null;
+  // Only modules that still contribute code: a stale import of tree-shaken code isn't a cause.
+  const contributes = new Set(modules.filter((m) => m.renderedLength > 0).map((m) => m.id));
+  const importers = new Set<string>();
+  for (const id of lingering.ids) {
+    for (const importer of getImporters(id) ?? []) {
+      if (!contributes.has(importer)) continue;
+      if (!/[\\/]typestyles[\\/]dist[\\/]/.test(importer)) {
+        importers.add(relative(root, importer));
+      }
+    }
+  }
+  return lingeringRuntimeMessage(lingering, [...importers].slice(0, 5));
 }

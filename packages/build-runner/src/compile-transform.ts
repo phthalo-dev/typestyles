@@ -1,5 +1,7 @@
 import { parse as acornParse } from 'acorn';
-import type { ClientRecipePlan } from './index';
+import remapping from '@jridgewell/remapping';
+import MagicString, { type SourceMap } from 'magic-string';
+import type { ClientPlanEntry, ClientRecipePlan } from './index';
 
 /** Specifier the transform imports the lite runtime from. */
 export const LITE_SPECIFIER = 'typestyles/lite';
@@ -27,15 +29,21 @@ export const parseModule: ParseFn = (code) =>
  */
 export type PlanIndex = Map<string, ClientRecipePlan | null>;
 
-export function indexPlans(plans: readonly ClientRecipePlan[]): PlanIndex {
+export function indexPlans(plans: readonly ClientPlanEntry[]): PlanIndex {
   const index: PlanIndex = new Map();
   for (const plan of plans) {
-    index.set(plan.namespace, index.has(plan.namespace) ? null : plan);
+    // An `unplanned` recipe still owns its name: a same-named plan from another scope must not
+    // be handed to its call site.
+    const usable = plan.kind === 'unplanned' ? null : plan;
+    index.set(plan.namespace, index.has(plan.namespace) ? null : usable);
   }
   return index;
 }
 
-/** Factories whose calls only register styles; their result is droppable when unused. */
+/**
+ * Factories whose calls only register styles; their result is droppable when unused. Only calls
+ * of bindings imported from `typestyles` (or a `typestyles/*` entry) are annotated.
+ */
 const PURE_FACTORIES = new Set([
   'createTypeStyles',
   'createStyles',
@@ -48,9 +56,26 @@ export function mightContainRecipeCalls(code: string): boolean {
   return /\b(?:recipe|createTypeStyles|createStyles|createTokens|createGlobal)\s*\(/.test(code);
 }
 
+/** Package specifiers whose factory exports are annotated `@__PURE__`. */
+const TYPESTYLES_SOURCE = /^typestyles(?:\/|$)/;
+
+/**
+ * Whether a cached transform result of this module may be stale once plans change: it had (or
+ * still has) calls the transform rewrites. Use for Rollup's `shouldTransformCachedModule`.
+ */
+export function mayNeedRecompile(code: string): boolean {
+  return mightContainRecipeCalls(code) || code.includes(LITE_SPECIFIER);
+}
+
 /** True for module ids the transform should look at (plain JS-family files). */
 export function isTransformableId(id: string): boolean {
   return /\.(?:[cm]?[jt]sx?)(?:\?|$)/.test(id) && !id.includes('\0');
+}
+
+/** Rewritten code plus a hires source map from the input code. */
+export interface CompileTransformResult {
+  code: string;
+  map: SourceMap;
 }
 
 /**
@@ -63,7 +88,8 @@ export function transformRecipeCalls(
   code: string,
   plans: PlanIndex,
   parse: ParseFn = parseModule,
-): string | null {
+  id?: string,
+): CompileTransformResult | null {
   if (!mightContainRecipeCalls(code)) return null;
 
   let ast: AstNode;
@@ -73,7 +99,10 @@ export function transformRecipeCalls(
     return null;
   }
 
-  const edits: Array<{ start: number; end: number; text: string; plan?: boolean }> = [];
+  const pureLocals = typestylesFactoryLocals(ast);
+  const out = new MagicString(code);
+  let replaced = false;
+  let changed = false;
   const visit = (node: unknown): void => {
     if (!node || typeof node !== 'object') return;
     if (Array.isArray(node)) {
@@ -85,18 +114,15 @@ export function transformRecipeCalls(
     if (n.type === 'CallExpression') {
       const plan = planForCall(n, plans);
       if (plan) {
-        edits.push({
-          start: n.start,
-          end: n.end,
-          text: `${LITE_BINDING}(${JSON.stringify(plan)})`,
-          plan: true,
-        });
+        out.overwrite(n.start, n.end, `${LITE_BINDING}(${JSON.stringify(plan)})`);
+        replaced = changed = true;
         return; // the replaced subtree is gone; don't descend.
       }
-      if (isPureFactoryCall(n)) {
+      if (isPureFactoryCall(n, pureLocals)) {
         // In a zero-runtime client bundle, registering styles is a no-op (the CSS ships as a
         // file), so an instance nothing reads can be dropped: tell the bundler.
-        edits.push({ start: n.start, end: n.start, text: '/* @__PURE__ */ ' });
+        out.appendLeft(n.start, '/* @__PURE__ */ ');
+        changed = true;
       }
     }
     for (const key of Object.keys(n)) {
@@ -106,21 +132,47 @@ export function transformRecipeCalls(
   };
   visit(ast);
 
-  if (edits.length === 0) return null;
-  let out = code;
-  for (const edit of edits.sort((a, b) => b.start - a.start)) {
-    out = out.slice(0, edit.start) + edit.text + out.slice(edit.end);
+  if (!changed) return null;
+  if (replaced) {
+    out.prepend(
+      `import { createAttrsRecipeFromPlan as ${LITE_BINDING} } from ${JSON.stringify(LITE_SPECIFIER)};\n`,
+    );
   }
-  if (!edits.some((e) => e.plan)) return out;
-  return `import { createAttrsRecipeFromPlan as ${LITE_BINDING} } from ${JSON.stringify(LITE_SPECIFIER)};\n${out}`;
+  return {
+    code: out.toString(),
+    map: out.generateMap({ hires: true, includeContent: true, ...(id ? { source: id } : {}) }),
+  };
 }
 
-function isPureFactoryCall(call: AstNode): boolean {
+/** Local names bound to typestyles' style factories by `import { … } from 'typestyles…'`. */
+function typestylesFactoryLocals(program: AstNode): Set<string> {
+  const locals = new Set<string>();
+  for (const statement of (program.body as AstNode[] | undefined) ?? []) {
+    if (statement.type !== 'ImportDeclaration') continue;
+    const source = (statement.source as AstNode).value;
+    if (typeof source !== 'string' || !TYPESTYLES_SOURCE.test(source)) continue;
+    for (const specifier of statement.specifiers as AstNode[]) {
+      if (specifier.type !== 'ImportSpecifier') continue;
+      const imported = specifier.imported as AstNode;
+      const importedName = imported.type === 'Identifier' ? imported.name : imported.value;
+      if (typeof importedName === 'string' && PURE_FACTORIES.has(importedName)) {
+        locals.add((specifier.local as AstNode).name as string);
+      }
+    }
+  }
+  return locals;
+}
+
+function isPureFactoryCall(call: AstNode, pureLocals: Set<string>): boolean {
   const callee = call.callee as AstNode;
-  return callee.type === 'Identifier' && PURE_FACTORIES.has(callee.name as string);
+  return callee.type === 'Identifier' && pureLocals.has(callee.name as string);
 }
 
-/** `recipe({ name: '<literal>', ... })` or `x.recipe({ ... })` with a known, unambiguous plan. */
+/**
+ * `recipe({ name: '<literal>', ... })` or `x.recipe({ ... })` with a known, unambiguous plan.
+ * Gives up when the runtime `name` could differ from the literal: a spread, a computed key, or
+ * more than one `name` key.
+ */
 function planForCall(call: AstNode, plans: PlanIndex): ClientRecipePlan | null {
   const callee = call.callee as AstNode;
   const calleeName =
@@ -135,15 +187,28 @@ function planForCall(call: AstNode, plans: PlanIndex): ClientRecipePlan | null {
   const first = args[0];
   if (args.length !== 1 || !first || first.type !== 'ObjectExpression') return null;
 
+  let name: string | null = null;
   for (const prop of first.properties as AstNode[]) {
-    if (prop.type !== 'Property' || prop.computed) continue;
+    if (prop.type !== 'Property' || prop.computed) return null;
     const key = prop.key as AstNode;
     const keyName =
       key.type === 'Identifier' ? key.name : key.type === 'Literal' ? key.value : null;
     if (keyName !== 'name') continue;
+    if (name !== null) return null;
     const value = prop.value as AstNode;
     if (value.type !== 'Literal' || typeof value.value !== 'string') return null;
-    return plans.get(value.value) ?? null;
+    name = value.value;
   }
-  return null;
+  return name === null ? null : (plans.get(name) ?? null);
+}
+
+/**
+ * Chain the transform's map onto the map of the code it was given (from an earlier loader or
+ * compile step), so the result maps back to the original source. Without a previous map the
+ * transform's own map is returned.
+ */
+export function chainSourceMap(map: SourceMap, previous: unknown): object {
+  if (!previous) return map;
+  const prev = typeof previous === 'string' ? JSON.parse(previous) : previous;
+  return remapping([map as never, prev as never], () => null);
 }

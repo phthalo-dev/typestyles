@@ -145,7 +145,7 @@ export type {
 } from './theme-component-types';
 
 /** Primary app/library entry. Prefer this over the lower-level factories. */
-export type { AttrsRecipePlan } from './attrs-runtime';
+export type { AttrsRecipePlan, ClientPlanEntry } from './attrs-runtime';
 export { createTypeStyles, getClientPlans };
 export type { TypeStylesApi, TypeStylesLayersConfig, StyleFn, HashFn } from './create-type-styles';
 

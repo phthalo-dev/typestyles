@@ -7,6 +7,7 @@ import {
   reportDuplicateNamespaces,
   resolveExtractMode,
   resolveExtractModules,
+  chainSourceMap,
   indexPlans,
   mightContainRecipeCalls,
   runTypestylesExtract,
@@ -50,27 +51,43 @@ function loaderForPath(path: string): 'js' | 'jsx' | 'ts' | 'tsx' {
   return 'js';
 }
 
+/** Record a module's style namespaces and report duplicates across modules (throws). */
+function namespaceTracker(
+  warnDuplicates: boolean,
+  moduleNamespaces: Map<string, { keys: string[]; prefixes: string[] }>,
+): (path: string, code: string) => void {
+  return (path, code) => {
+    if (path.includes('node_modules')) return;
+    if (!TYPESTYLES_IMPORT_RE.test(code)) return;
+
+    const { keys, prefixes } = extractNamespaces(code);
+    if (keys.length === 0 && prefixes.length === 0) return;
+
+    if (warnDuplicates) {
+      reportDuplicateNamespaces(moduleNamespaces, path, prefixes, {
+        error(message) {
+          throw new Error(message);
+        },
+      });
+    }
+
+    moduleNamespaces.set(path, { keys, prefixes });
+  };
+}
+
 function attachHooks(
   build: PluginBuild,
   options: {
-    warnDuplicates: boolean;
     extract: TypestylesExtractOptions | undefined;
     root: string;
     resolvedExtractModules: string[];
     resolvedMode: TypestylesIntegrationMode;
-    moduleNamespaces: Map<string, { keys: string[]; prefixes: string[] }>;
+    trackNamespaces: (path: string, code: string) => void;
     extractOnce: () => Promise<TypestylesExtractResult>;
   },
 ): void {
-  const {
-    warnDuplicates,
-    extract,
-    root,
-    resolvedExtractModules,
-    resolvedMode,
-    moduleNamespaces,
-    extractOnce,
-  } = options;
+  const { extract, root, resolvedExtractModules, resolvedMode, trackNamespaces, extractOnce } =
+    options;
 
   build.onLoad({ filter: /\.[jt]sx?$/ }, (args) => {
     if (args.path.includes('node_modules')) return null;
@@ -88,20 +105,7 @@ function attachHooks(
       };
     }
 
-    if (!TYPESTYLES_IMPORT_RE.test(code)) return null;
-
-    const { keys, prefixes } = extractNamespaces(code);
-    if (keys.length === 0 && prefixes.length === 0) return null;
-
-    if (warnDuplicates) {
-      reportDuplicateNamespaces(moduleNamespaces, args.path, prefixes, {
-        error(message) {
-          throw new Error(message);
-        },
-      });
-    }
-
-    moduleNamespaces.set(args.path, { keys, prefixes });
+    trackNamespaces(args.path, code);
     return null;
   });
 
@@ -131,6 +135,8 @@ export default function typestylesEsbuildPlugin(
     setup(build) {
       const resolvedExtractModules = resolveExtractModules(root, extract);
       const resolvedMode = resolveExtractMode(options.mode, resolvedExtractModules);
+
+      const trackNamespaces = namespaceTracker(warnDuplicates, moduleNamespaces);
 
       /** One extraction run per build: it feeds both the emitted CSS and the compile plans. */
       let extraction: Promise<TypestylesExtractResult> | null = null;
@@ -169,35 +175,56 @@ export default function typestylesEsbuildPlugin(
         resolvedExtractModules.length > 0 &&
         build.initialOptions.platform !== 'node'
       ) {
+        const wantMaps = Boolean(build.initialOptions.sourcemap);
         build.onLoad({ filter: /\.[cm]?[jt]s$/ }, async (args) => {
           const source = readFileSync(args.path, 'utf8');
           if (!mightContainRecipeCalls(source)) return undefined;
+          // This hook replaces the module's load, so the namespace hook below never sees it.
+          trackNamespaces(args.path, source);
           let js = source;
+          let tsMap: string | undefined;
           if (/\.[cm]?ts$/.test(args.path)) {
-            const { transform } = await import('esbuild');
-            js = (
-              await transform(source, {
-                loader: 'ts',
-                sourcefile: args.path,
-                tsconfigRaw: build.initialOptions.tsconfigRaw,
-              })
-            ).code;
+            // `build` (not `transform`) so the project's tsconfig.json applies as it would in the
+            // main build: decorators, `useDefineForClassFields`, `extends`, ….
+            const { build: esbuildBuild } = await import('esbuild');
+            const { initialOptions } = build;
+            const stripped = await esbuildBuild({
+              entryPoints: [args.path],
+              bundle: false,
+              write: false,
+              format: 'esm',
+              outfile: `${args.path}.typestyles.js`,
+              platform: initialOptions.platform,
+              target: initialOptions.target,
+              tsconfig: initialOptions.tsconfig,
+              tsconfigRaw: initialOptions.tsconfigRaw,
+              absWorkingDir: initialOptions.absWorkingDir,
+              sourcemap: wantMaps ? 'external' : false,
+              logLevel: 'silent',
+            });
+            for (const file of stripped.outputFiles) {
+              if (file.path.endsWith('.map')) tsMap = file.text;
+              else js = file.text;
+            }
           }
           planIndex ??= indexPlans((await extractOnce()).plans);
-          const out = transformRecipeCalls(js, planIndex);
-          return out === null
-            ? undefined
-            : { contents: out, loader: 'js', resolveDir: dirname(args.path) };
+          const out = transformRecipeCalls(js, planIndex, undefined, args.path);
+          if (out === null) return undefined;
+          const contents = wantMaps
+            ? `${out.code}\n//# sourceMappingURL=data:application/json;base64,${Buffer.from(
+                JSON.stringify(chainSourceMap(out.map, tsMap)),
+              ).toString('base64')}\n`
+            : out.code;
+          return { contents, loader: 'js', resolveDir: dirname(args.path) };
         });
       }
 
       attachHooks(build, {
-        warnDuplicates,
         extract,
         root,
         resolvedExtractModules,
         resolvedMode,
-        moduleNamespaces,
+        trackNamespaces,
         extractOnce,
       });
     },

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { posix as posixPath, relative, resolve as resolvePath } from 'node:path';
+import { posix as posixPath, resolve as resolvePath } from 'node:path';
 import type { Plugin, ResolvedConfig, UserConfig } from 'vite';
 import {
   extractNamespaces,
@@ -13,11 +13,11 @@ import {
   runTypestylesBuild,
   runTypestylesExtract,
   transformRecipeCalls,
+  mayNeedRecompile,
   type PlanIndex,
   type TypestylesExtractResult,
-  findLingeringRuntime,
   findRealSheetModules,
-  lingeringRuntimeMessage,
+  lingeringRuntimeWarning,
   isSheetRequest,
   toZeroRuntimeSheetId,
   zeroRuntimeLeakMessage,
@@ -563,29 +563,12 @@ if (import.meta.hot) {
         );
         if (leaked.length > 0) this.warn(zeroRuntimeLeakMessage(leaked));
         if (compileEnabled()) {
-          const modules = Object.values(bundle ?? {}).flatMap((chunk) =>
-            chunk.type === 'chunk'
-              ? Object.entries(chunk.modules).map(([id, info]) => ({
-                  id,
-                  renderedLength: info.renderedLength,
-                }))
-              : [],
+          const warning = lingeringRuntimeWarning(
+            bundle ?? {},
+            (id) => this.getModuleInfo(id)?.importers,
+            resolvedConfig?.root ?? process.cwd(),
           );
-          const lingering = findLingeringRuntime(modules);
-          // Only modules that still contribute code: a stale import of tree-shaken code isn't a cause.
-          const contributes = new Set(modules.filter((m) => m.renderedLength > 0).map((m) => m.id));
-          if (lingering) {
-            const importers = new Set<string>();
-            for (const id of lingering.ids) {
-              for (const importer of this.getModuleInfo(id)?.importers ?? []) {
-                if (!contributes.has(importer)) continue;
-                if (!/[\\/]typestyles[\\/]dist[\\/]/.test(importer)) {
-                  importers.add(relative(resolvedConfig?.root ?? process.cwd(), importer));
-                }
-              }
-            }
-            this.warn(lingeringRuntimeMessage(lingering, [...importers].slice(0, 5)));
-          }
+          if (warning) this.warn(warning);
         }
       }
       if (resolvedMode === 'runtime') return;
@@ -666,8 +649,12 @@ if (import.meta.hot) {
     async transform(code, id) {
       if (!compileEnabled() || !isTransformableId(id)) return null;
       planIndex ??= indexPlans((await extractOnce(resolvedConfig?.root ?? process.cwd())).plans);
-      const out = transformRecipeCalls(code, planIndex, (source) => this.parse(source));
-      return out === null ? null : { code: out, map: null };
+      return transformRecipeCalls(code, planIndex, (source) => this.parse(source), id);
+    },
+    // `build --watch` reuses a module's cached transform when its own file is unchanged, but the
+    // inlined plan depends on other modules (tokens, config) and on this build's extraction run.
+    shouldTransformCachedModule({ code }) {
+      return compileEnabled() && mayNeedRecompile(code);
     },
   };
   return [main, compilePlugin];

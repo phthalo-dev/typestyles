@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vite-plus/test';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test';
 import { createTypeStyles } from './index';
 import { getClientPlans } from './index';
 import { createAttrsRecipeFromPlan, type AttrsRecipePlan } from './attrs-runtime';
@@ -35,6 +35,14 @@ function plain(result: unknown): unknown {
     Object.entries(result as Record<string, unknown>).map(([k, v]) => [k, one(v)]),
   );
 }
+
+// Plans are only recorded during extraction, which sets this flag.
+beforeAll(() => {
+  globalThis.__TYPESTYLES_RECORD_PLANS__ = true;
+});
+afterAll(() => {
+  globalThis.__TYPESTYLES_RECORD_PLANS__ = undefined;
+});
 
 describe('attribute-mode client plans', () => {
   beforeEach(() => reset());
@@ -147,7 +155,27 @@ describe('attribute-mode client plans', () => {
         },
       }),
     } as never);
-    expect(getClientPlans().some((p) => p.namespace === 'planunsupported')).toBe(false);
+    // Only an `unplanned` marker, so the transform can't match another scope's plan of the same name.
+    expect(getClientPlans().filter((p) => p.namespace === 'planunsupported')).toEqual([
+      { kind: 'unplanned', namespace: 'planunsupported' },
+    ]);
+  });
+
+  it('records nothing unless extraction turned recording on', () => {
+    globalThis.__TYPESTYLES_RECORD_PLANS__ = undefined;
+    try {
+      recipe({
+        name: 'plannotrecorded',
+        variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) },
+        styles: () => ({
+          base: { color: 'red' },
+          variants: { tone: { a: { color: 'red' }, b: { color: 'blue' } } },
+        }),
+      } as never);
+      expect(getClientPlans()).toEqual([]);
+    } finally {
+      globalThis.__TYPESTYLES_RECORD_PLANS__ = true;
+    }
   });
 });
 

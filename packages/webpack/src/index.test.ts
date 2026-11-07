@@ -246,4 +246,64 @@ export const button = ts.recipe({
     expect(compiled).toContain('app-button');
     expect(compiled.length).toBeLessThan(plain.length / 2);
   }, 60_000);
+  it('re-plans a cached module when a module it depends on changes', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-webpack-compile-cache-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    mkdirSync(join(dir, 'node_modules'), { recursive: true });
+    symlinkSync(
+      resolve(import.meta.dirname, '../../typestyles'),
+      join(dir, 'node_modules/typestyles'),
+      'dir',
+    );
+    // The class names come from `config.js`; `styles.js` itself never changes.
+    writeFileSync(join(dir, 'src/config.js'), `export const scope = 'first';`);
+    writeFileSync(
+      join(dir, 'src/styles.js'),
+      `import { createTypeStyles, variant } from 'typestyles';
+import { scope } from './config.js';
+export const ts = createTypeStyles({ scopeId: scope, mode: 'attribute' });
+export const button = ts.recipe({
+  name: 'button',
+  variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) },
+  styles: () => ({ base: { color: 'red' }, variants: { tone: { a: {}, b: {} } } }),
+});`,
+    );
+    writeFileSync(
+      join(dir, 'src/index.js'),
+      `import { button } from './styles.js';\nconsole.log(JSON.stringify(button({ tone: 'b' }).props));`,
+    );
+    writeFileSync(join(dir, 'src/typestyles-entry.js'), `import './styles.js';`);
+    const outdir = join(dir, 'dist');
+    const compiler = webpack({
+      mode: 'production',
+      context: dir,
+      entry: './src/index.js',
+      output: { path: outdir, filename: 'index.js' },
+      cache: { type: 'memory' },
+      optimization: { minimize: false },
+      plugins: [
+        new TypestylesWebpackPlugin({
+          root: dir,
+          mode: 'build',
+          compile: true,
+          extract: { modules: ['src/typestyles-entry.js'] },
+        }),
+      ],
+    });
+    const run = () =>
+      new Promise<string>((resolvePromise, reject) => {
+        compiler?.run((error, stats) => {
+          if (error) reject(error);
+          else if (stats?.hasErrors()) reject(new Error(stats.toString()));
+          else resolvePromise(readFileSync(join(outdir, 'index.js'), 'utf8'));
+        });
+      });
+
+    expect(await run()).toContain('first-button');
+    writeFileSync(join(dir, 'src/config.js'), `export const scope = 'second';`);
+    const second = await run();
+    expect(second).toContain('second-button');
+    expect(second).not.toContain('first-button');
+    expect(readFileSync(join(outdir, 'typestyles.css'), 'utf8')).toContain('second-button');
+  }, 60_000);
 });

@@ -6,6 +6,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { SourceMap } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { build } from 'vite';
@@ -48,7 +49,8 @@ async function bundle(
   dir: string,
   compile: boolean,
   warnings: string[] = [],
-): Promise<{ js: string; css: string }> {
+  sourcemap = false,
+): Promise<{ js: string; css: string; map: string }> {
   const outDir = join(dir, compile ? 'out-compile' : 'out-plain');
   await build({
     root: dir,
@@ -63,6 +65,7 @@ async function bundle(
       minify: false,
       lib: { entry: 'src/main.js', formats: ['es'], fileName: 'main' },
       emptyOutDir: true,
+      sourcemap,
       rollupOptions: {
         onwarn: (warning) => {
           warnings.push(warning.message);
@@ -76,7 +79,7 @@ async function bundle(
       .filter((f) => f.endsWith(ext))
       .map((f) => readFileSync(join(outDir, f), 'utf8'))
       .join('\n');
-  return { js: read('.js') || read('.mjs'), css: read('.css') };
+  return { js: read('.js') || read('.mjs'), css: read('.css'), map: read('.map') };
 }
 
 describe('typestyles({ compile: true })', () => {
@@ -99,6 +102,20 @@ describe('typestyles({ compile: true })', () => {
     },
     60_000,
   );
+
+  it('keeps source maps intact for rewritten modules', async () => {
+    const warnings: string[] = [];
+    const { js, map } = await bundle(makeApp('attribute'), true, warnings, true);
+    expect(warnings.filter((w) => /sourcemap/i.test(w))).toEqual([]);
+    // The rewritten `button` definition must map back to its line in styles.js (line 3), even
+    // though the transform prepends an import and replaces the whole call.
+    const lines = js.split('\n');
+    const line = lines.findIndex((text) => /\bbutton = /.test(text));
+    expect(line).toBeGreaterThanOrEqual(0);
+    const entry = new SourceMap(JSON.parse(map)).findEntry(line, lines[line]!.indexOf('button'));
+    expect('originalSource' in entry && entry.originalSource).toMatch(/src\/styles\.js$/);
+    expect('originalLine' in entry && entry.originalLine).toBe(2);
+  }, 60_000);
 
   it('returns a single plugin when compile is off and two when it is on', () => {
     expect(Array.isArray(typestyles({ extract: { modules: ['src/entry.js'] } }))).toBe(false);

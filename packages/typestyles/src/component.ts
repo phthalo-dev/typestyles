@@ -403,6 +403,7 @@ export function createComponent(
         ),
       );
     }
+    recordUnplanned(namespace);
     return finish(
       createMultiSlotComponent(
         classNaming,
@@ -438,6 +439,7 @@ export function createComponent(
         ),
       );
     }
+    recordUnplanned(namespace);
     return finish(
       createSlotComponent(
         classNaming,
@@ -477,9 +479,19 @@ export function createComponent(
       ),
     );
   }
+  recordUnplanned(namespace);
   return finish(
     createFlatComponent(classNaming, namespace, resolved as FlatComponentConfig<string>, emitLayer),
   );
+}
+
+/**
+ * Shapes the lite runtime can't reproduce (hashed/compact/atomic flat, multi-slot and slot
+ * recipes) still claim their name, so the compile transform never hands another scope's
+ * same-named plan to them.
+ */
+function recordUnplanned(namespace: string): void {
+  recordClientPlan(() => ({ kind: 'unplanned', namespace }));
 }
 
 // ---------------------------------------------------------------------------
@@ -745,7 +757,7 @@ function createDimensionedComponent<V extends VariantDefinitions>(
     classMap,
   ) as ComponentReturn<V>;
 
-  recordClientPlan({
+  recordClientPlan(() => ({
     kind: 'classes',
     namespace,
     base: base && baseClassName ? baseClassName : undefined,
@@ -764,7 +776,7 @@ function createDimensionedComponent<V extends VariantDefinitions>(
         ? [{ when: cv.variants, className: compoundClassByIndex[index] }]
         : [],
     ),
-  });
+  }));
   attachComposeMeta(result, Object.keys(variants));
   attachComponentMeta(result, {
     namespace,
@@ -910,7 +922,7 @@ function createTemplateDimensionedComponent<V extends VariantDefinitions>(
     classMap,
   ) as ComponentReturn<V>;
 
-  recordClientPlan({
+  recordClientPlan(() => ({
     kind: 'classes',
     namespace,
     base: hasBase ? blockClassName : undefined,
@@ -923,7 +935,7 @@ function createTemplateDimensionedComponent<V extends VariantDefinitions>(
     defaults: { ...(defaultVariants as Record<string, unknown>) },
     variantClasses: { ...variantClassByKey },
     compounds: [],
-  });
+  }));
   attachComposeMeta(result, Object.keys(variants));
   attachComponentMeta(result, {
     namespace,
@@ -1152,7 +1164,7 @@ function createAttributeDimensionedComponent<V extends VariantDefinitions>(
 
   // Everything a *call* of this recipe does is determined by this plan, so a
   // zero-runtime build can replace the whole definition with it (see `typestyles/lite`).
-  recordClientPlan({
+  recordClientPlan(() => ({
     kind: 'attrs',
     namespace,
     base: baseClassName,
@@ -1162,7 +1174,7 @@ function createAttributeDimensionedComponent<V extends VariantDefinitions>(
       ),
     ),
     defaults: { ...(defaultVariants as Record<string, unknown>) },
-  });
+  }));
 
   return result;
 }
@@ -1270,7 +1282,7 @@ function createAttributeSlotComponent<
     ),
   });
 
-  recordClientPlan({
+  recordClientPlan(() => ({
     kind: 'attrs-slots',
     namespace,
     slots: { ...baseClassBySlot },
@@ -1280,7 +1292,7 @@ function createAttributeSlotComponent<
       ),
     ),
     defaults: { ...(defaultVariants as Record<string, unknown>) },
-  });
+  }));
 
   return result;
 }
@@ -1373,12 +1385,12 @@ function createSemanticFlatComponent<K extends string>(
     ),
   });
 
-  recordClientPlan({
+  recordClientPlan(() => ({
     kind: 'flat',
     namespace,
     classMap: { ...classMap },
     variantKeys: [...variantKeys],
-  });
+  }));
 
   return result;
 }
@@ -1571,7 +1583,7 @@ function createTemplateMultiSlotComponent<Slots extends readonly string[]>(
       (slots as readonly string[]).map((slot) => [slot, firstClassToken(slotClassMap[slot] ?? '')]),
     ),
   });
-  recordClientPlan({ kind: 'multi-slot', namespace, slots: { ...slotClassMap } });
+  recordClientPlan(() => ({ kind: 'multi-slot', namespace, slots: { ...slotClassMap } }));
   return result;
 }
 
@@ -1727,7 +1739,7 @@ function createTemplateSlotComponent<
     ) as Record<Slots[number], string>;
   }) as SlotComponentFunction<Slots, V>;
 
-  recordClientPlan({
+  recordClientPlan(() => ({
     kind: 'class-slots',
     namespace,
     slots: { ...baseClassBySlot },
@@ -1738,7 +1750,7 @@ function createTemplateSlotComponent<
     ),
     defaults: { ...(defaultVariants as Record<string, unknown>) },
     variantClasses: { ...variantClassByKey },
-  });
+  }));
 
   attachComponentMeta(result, {
     namespace,

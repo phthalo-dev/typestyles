@@ -18,7 +18,7 @@ export function devDiagnosticsEnabled(): boolean {
   return false;
 }
 
-export function recordClientPlan(_plan: unknown): void {}
+export function recordClientPlan(_build: () => unknown): void {}
 
 export function getClientPlans(): readonly never[] {
   return [];

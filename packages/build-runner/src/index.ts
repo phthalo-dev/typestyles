@@ -13,11 +13,14 @@ export {
 } from './namespaces';
 export {
   LITE_SPECIFIER,
+  chainSourceMap,
   indexPlans,
   isTransformableId,
+  mayNeedRecompile,
   mightContainRecipeCalls,
   parseModule,
   transformRecipeCalls,
+  type CompileTransformResult,
   type ParseFn,
   type PlanIndex,
 } from './compile-transform';
@@ -26,6 +29,7 @@ export {
   findLingeringRuntime,
   findRealSheetModules,
   lingeringRuntimeMessage,
+  lingeringRuntimeWarning,
   isSheetRequest,
   toZeroRuntimeSheetId,
   zeroRuntimeLeakMessage,
@@ -71,7 +75,7 @@ export {
 } from './route-css-read';
 
 import { build as esbuildBuild } from 'esbuild';
-import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -109,7 +113,11 @@ export async function runTypestylesBuild(options: RunTypestylesBuildOptions): Pr
   return (await runTypestylesExtract(options)).css;
 }
 
-/** What a recipe call needs at runtime; mirrors `AttrsRecipePlan` from `typestyles`. */
+/**
+ * What a recipe call needs at runtime. Mirrors `AttrsRecipePlan` from `typestyles` (kept as a
+ * copy so these published types don't depend on `typestyles`; `plan-types.typecheck.ts` locks
+ * the two together).
+ */
 export type ClientRecipePlan =
   | {
       kind: 'attrs';
@@ -119,12 +127,47 @@ export type ClientRecipePlan =
       defaults: Record<string, unknown>;
     }
   | {
+      kind: 'classes';
+      namespace: string;
+      base?: string;
+      classMap: Record<string, string>;
+      dimensions: Record<string, string[]>;
+      defaults: Record<string, unknown>;
+      variantClasses: Record<string, string>;
+      compounds: Array<{ when: Record<string, unknown>; className: string }>;
+    }
+  | {
+      kind: 'class-slots';
+      namespace: string;
+      slots: Record<string, string>;
+      dimensions: Record<string, string[]>;
+      defaults: Record<string, unknown>;
+      variantClasses: Record<string, string>;
+    }
+  | {
+      kind: 'flat';
+      namespace: string;
+      classMap: Record<string, string>;
+      variantKeys: string[];
+    }
+  | {
+      kind: 'multi-slot';
+      namespace: string;
+      slots: Record<string, string>;
+    }
+  | {
       kind: 'attrs-slots';
       namespace: string;
       slots: Record<string, string>;
       dimensions: Record<string, string[]>;
       defaults: Record<string, unknown>;
     };
+
+/**
+ * One recorded recipe: a plan, or an `unplanned` marker for a recipe the lite runtime can't
+ * reproduce (mirrors `ClientPlanEntry` from `typestyles`).
+ */
+export type ClientPlanEntry = ClientRecipePlan | { kind: 'unplanned'; namespace: string };
 
 export interface TypestylesExtractResult {
   /** Collected CSS (what {@link runTypestylesBuild} returns). */
@@ -133,7 +176,7 @@ export interface TypestylesExtractResult {
    * Call-behavior plans recorded while the real runtime ran, for the
    * compile-time transform. Empty with a `typestyles` that predates plans.
    */
-  plans: ClientRecipePlan[];
+  plans: ClientPlanEntry[];
 }
 
 /**
@@ -193,13 +236,19 @@ export async function runTypestylesExtract({
   }
 
   const scriptPath = resolve(root, `.typestyles-extract-${process.pid}.cjs`);
-  const prelude = sourceComments
-    ? `globalThis.__TYPESTYLES_SOURCE_COMMENTS__ = { root: ${JSON.stringify(root)} };\n`
-    : '';
+  // The result goes to a file, not stdout: style modules (or their dependencies) may log while
+  // they load, and that output must neither corrupt the CSS nor break parsing.
+  const resultPath = resolve(root, `.typestyles-extract-${process.pid}.json`);
+  const prelude =
+    `globalThis.__TYPESTYLES_RECORD_PLANS__ = true;\n` +
+    (sourceComments
+      ? `globalThis.__TYPESTYLES_SOURCE_COMMENTS__ = { root: ${JSON.stringify(root)} };\n`
+      : '');
   const script =
     `${prelude}${bundledCode}\n` +
     `const __ts = require('typestyles');\n` +
-    `process.stdout.write(JSON.stringify({ css: __ts.getRegisteredCss(), ` +
+    `require('node:fs').writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify({ ` +
+    `css: __ts.getRegisteredCss(), ` +
     `plans: typeof __ts.getClientPlans === 'function' ? __ts.getClientPlans() : [] }));\n`;
 
   try {
@@ -223,13 +272,16 @@ export async function runTypestylesExtract({
       );
     }
 
-    return JSON.parse(result.stdout || '{"css":"","plans":[]}') as TypestylesExtractResult;
+    if (result.stdout) process.stderr.write(result.stdout);
+    return JSON.parse(readFileSync(resultPath, 'utf8')) as TypestylesExtractResult;
   } finally {
-    if (existsSync(scriptPath)) {
-      try {
-        unlinkSync(scriptPath);
-      } catch {
-        // Best effort cleanup for temp script.
+    for (const path of [scriptPath, resultPath]) {
+      if (existsSync(path)) {
+        try {
+          unlinkSync(path);
+        } catch {
+          // Best effort cleanup for temp files.
+        }
       }
     }
   }

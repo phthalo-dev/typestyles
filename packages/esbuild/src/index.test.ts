@@ -6,6 +6,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { SourceMap } from 'node:module';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { build } from 'esbuild';
@@ -180,7 +181,15 @@ createTheme('esbuild-dark', { base: { 'esbuild-color': { primary: '#66aaff' } } 
 });
 
 describe('compile option (real bundle)', () => {
-  async function bundleApp(compile: boolean, ext: 'js' | 'ts'): Promise<string> {
+  async function bundleApp(
+    compile: boolean,
+    ext: 'js' | 'ts',
+    {
+      main,
+      files = {},
+      sourcemap = false,
+    }: { main?: string; files?: Record<string, string>; sourcemap?: boolean } = {},
+  ): Promise<string> {
     const dir = mkdtempSync(join(tmpdir(), 'typestyles-esbuild-compile-'));
     mkdirSync(join(dir, 'src'), { recursive: true });
     mkdirSync(join(dir, 'node_modules'), { recursive: true });
@@ -204,9 +213,11 @@ export { label };`,
     );
     writeFileSync(
       join(dir, 'src/main.js'),
-      `import { button } from './styles';\nconsole.log(JSON.stringify(button({ tone: 'b' }).props));`,
+      main ??
+        `import { button } from './styles';\nconsole.log(JSON.stringify(button({ tone: 'b' }).props));`,
     );
     writeFileSync(join(dir, 'src/typestyles-entry.js'), `import './styles';`);
+    for (const [file, code] of Object.entries(files)) writeFileSync(join(dir, file), code);
     const result = await build({
       entryPoints: [join(dir, 'src/main.js')],
       bundle: true,
@@ -214,6 +225,7 @@ export { label };`,
       platform: 'browser',
       format: 'esm',
       logLevel: 'silent',
+      sourcemap: sourcemap ? 'inline' : false,
       plugins: [
         typestylesEsbuildPlugin({
           root: dir,
@@ -238,4 +250,68 @@ export { label };`,
     },
     60_000,
   );
+
+  it('still reports duplicate recipe names in modules it rewrites', async () => {
+    const dup = (color: string) => `import { createTypeStyles, variant } from 'typestyles';
+const { recipe } = createTypeStyles({ scopeId: 'app', mode: 'attribute' });
+export const copy = recipe({ name: 'dup', variants: { tone: variant.enum(['a'], { default: 'a' }) }, styles: () => ({ base: { color: '${color}' }, variants: { tone: { a: {} } } }) });`;
+    const files = {
+      // Only `a.js` is extracted, so `dup` has one plan and both modules get rewritten.
+      'src/typestyles-entry.js': `import './a.js';`,
+      'src/a.js': dup('red'),
+      'src/b.js': dup('blue'),
+    };
+    const main = `import { copy as a } from './a.js';\nimport { copy as b } from './b.js';\nconsole.log(a(), b());`;
+    await expect(bundleApp(true, 'js', { main, files })).rejects.toThrow(
+      /\[typestyles\] Style namespace "dup"/,
+    );
+  }, 60_000);
+
+  it("strips TypeScript with the project's tsconfig.json", async () => {
+    const main = `import { button, Box } from './styles';\nconsole.log(button().className, new Box());`;
+    const files = {
+      'tsconfig.json': JSON.stringify({ compilerOptions: { useDefineForClassFields: false } }),
+      'src/styles.ts': `import { createTypeStyles, variant } from 'typestyles';
+export class Box { size: number = 1; }
+export const ts = createTypeStyles({ scopeId: 'app', mode: 'attribute' });
+export const button = ts.recipe({
+  name: 'button',
+  variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) },
+  styles: () => ({ base: { color: 'red' }, variants: { tone: { a: {}, b: {} } } }),
+});`,
+    };
+    const out = await bundleApp(true, 'ts', { main, files });
+    expect(out).toContain('app-button');
+    // `useDefineForClassFields: false` assigns in the constructor instead of declaring a field.
+    expect(out).toContain('this.size = 1');
+  }, 60_000);
+
+  it('maps rewritten TypeScript back to the original source', async () => {
+    // The interface disappears when types are stripped, so the TS -> JS step moves lines too.
+    const files = {
+      'src/styles.ts': `import { createTypeStyles, variant } from 'typestyles';
+interface Props {
+  tone: 'a' | 'b';
+}
+export const ts = createTypeStyles({ scopeId: 'app', mode: 'attribute' });
+export const button = ts.recipe({
+  name: 'button',
+  variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) },
+  styles: () => ({ base: { color: 'red' }, variants: { tone: { a: {}, b: {} } } }),
+});
+export type { Props };`,
+    };
+    const out = await bundleApp(true, 'ts', { sourcemap: true, files });
+    const encoded = /sourceMappingURL=data:application\/json;base64,([A-Za-z0-9+/=]+)\s*$/.exec(
+      out,
+    );
+    expect(encoded).not.toBeNull();
+    const map = JSON.parse(Buffer.from(encoded![1]!, 'base64').toString('utf8'));
+    const lines = out.split('\n');
+    const line = lines.findIndex((text) => /\bbutton = /.test(text));
+    const entry = new SourceMap(map).findEntry(line, lines[line]!.indexOf('button'));
+    expect('originalSource' in entry && entry.originalSource).toMatch(/src\/styles\.ts$/);
+    // `export const button = ts.recipe({` is line 6 of styles.ts.
+    expect('originalLine' in entry && entry.originalLine).toBe(5);
+  }, 60_000);
 });

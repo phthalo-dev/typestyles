@@ -1,6 +1,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import type { RollupCache } from 'rollup';
 import { describe, expect, it } from 'vite-plus/test';
 import typestylesRollupPlugin, { extractNamespaces } from './index';
 
@@ -184,7 +185,10 @@ recipe({ name: 'rollup-dup', styles: { base: { color: 'blue' } } });`;
 });
 
 describe('compile option (real bundle)', () => {
-  async function bundleApp(compile: boolean): Promise<string> {
+  async function bundleApp(
+    compile: boolean,
+    { main, files = {} }: { main?: string; files?: Record<string, string> } = {},
+  ): Promise<string> {
     const { rollup } = await import('rollup');
     const { mkdtempSync, mkdirSync, writeFileSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
@@ -204,9 +208,11 @@ export const button = ts.recipe({
     );
     writeFileSync(
       join(dir, 'src/main.js'),
-      `import { button } from './styles.js';\nconsole.log(JSON.stringify(button({ tone: 'b' }).props));`,
+      main ??
+        `import { button } from './styles.js';\nconsole.log(JSON.stringify(button({ tone: 'b' }).props));`,
     );
     writeFileSync(join(dir, 'src/entry.js'), `import './styles.js';`);
+    for (const [file, code] of Object.entries(files)) writeFileSync(join(dir, file), code);
     const resolveTypestyles = {
       name: 'resolve-typestyles',
       resolveId(source: string) {
@@ -239,5 +245,79 @@ export const button = ts.recipe({
     expect(compiled).not.toContain('DISTINCTIVE');
     expect(compiled).toContain('app-button');
     expect(compiled.length).toBeLessThan(plain.length / 2);
+  }, 60_000);
+
+  it('re-plans a cached module when a module it depends on changes', async () => {
+    const { rollup } = await import('rollup');
+    const { resolve } = await import('node:path');
+    const dir = mkdtempSync(join(tmpdir(), 'typestyles-rollup-compile-cache-'));
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    const tsDist = resolve(import.meta.dirname, '../../typestyles/dist');
+    // The class names come from `config.js`; `styles.js` itself never changes.
+    writeFileSync(join(dir, 'src/config.js'), `export const scope = 'first';`);
+    writeFileSync(
+      join(dir, 'src/styles.js'),
+      `import { createTypeStyles, variant } from 'typestyles';
+import { scope } from './config.js';
+export const ts = createTypeStyles({ scopeId: scope, mode: 'attribute' });
+export const button = ts.recipe({
+  name: 'button',
+  variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) },
+  styles: () => ({ base: { color: 'red' }, variants: { tone: { a: {}, b: {} } } }),
+});`,
+    );
+    writeFileSync(
+      join(dir, 'src/main.js'),
+      `import { button } from './styles.js';\nconsole.log(button({ tone: 'b' }).className);`,
+    );
+    writeFileSync(join(dir, 'src/entry.js'), `import './styles.js';`);
+    const build = async (cache?: RollupCache) => {
+      const bundle = await rollup({
+        input: join(dir, 'src/main.js'),
+        cache,
+        onwarn() {},
+        plugins: [
+          {
+            name: 'resolve-typestyles',
+            resolveId(source: string) {
+              if (source === 'typestyles') return join(tsDist, 'index.js');
+              if (source === 'typestyles/lite') return join(tsDist, 'lite.js');
+              return null;
+            },
+          },
+          typestylesRollupPlugin({
+            root: dir,
+            mode: 'build',
+            compile: true,
+            extract: { modules: ['src/entry.js'] },
+          }),
+        ],
+      });
+      const { output } = await bundle.generate({ format: 'es' });
+      return { bundle, code: output.map((o) => (o.type === 'chunk' ? o.code : '')).join('\n') };
+    };
+
+    const first = await build();
+    expect(first.code).toContain('first-button');
+    writeFileSync(join(dir, 'src/config.js'), `export const scope = 'second';`);
+    const second = await build(first.bundle.cache);
+    expect(second.code).toContain('second-button');
+    expect(second.code).not.toContain('first-button');
+  }, 60_000);
+
+  it('still reports duplicate recipe names in modules it rewrites', async () => {
+    const dup = (color: string) => `import { createTypeStyles, variant } from 'typestyles';
+const { recipe } = createTypeStyles({ scopeId: 'app', mode: 'attribute' });
+export const copy = recipe({ name: 'dup', variants: { tone: variant.enum(['a'], { default: 'a' }) }, styles: () => ({ base: { color: '${color}' }, variants: { tone: { a: {} } } }) });`;
+    const files = {
+      // Only `a.js` is extracted, so `dup` has one plan and both modules get rewritten.
+      'src/entry.js': `import './a.js';`,
+      'src/a.js': dup('red'),
+      'src/b.js': dup('blue'),
+    };
+    const main = `import { copy as a } from './a.js';\nimport { copy as b } from './b.js';\nconsole.log(a(), b());`;
+    await expect(bundleApp(true, { main, files })).rejects.toThrow(
+      /\[typestyles\] Style namespace "dup"/,
+    );
   }, 60_000);
 });

@@ -148,6 +148,12 @@ export type AttrsRecipePlan =
       defaults: Record<string, unknown>;
     };
 
+/**
+ * What extraction records per recipe: a plan, or an `unplanned` marker for a recipe the lite
+ * runtime can't reproduce. The marker keeps that name from matching another scope's plan.
+ */
+export type ClientPlanEntry = AttrsRecipePlan | { kind: 'unplanned'; namespace: string };
+
 function resolvePlanAttrs(
   dimensions: Record<string, string[]>,
   defaults: Record<string, unknown>,

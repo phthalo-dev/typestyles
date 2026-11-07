@@ -1,4 +1,3 @@
-import { relative } from 'node:path';
 import type { Plugin, TransformPluginContext } from 'rollup';
 import {
   extractNamespaces,
@@ -9,11 +8,12 @@ import {
   isTransformableId,
   runTypestylesExtract,
   transformRecipeCalls,
+  mayNeedRecompile,
+  type CompileTransformResult,
   type PlanIndex,
   type TypestylesExtractResult,
-  findLingeringRuntime,
   findRealSheetModules,
-  lingeringRuntimeMessage,
+  lingeringRuntimeWarning,
   isSheetRequest,
   TYPESTYLES_IMPORT_RE,
   toZeroRuntimeSheetId,
@@ -90,36 +90,43 @@ export default function typestylesRollupPlugin(
   const compileEnabled = (): boolean =>
     compile && resolvedMode === 'build' && resolvedExtractModules.length > 0;
 
+  /**
+   * Namespace bookkeeping always runs on the module's own source, so compiled modules still
+   * report duplicate recipe names; the compiled code (and its map) is what's returned.
+   */
   function finishTransform(
     this: TransformPluginContext,
-    code: string,
+    source: string,
     id: string,
-    changed: boolean,
-  ): { code: string; map: null } | null {
+    compiled: CompileTransformResult | null,
+  ): { code: string; map: CompileTransformResult['map'] | null } | null {
+    const code = compiled?.code ?? source;
     if (
       (resolvedMode === 'build' || resolvedMode === 'hybrid') &&
       code.includes('__TYPESTYLES_RUNTIME_DISABLED__')
     ) {
       return {
         code: code.replace(/__TYPESTYLES_RUNTIME_DISABLED__/g, '"true"'),
-        map: null,
+        map: compiled?.map ?? null,
       };
     }
-    if (changed) return { code, map: null };
+    trackNamespaces.call(this, source, id);
+    return compiled ? { code: compiled.code, map: compiled.map } : null;
+  }
 
-    if (!/\.[jt]sx?$/.test(id)) return null;
-    if (id.includes('node_modules')) return null;
-    if (!TYPESTYLES_IMPORT_RE.test(code)) return null;
+  function trackNamespaces(this: TransformPluginContext, code: string, id: string): void {
+    if (!/\.[jt]sx?$/.test(id)) return;
+    if (id.includes('node_modules')) return;
+    if (!TYPESTYLES_IMPORT_RE.test(code)) return;
 
     const { keys, prefixes } = extractNamespaces(code);
-    if (keys.length === 0 && prefixes.length === 0) return null;
+    if (keys.length === 0 && prefixes.length === 0) return;
 
     if (warnDuplicates) {
       reportDuplicateNamespaces(moduleNamespaces, id, prefixes, this);
     }
 
     moduleNamespaces.set(id, { keys, prefixes });
-    return null;
   }
 
   return {
@@ -152,12 +159,19 @@ export default function typestylesRollupPlugin(
       // Sync unless the compile step needs the (async) extraction result: callers and tests
       // rely on duplicate-namespace errors being thrown synchronously.
       if (!(compileEnabled() && isTransformableId(id)))
-        return finishTransform.call(this, source, id, false);
+        return finishTransform.call(this, source, id, null);
       return extractOnce().then(({ plans }) => {
         planIndex ??= indexPlans(plans);
-        const compiled = transformRecipeCalls(source, planIndex, (text) => this.parse(text));
-        return finishTransform.call(this, compiled ?? source, id, compiled !== null);
+        const compiled = transformRecipeCalls(source, planIndex, (text) => this.parse(text), id);
+        return finishTransform.call(this, source, id, compiled);
       });
+    },
+
+    // In watch mode Rollup reuses a module's cached transform when its own file is unchanged,
+    // but the inlined plan depends on other modules (tokens, config) and on this build's
+    // extraction run. Re-run the transform for modules it rewrites.
+    shouldTransformCachedModule({ code }) {
+      return compileEnabled() && mayNeedRecompile(code);
     },
 
     async generateBundle(_options, bundle) {
@@ -169,29 +183,12 @@ export default function typestylesRollupPlugin(
         );
         if (leaked.length > 0) this.warn(zeroRuntimeLeakMessage(leaked));
         if (compileEnabled()) {
-          const modules = Object.values(bundle ?? {}).flatMap((chunk) =>
-            chunk.type === 'chunk'
-              ? Object.entries(chunk.modules).map(([id, info]) => ({
-                  id,
-                  renderedLength: info.renderedLength,
-                }))
-              : [],
+          const warning = lingeringRuntimeWarning(
+            bundle ?? {},
+            (id) => this.getModuleInfo(id)?.importers,
+            root,
           );
-          const lingering = findLingeringRuntime(modules);
-          // Only modules that still contribute code: a stale import of tree-shaken code isn't a cause.
-          const contributes = new Set(modules.filter((m) => m.renderedLength > 0).map((m) => m.id));
-          if (lingering) {
-            const importers = new Set<string>();
-            for (const id of lingering.ids) {
-              for (const importer of this.getModuleInfo(id)?.importers ?? []) {
-                if (!contributes.has(importer)) continue;
-                if (!/[\\/]typestyles[\\/]dist[\\/]/.test(importer)) {
-                  importers.add(relative(root, importer));
-                }
-              }
-            }
-            this.warn(lingeringRuntimeMessage(lingering, [...importers].slice(0, 5)));
-          }
+          if (warning) this.warn(warning);
         }
       }
       if (resolvedMode === 'runtime') return;

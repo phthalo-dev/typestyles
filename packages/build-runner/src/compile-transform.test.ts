@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { indexPlans, isTransformableId, transformRecipeCalls } from './compile-transform';
+import {
+  indexPlans,
+  isTransformableId,
+  transformRecipeCalls as transformWithMap,
+  type PlanIndex,
+} from './compile-transform';
 import type { ClientRecipePlan } from './index';
 
 const btn: ClientRecipePlan = {
@@ -14,6 +19,9 @@ const card: ClientRecipePlan = {
   namespace: 'card',
   slots: { root: 'ui-card' },
 };
+
+const transformRecipeCalls = (code: string, plans: PlanIndex) =>
+  transformWithMap(code, plans)?.code ?? null;
 
 describe('transformRecipeCalls', () => {
   const plans = indexPlans([btn, card]);
@@ -50,15 +58,54 @@ const b = recipe({ name: "card", slots: ['root'] });`,
     expect(transformRecipeCalls(`recipe({ name: 'btn' })`, indexPlans([]))).toBeNull();
   });
 
-  it('marks style factories pure so an unused instance can be dropped', () => {
+  it('marks style factories imported from typestyles pure so an unused instance can be dropped', () => {
     const out = transformRecipeCalls(
-      `export const ts = createTypeStyles({ scopeId: 'a' });\nconst t = createTokens();`,
+      `import { createTypeStyles, createTokens as tokens } from 'typestyles';\n` +
+        `export const ts = createTypeStyles({ scopeId: 'a' });\nconst t = tokens();`,
       indexPlans([]),
     );
     expect(out).toBe(
-      `export const ts = /* @__PURE__ */ createTypeStyles({ scopeId: 'a' });\nconst t = /* @__PURE__ */ createTokens();`,
+      `import { createTypeStyles, createTokens as tokens } from 'typestyles';\n` +
+        `export const ts = /* @__PURE__ */ createTypeStyles({ scopeId: 'a' });\nconst t = /* @__PURE__ */ tokens();`,
     );
     expect(out).not.toContain('typestyles/lite');
+  });
+
+  it('does not mark same-named functions from elsewhere pure', () => {
+    expect(
+      transformRecipeCalls(
+        `import { createTokens } from './my-store';\ncreateTokens(theme);\nfunction createStyles() {}\ncreateStyles();`,
+        indexPlans([]),
+      ),
+    ).toBeNull();
+  });
+
+  it('leaves calls alone when a spread or a second `name` key could change the runtime name', () => {
+    expect(transformRecipeCalls(`recipe({ name: 'btn', ...overrides })`, plans)).toBeNull();
+    expect(transformRecipeCalls(`recipe({ ...base, name: 'btn' })`, plans)).toBeNull();
+    expect(transformRecipeCalls(`recipe({ name: 'btn', name: 'card' })`, plans)).toBeNull();
+    expect(transformRecipeCalls(`recipe({ name: 'btn', [key]: 1 })`, plans)).toBeNull();
+  });
+
+  it('treats a name with an unplanned recipe as ambiguous', () => {
+    const withUnplanned = indexPlans([btn, { kind: 'unplanned', namespace: 'btn' }]);
+    expect(transformRecipeCalls(`recipe({ name: 'btn' })`, withUnplanned)).toBeNull();
+    expect(
+      transformRecipeCalls(
+        `recipe({ name: 'btn' })`,
+        indexPlans([{ kind: 'unplanned', namespace: 'btn' }]),
+      ),
+    ).toBeNull();
+  });
+
+  it('returns a source map that points rewritten code back at the input', () => {
+    const input = `const a = 1;\nconst b = recipe({ name: 'btn', styles: {} });\nconst c = 2;\n`;
+    const result = transformWithMap(input, plans, undefined, 'src/btn.js');
+    expect(result).not.toBeNull();
+    expect(result!.map.sources).toEqual(['src/btn.js']);
+    expect(result!.map.sourcesContent).toEqual([input]);
+    // One import line is prepended, so the input's three lines map to output lines 2–4.
+    expect(result!.map.mappings.split(';')[0]).toBe('');
   });
 });
 
