@@ -1,5 +1,12 @@
 # @typestyles/open-props
 
+## 0.3.43
+
+### Patch Changes
+
+- Updated dependencies [[`ad6fe59`](https://github.com/phthalo-dev/typestyles/commit/ad6fe5902ed697fce791f9e701619bfe7a40ed18), [`429d477`](https://github.com/phthalo-dev/typestyles/commit/429d477d70af39c3a28401ed4c883808ded6e433)]:
+  - typestyles@0.35.0
+
 ## 0.3.42
 
 ### Patch Changes

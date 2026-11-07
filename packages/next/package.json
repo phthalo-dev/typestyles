@@ -1,6 +1,6 @@
 {
   "name": "@typestyles/next",
-  "version": "0.5.9",
+  "version": "0.6.0",
   "description": "Next.js integration for typestyles SSR",
   "type": "module",
   "main": "./dist/index.cjs",
