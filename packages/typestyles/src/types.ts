@@ -24,8 +24,13 @@ export type {
  * invalid CSS that breaks parsing for following rules. Use **`calc`** (tagged template) and
  * **`clamp`** from `typestyles` to keep function parentheses balanced, or small named helpers;
  * see the docs “TypeScript Tips” page.
+ *
+ * The string arm is `string & {}` (the csstype pattern) rather than plain `string`: any `string` is
+ * still assignable, but a union like `'flex' | 'block' | (string & {})` does not collapse to `string`,
+ * so editors keep suggesting keyword values (Issue #311).
  */
-export type CSSValue = string | number;
+// oxlint-disable-next-line @typescript-eslint/no-empty-object-type -- `string & {}` keeps keyword completions
+export type CSSValue = (string & {}) | number;
 
 /**
  * CSS properties with support for nested selectors and at-rules.
@@ -48,7 +53,6 @@ type CSSPropertiesBase = {
   [K in keyof CSS.Properties<CSSValue>]?: CSSPropertyValue<K>;
 } & {
   [key: string]:
-    | CSS.Properties<CSSValue>[keyof CSS.Properties<CSSValue>]
     | CSSPropertiesBase
     | CSSValue
     | RegisteredPropertyRef
@@ -83,9 +87,20 @@ type UtilityValue<U extends StyleUtils, K extends keyof U> = U[K] extends (
  * Extends {@link CSSProperties} with mapped utility keys; same open string index as
  * `CSSProperties` so `[v.name]: value` works in nested selectors (Issue #167).
  */
-export type CSSPropertiesWithUtils<U extends StyleUtils> = CSSPropertiesBase & {
-  [K in keyof U]?: UtilityValue<U, K>;
-};
+export type CSSPropertiesWithUtils<U extends StyleUtils> = CSSPropertiesBase & UtilityProperties<U>;
+
+/**
+ * Utility keys for {@link CSSPropertiesWithUtils}.
+ *
+ * The distributive conditional resolves to the plain mapped type for any concrete `U`. For a
+ * generic `U` it stays deferred, so relating two instantiations (variance measurement) compares
+ * the two mapped types directly. A bare generic mapped type makes TypeScript index the source by
+ * `keyof U`, whose constraint is every csstype value union with its keyword literals: seconds of
+ * check time (Issue #311).
+ */
+type UtilityProperties<U extends StyleUtils> = U extends StyleUtils
+  ? { [K in keyof U]?: UtilityValue<U, K> }
+  : never;
 
 /**
  * A map of style names to utility-aware CSS property definitions.
@@ -634,7 +649,6 @@ export type VariantOptionStyle = {
   [K in keyof CSS.Properties<CSSValue>]?: CSSPropertyValue<K>;
 } & {
   [key: string]:
-    | CSS.Properties<CSSValue>[keyof CSS.Properties<CSSValue>]
     | VariantOptionStyle
     | CSSValue
     | SyntaxRef<string>
@@ -661,7 +675,6 @@ export type StylableOverride = {
 } & {
   conditions?: readonly ConditionalOverride[];
   [key: string]:
-    | CSS.Properties<CSSValue>[keyof CSS.Properties<CSSValue>]
     | VariantOptionStyle
     | readonly ConditionalOverride[]
     | CSSValue

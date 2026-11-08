@@ -122,9 +122,15 @@ type NoAxisStyle<Slots, R> = R &
       : ExactSlotRecord<R extends { base: infer B } ? B : Record<never, never>, Slots>;
   };
 
+/**
+ * Intersected with the slot style shape (not just the inferred `V`) so editors get the
+ * csstype contextual type inside slot variant options. Without it, completions at
+ * `panel: { flexDirection: '|' }` only offered the literal being typed (Issue #311).
+ */
 type ExactVariantSlots<Slots, V> = {
   [K in keyof V]: {
-    [O in keyof V[K]]: ExactSlotRecord<V[K][O], Slots>;
+    [O in keyof V[K]]: ExactSlotRecord<V[K][O], Slots> &
+      Partial<Record<SlotKey<Slots>, VariantOptionStyle>>;
   };
 };
 

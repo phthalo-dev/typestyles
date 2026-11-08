@@ -1,7 +1,9 @@
 import type * as CSS from 'csstype';
 import type { ColorModeMap, LightDarkColorModes, ModeAwareValue } from './color-modes';
 
-type CSSValue = string | number;
+/** Local copy of `CSSValue` from `./types` (see the note there on `string & {}`). */
+// oxlint-disable-next-line @typescript-eslint/no-empty-object-type -- `string & {}` keeps keyword completions
+type CSSValue = (string & {}) | number;
 
 type CSSVarRef = `var(--${string})` | `var(--${string}, ${string})`;
 

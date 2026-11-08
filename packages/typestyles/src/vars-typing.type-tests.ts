@@ -159,6 +159,11 @@ function withUtilsVars(v: { background: { name: string } }): string {
   });
 }
 
+// Issue #311: `CSSPropertiesWithUtils` wraps utility keys in a conditional for check speed.
+// The utility's own parameter type must still be enforced.
+// @ts-expect-error — `padded` takes a number, not a string
+utils.class('utils-bad-arg', { padded: 'eight' });
+
 const slottedVars = styles.component({
   name: 'vars-slotted',
   slots: ['root', 'popover'] as const,
