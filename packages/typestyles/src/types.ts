@@ -1,6 +1,12 @@
 import type * as CSS from 'csstype';
 import type { ColorModeMap, LightDarkColorModes } from './color-modes';
-import type { CreateValueForSyntax, CssSyntax, CSSPropertyValue, SyntaxRef } from './types-syntax';
+import type {
+  CreateValueForSyntax,
+  CssSyntax,
+  CSSPropertyValue,
+  CSSValue,
+  SyntaxRef,
+} from './types-syntax';
 import type { ThemeTokenContext } from './theme-token-context';
 import type { ThemeComponentPatch } from './theme-types';
 
@@ -9,28 +15,13 @@ export type {
   CreateValueForSyntax,
   CssSyntax,
   CSSPropertyValue,
+  CSSValue,
   ModeAwareCreateValue,
   SyntaxAwareLonghands,
   SyntaxPropertyValue,
   SyntaxRef,
   SyntaxRefAccepts,
 } from './types-syntax';
-
-/**
- * A CSS value that can be a standard value or a token reference (var() string).
- *
- * Values are emitted verbatim. TypeScript does **not** validate CSS syntax, so a typo in
- * `calc()`, `clamp()`, `min()`, `max()`, `url()`, etc. (for example a missing `)`) can produce
- * invalid CSS that breaks parsing for following rules. Use **`calc`** (tagged template) and
- * **`clamp`** from `typestyles` to keep function parentheses balanced, or small named helpers;
- * see the docs “TypeScript Tips” page.
- *
- * The string arm is `string & {}` (the csstype pattern) rather than plain `string`: any `string` is
- * still assignable, but a union like `'flex' | 'block' | (string & {})` does not collapse to `string`,
- * so editors keep suggesting keyword values (Issue #311).
- */
-// oxlint-disable-next-line @typescript-eslint/no-empty-object-type -- `string & {}` keeps keyword completions
-export type CSSValue = (string & {}) | number;
 
 /**
  * CSS properties with support for nested selectors and at-rules.
