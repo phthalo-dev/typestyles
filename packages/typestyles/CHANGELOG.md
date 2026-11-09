@@ -1,5 +1,13 @@
 # typestyles
 
+## 0.35.1
+
+### Patch Changes
+
+- [#312](https://github.com/phthalo-dev/typestyles/pull/312) [`839fb80`](https://github.com/phthalo-dev/typestyles/commit/839fb803d345727020b6c01bffaac7c4b4ea9430) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Restore CSS keyword value suggestions in style objects. `CSSValue` is now `(string & {}) | number` (the csstype pattern), so `display: '|'` and `flexDirection: '|'` suggest csstype keywords again inside `style()`, recipe `styles` blocks and callbacks, and slot variant options. Any `string` is still assignable, so widened inferred values keep working.
+  
+  Also speeds up typechecking code that uses `withUtils` / `createStyles({ utils })`: `CSSPropertiesWithUtils` no longer makes TypeScript compare every csstype value union against a generic mapped type.
+
 ## 0.35.0
 
 ### Minor Changes

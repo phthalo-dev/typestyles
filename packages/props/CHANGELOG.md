@@ -1,5 +1,12 @@
 # @typestyles/props
 
+## 0.4.44
+
+### Patch Changes
+
+- Updated dependencies [[`839fb80`](https://github.com/phthalo-dev/typestyles/commit/839fb803d345727020b6c01bffaac7c4b4ea9430)]:
+  - typestyles@0.35.1
+
 ## 0.4.43
 
 ### Patch Changes
