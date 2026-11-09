@@ -114,7 +114,7 @@ export default { plugins: [typestyles({ compile: true })] };
 
 **What is left alone.** Calls that can't be matched safely keep the full runtime: names that aren't string literals, configs with a spread or more than one `name` key, a name used in more than one scope (including by a recipe shape that isn't planned), and any API whose result is read at runtime from a call the transform can't see — notably `tokens.createTheme()` / `tokens.declare()` and anything wrapped in your own helper (`createMyTheme({ name })`). If that keeps a meaningful part of the runtime in your bundle, the Vite and Rollup integrations print a warning naming the modules that still reach it.
 
-**Known differences from the full runtime.** The lite handle does not carry `.vars` component var refs or recipe metadata (`getComponentMeta`), does not emit development warnings (unknown variant dimensions, invalid options), and exposes `defaults` from the recipe schema only. Apps that read those at runtime should leave `compile` off.
+**Known differences from the full runtime.** The lite handle carries `.vars` (the same `{ name, var }` refs, recorded in the plan), so assigning recipe vars per instance works. It does not carry recipe metadata (`getComponentMeta`), does not emit development warnings (unknown variant dimensions, invalid options), and exposes `defaults` from the recipe schema only. Apps that read those at runtime should leave `compile` off.
 
 Parity is tested by running every plan shape against the real runtime for a grid of selections.
 

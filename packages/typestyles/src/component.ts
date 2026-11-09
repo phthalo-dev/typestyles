@@ -25,6 +25,7 @@ import {
   insertRules,
   invalidateComponentNamespaceForDev,
   recordClientPlan,
+  recordClientPlanVars,
 } from '#sheet';
 import { applyLayerToRules, assertOwnLayer } from './layers';
 import { joinSelectorAlternatives } from './compound-selector';
@@ -190,6 +191,7 @@ function resolveComponentConfig(
   config: Record<string, unknown>;
   varRegistry?: ComponentVarRegistry;
   varRefTree?: object;
+  varNames?: Record<string, string>;
   varDefinitions?: ComponentVarDefinitions;
 } {
   const {
@@ -197,6 +199,7 @@ function resolveComponentConfig(
     mergeVarDefaultsInto,
     buildVarRegistry,
     buildVarRefTree,
+    buildVarNames,
     buildCapturedVarDefinitions,
   } = createComponentConfigContextPair(classNaming, namespace);
 
@@ -211,6 +214,7 @@ function resolveComponentConfig(
       config: resolved,
       varRegistry: buildVarRegistry(resolved),
       varRefTree: buildVarRefTree(),
+      varNames: buildVarNames(),
       varDefinitions: defsFromConfig ?? buildCapturedVarDefinitions(),
     };
   }
@@ -225,6 +229,7 @@ function resolveComponentConfig(
       config: resolved,
       varRegistry: buildVarRegistry(resolved),
       varRefTree: buildVarRefTree(),
+      varNames: buildVarNames(),
       varDefinitions: defsFromConfig,
     };
   }
@@ -381,11 +386,15 @@ export function createComponent(
     config: resolved,
     varRegistry,
     varRefTree,
+    varNames,
     varDefinitions: configVarDefinitions,
   } = resolveComponentConfig(classNaming, namespace, config);
   const recipeVarDefinitions = configVarDefinitions;
-  const finish = <T extends object>(result: T) =>
-    finishComponentResult(result, varRegistry, recipeVarDefinitions, varRefTree);
+  const finish = <T extends object>(result: T) => {
+    // The plan was recorded while building `result`; `typestyles/lite` rebuilds `.vars` from it.
+    if (varNames) recordClientPlanVars(namespace, varNames);
+    return finishComponentResult(result, varRegistry, recipeVarDefinitions, varRefTree);
+  };
   if (isMultiSlotConfig(resolved)) {
     claimComponentNamespace(classNaming, namespace);
     if (

@@ -7,6 +7,7 @@
  * imports from the CSS pipeline so the lite entry stays tiny.
  */
 import type { ComponentAttrsResult } from './types';
+import { buildVarRefTreeFromNames } from './var-ref-tree';
 
 export function isBooleanOptionKeys(optionKeys: readonly string[]): boolean {
   return optionKeys.length === 2 && optionKeys.includes('true') && optionKeys.includes('false');
@@ -87,7 +88,15 @@ export function makeCallableObject(
 }
 
 /** Serializable description of a recipe's call behavior (see `typestyles/lite`). */
-export type AttrsRecipePlan =
+export type AttrsRecipePlan = AttrsRecipeCallPlan & {
+  /**
+   * Logical var path -> custom property name, for recipes that declare `vars`. The lite handle
+   * rebuilds `.vars` (`{ name, var }` refs) from it.
+   */
+  vars?: Record<string, string>;
+};
+
+type AttrsRecipeCallPlan =
   | {
       kind: 'attrs';
       namespace: string;
@@ -190,6 +199,19 @@ function withDefaults(handle: object, defaults: Record<string, unknown>): object
  * full runtime (dev-only warnings aside), without any CSS machinery.
  */
 export function createAttrsRecipeFromPlan(plan: AttrsRecipePlan): unknown {
+  const handle = createCallHandle(plan) as object;
+  if (plan.vars) {
+    Object.defineProperty(handle, 'vars', {
+      value: buildVarRefTreeFromNames(plan.vars),
+      enumerable: true,
+      writable: false,
+      configurable: true,
+    });
+  }
+  return handle;
+}
+
+function createCallHandle(plan: AttrsRecipePlan): unknown {
   if (plan.kind === 'classes') return createClassesRecipe(plan);
   if (plan.kind === 'class-slots') return createClassSlotsRecipe(plan);
   if (plan.kind === 'flat') {

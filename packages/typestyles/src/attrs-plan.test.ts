@@ -142,6 +142,83 @@ describe('attribute-mode client plans', () => {
     expect(multiLite.label).toBe(multi.label);
   });
 
+  it('records recipe vars so the lite handle exposes the same `.vars` refs', () => {
+    type VarRef = { name: string; var: string };
+    const full = recipe({
+      name: 'planrating',
+      vars: {
+        fill: { value: '0%' },
+        track: { color: 'gray', width: '2px' },
+      },
+      variants: { size: variant.enum(['sm', 'md'], { default: 'md' }) },
+      styles: ({ vars }: { vars: Record<string, never> }) => ({
+        base: { width: (vars as { fill: VarRef }).fill.var },
+        variants: { size: { sm: { padding: 2 }, md: { padding: 4 } } },
+      }),
+    } as never) as unknown as Call & {
+      vars: { fill: VarRef; track: { color: VarRef; width: VarRef } };
+    };
+
+    const plan = getClientPlans().find((p) => p.namespace === 'planrating') as AttrsRecipePlan;
+    expect(plan.vars).toBeDefined();
+    // Plans are serialized into the client bundle.
+    const lite = createAttrsRecipeFromPlan(JSON.parse(JSON.stringify(plan))) as typeof full;
+
+    for (const ref of [full.vars.fill, full.vars.track.color, full.vars.track.width]) {
+      expect(ref.name).toMatch(/^--/);
+    }
+    expect(lite.vars.fill.name).toBe(full.vars.fill.name);
+    expect(lite.vars.fill.var).toBe(full.vars.fill.var);
+    expect(String(lite.vars.fill)).toBe(String(full.vars.fill));
+    expect(lite.vars.track.color.name).toBe(full.vars.track.color.name);
+    expect(lite.vars.track.width.var).toBe(full.vars.track.width.var);
+    expect(plain(lite({ size: 'sm' }))).toEqual(plain(full({ size: 'sm' })));
+  });
+
+  it('records vars for flat and multi-slot recipes too', () => {
+    type VarRef = { name: string; var: string };
+    const flat = recipe({
+      name: 'planflatvars',
+      vars: { gap: { value: '4px' } },
+      base: { color: 'red' },
+      primary: { color: 'blue' },
+    } as never) as unknown as { vars: { gap: VarRef } };
+    const flatPlan = getClientPlans().find(
+      (p) => p.namespace === 'planflatvars',
+    ) as AttrsRecipePlan;
+    expect((createAttrsRecipeFromPlan(flatPlan) as typeof flat).vars.gap.name).toBe(
+      flat.vars.gap.name,
+    );
+
+    const multi = recipe({
+      name: 'planmultivars',
+      slots: ['root', 'label'],
+      vars: { size: { value: '1rem' } },
+      root: { color: 'red' },
+      label: { color: 'blue' },
+    } as never) as unknown as { vars: { size: VarRef } };
+    const multiPlan = getClientPlans().find(
+      (p) => p.namespace === 'planmultivars',
+    ) as AttrsRecipePlan;
+    expect((createAttrsRecipeFromPlan(multiPlan) as typeof multi).vars.size.var).toBe(
+      multi.vars.size.var,
+    );
+  });
+
+  it('leaves `.vars` off plans and lite handles for recipes without vars', () => {
+    recipe({
+      name: 'plannovars',
+      variants: { tone: variant.enum(['a', 'b'], { default: 'a' }) },
+      styles: () => ({
+        base: { color: 'red' },
+        variants: { tone: { a: { color: 'red' }, b: { color: 'blue' } } },
+      }),
+    } as never);
+    const plan = getClientPlans().find((p) => p.namespace === 'plannovars') as AttrsRecipePlan;
+    expect(plan.vars).toBeUndefined();
+    expect('vars' in (createAttrsRecipeFromPlan(plan) as object)).toBe(false);
+  });
+
   it('does not record plans for shapes it cannot reproduce (slots in hashed mode)', () => {
     const hashed = createTypeStyles({ scopeId: 'plan2', mode: 'hashed' });
     hashed.recipe({

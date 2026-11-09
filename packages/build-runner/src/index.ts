@@ -118,7 +118,12 @@ export async function runTypestylesBuild(options: RunTypestylesBuildOptions): Pr
  * copy so these published types don't depend on `typestyles`; `plan-types.typecheck.ts` locks
  * the two together).
  */
-export type ClientRecipePlan =
+export type ClientRecipePlan = ClientRecipeCallPlan & {
+  /** Logical var path -> custom property name, for recipes that declare `vars`. */
+  vars?: Record<string, string>;
+};
+
+type ClientRecipeCallPlan =
   | {
       kind: 'attrs';
       namespace: string;

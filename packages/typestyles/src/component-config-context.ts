@@ -6,6 +6,7 @@ import {
   registerAtPropertyRule,
   registerAtPropertySchema,
 } from './registered-property';
+import { buildVarRefTreeFromRegistry, pathPrefixes } from './var-ref-tree';
 import { flattenTokenSchema } from './token-schema';
 import type {
   ComponentConfigContext,
@@ -81,15 +82,6 @@ export function flattenComponentVars(
   return out;
 }
 
-function pathPrefixes(path: string): string[] {
-  const parts = path.split('-');
-  const prefixes: string[] = [];
-  for (let i = 1; i <= parts.length; i++) {
-    prefixes.push(parts.slice(0, i).join('-'));
-  }
-  return prefixes;
-}
-
 function collectPathKeys(entries: FlatComponentVarEntry[]): Set<string> {
   const keys = new Set<string>();
   for (const e of entries) {
@@ -98,76 +90,6 @@ function collectPathKeys(entries: FlatComponentVarEntry[]): Set<string> {
     }
   }
   return keys;
-}
-
-function createVarRefsProxy(
-  refByPath: Map<string, ComponentInternalVarRef>,
-  allPathKeys: Set<string>,
-  prefix: string,
-): object {
-  const handler: ProxyHandler<object> = {
-    get(_target, prop: string | symbol): unknown {
-      if (typeof prop === 'symbol') {
-        return undefined;
-      }
-      if (prop === 'constructor') return Object;
-      if (prop === '__esModule') return false;
-
-      const newPrefix = prefix ? `${prefix}-${prop}` : prop;
-
-      if (refByPath.has(newPrefix)) {
-        const hasChildren = [...refByPath.keys()].some(
-          (k) => k !== newPrefix && k.startsWith(`${newPrefix}-`),
-        );
-        if (hasChildren) {
-          return createVarRefsProxy(refByPath, allPathKeys, newPrefix);
-        }
-        return refByPath.get(newPrefix);
-      }
-
-      if ([...refByPath.keys()].some((k) => k.startsWith(`${newPrefix}-`))) {
-        return createVarRefsProxy(refByPath, allPathKeys, newPrefix);
-      }
-
-      if (prefix !== '' && allPathKeys.has(newPrefix)) {
-        return createVarRefsProxy(refByPath, allPathKeys, newPrefix);
-      }
-
-      return undefined;
-    },
-    has(_target, prop: string | symbol) {
-      if (typeof prop !== 'string') return false;
-      const newPrefix = prefix ? `${prefix}-${prop}` : prop;
-      if (refByPath.has(newPrefix)) return true;
-      return [...refByPath.keys()].some((k) => k.startsWith(`${newPrefix}-`));
-    },
-    set(_target, _prop, _value) {
-      return false;
-    },
-  };
-
-  return new Proxy({}, handler);
-}
-
-/** Build the ref tree for all vars registered on this component context so far. */
-export function buildVarRefTreeFromRegistry(
-  refByPath: Map<string, ComponentInternalVarRef>,
-  pathKeys?: Set<string>,
-): ComponentVarRefTree<ComponentVarDefinitions> | undefined {
-  if (refByPath.size === 0) return undefined;
-  const allPathKeys = pathKeys ?? new Set<string>();
-  if (!pathKeys) {
-    for (const path of refByPath.keys()) {
-      for (const p of pathPrefixes(path)) {
-        allPathKeys.add(p);
-      }
-    }
-  }
-  return createVarRefsProxy(
-    refByPath,
-    allPathKeys,
-    '',
-  ) as ComponentVarRefTree<ComponentVarDefinitions>;
 }
 
 function mergeComponentVarDefinitions(
@@ -347,6 +269,8 @@ export function createComponentConfigContextPair(
   mergeVarDefaultsInto: (config: Record<string, unknown>) => Record<string, unknown>;
   buildVarRegistry: (config: Record<string, unknown>) => ComponentVarRegistry | undefined;
   buildVarRefTree: () => ComponentVarRefTree<ComponentVarDefinitions> | undefined;
+  /** Logical var path -> custom property name (what `typestyles/lite` needs to rebuild `.vars`). */
+  buildVarNames: () => Record<string, string> | undefined;
   buildCapturedVarDefinitions: () => ComponentVarDefinitions | undefined;
 } {
   const seen = new Set<string>();
@@ -600,6 +524,10 @@ export function createComponentConfigContextPair(
     buildVarRegistry: (config: Record<string, unknown>) =>
       finalizeVarRegistry(registeredVars, byPath, config),
     buildVarRefTree: () => buildVarRefTreeFromRegistry(varRefByPath),
+    buildVarNames: () =>
+      varRefByPath.size === 0
+        ? undefined
+        : Object.fromEntries([...varRefByPath].map(([path, ref]) => [path, ref.name])),
     buildCapturedVarDefinitions: () => capturedVarDefinitions,
   };
 }
