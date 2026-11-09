@@ -50,6 +50,7 @@ import {
   normalizeSelection,
   toDataAttributeName,
 } from './attrs-runtime';
+import type { AttrsRecipeCallPlan, ClientPlanEntry } from './attrs-runtime';
 
 export { createComponentAttrsResult };
 import {
@@ -190,6 +191,7 @@ function resolveComponentConfig(
   config: Record<string, unknown>;
   varRegistry?: ComponentVarRegistry;
   varRefTree?: object;
+  varNames?: Record<string, string>;
   varDefinitions?: ComponentVarDefinitions;
 } {
   const {
@@ -197,6 +199,7 @@ function resolveComponentConfig(
     mergeVarDefaultsInto,
     buildVarRegistry,
     buildVarRefTree,
+    buildVarNames,
     buildCapturedVarDefinitions,
   } = createComponentConfigContextPair(classNaming, namespace);
 
@@ -211,6 +214,7 @@ function resolveComponentConfig(
       config: resolved,
       varRegistry: buildVarRegistry(resolved),
       varRefTree: buildVarRefTree(),
+      varNames: buildVarNames(),
       varDefinitions: defsFromConfig ?? buildCapturedVarDefinitions(),
     };
   }
@@ -225,6 +229,7 @@ function resolveComponentConfig(
       config: resolved,
       varRegistry: buildVarRegistry(resolved),
       varRefTree: buildVarRefTree(),
+      varNames: buildVarNames(),
       varDefinitions: defsFromConfig,
     };
   }
@@ -381,11 +386,27 @@ export function createComponent(
     config: resolved,
     varRegistry,
     varRefTree,
+    varNames,
     varDefinitions: configVarDefinitions,
   } = resolveComponentConfig(classNaming, namespace, config);
   const recipeVarDefinitions = configVarDefinitions;
-  const finish = <T extends object>(result: T) =>
-    finishComponentResult(result, varRegistry, recipeVarDefinitions, varRefTree);
+  // Builders that `typestyles/lite` can reproduce describe their calls through `recordPlan`;
+  // `finish` then records one complete entry for this recipe, `.vars` included. A builder that
+  // doesn't (hashed/compact/atomic flat, multi-slot and slot recipes) leaves the name `unplanned`,
+  // so the compile transform keeps the full runtime for it and never hands it another scope's
+  // same-named plan.
+  let buildPlan: (() => AttrsRecipeCallPlan) | undefined;
+  const recordPlan: RecordPlan = (build) => {
+    buildPlan = build;
+  };
+  const finish = <T extends object>(result: T) => {
+    recordClientPlan((): ClientPlanEntry => {
+      if (!buildPlan) return { kind: 'unplanned', namespace };
+      const plan = buildPlan();
+      return varNames ? { ...plan, vars: { ...varNames } } : plan;
+    });
+    return finishComponentResult(result, varRegistry, recipeVarDefinitions, varRefTree);
+  };
   if (isMultiSlotConfig(resolved)) {
     claimComponentNamespace(classNaming, namespace);
     if (
@@ -400,10 +421,10 @@ export function createComponent(
           namespace,
           resolved as MultiSlotConfig<readonly string[]>,
           emitLayer,
+          recordPlan,
         ),
       );
     }
-    recordUnplanned(namespace);
     return finish(
       createMultiSlotComponent(
         classNaming,
@@ -422,6 +443,7 @@ export function createComponent(
           namespace,
           resolved as SlotComponentConfig<readonly string[], SlotVariantDefinitions<string>>,
           emitLayer,
+          recordPlan,
         ),
       );
     }
@@ -436,10 +458,10 @@ export function createComponent(
           namespace,
           resolved as SlotComponentConfig<readonly string[], SlotVariantDefinitions<string>>,
           emitLayer,
+          recordPlan,
         ),
       );
     }
-    recordUnplanned(namespace);
     return finish(
       createSlotComponent(
         classNaming,
@@ -454,7 +476,13 @@ export function createComponent(
     const dimensionedConfig = resolved as ComponentConfig<VariantDefinitions>;
     if (classNaming.mode === 'attribute') {
       return finish(
-        createAttributeDimensionedComponent(classNaming, namespace, dimensionedConfig, emitLayer),
+        createAttributeDimensionedComponent(
+          classNaming,
+          namespace,
+          dimensionedConfig,
+          emitLayer,
+          recordPlan,
+        ),
       );
     }
     if (
@@ -463,10 +491,18 @@ export function createComponent(
       classNaming.mode === 'template'
     ) {
       return finish(
-        createTemplateDimensionedComponent(classNaming, namespace, dimensionedConfig, emitLayer),
+        createTemplateDimensionedComponent(
+          classNaming,
+          namespace,
+          dimensionedConfig,
+          emitLayer,
+          recordPlan,
+        ),
       );
     }
-    return finish(createDimensionedComponent(classNaming, namespace, dimensionedConfig, emitLayer));
+    return finish(
+      createDimensionedComponent(classNaming, namespace, dimensionedConfig, emitLayer, recordPlan),
+    );
   }
   claimComponentNamespace(classNaming, namespace);
   if (classNaming.mode === 'semantic' || classNaming.mode === 'attribute') {
@@ -476,23 +512,17 @@ export function createComponent(
         namespace,
         resolved as FlatComponentConfig<string>,
         emitLayer,
+        recordPlan,
       ),
     );
   }
-  recordUnplanned(namespace);
   return finish(
     createFlatComponent(classNaming, namespace, resolved as FlatComponentConfig<string>, emitLayer),
   );
 }
 
-/**
- * Shapes the lite runtime can't reproduce (hashed/compact/atomic flat, multi-slot and slot
- * recipes) still claim their name, so the compile transform never hands another scope's
- * same-named plan to them.
- */
-function recordUnplanned(namespace: string): void {
-  recordClientPlan(() => ({ kind: 'unplanned', namespace }));
-}
+/** Hands a builder's plan to `createComponent`, which records it (see `finish`). */
+type RecordPlan = (build: () => AttrsRecipeCallPlan) => void;
 
 // ---------------------------------------------------------------------------
 // Schema-first recipe (Issue #259)
@@ -628,7 +658,8 @@ function createDimensionedComponent<V extends VariantDefinitions>(
   classNaming: ClassNamingConfig,
   namespace: string,
   config: ComponentConfig<V>,
-  layer?: string,
+  layer: string | undefined,
+  recordPlan: RecordPlan,
 ): ComponentReturn<V> {
   const { base, variants = {} as V, compoundVariants = [], defaultVariants = {} } = config;
 
@@ -757,7 +788,7 @@ function createDimensionedComponent<V extends VariantDefinitions>(
     classMap,
   ) as ComponentReturn<V>;
 
-  recordClientPlan(() => ({
+  recordPlan(() => ({
     kind: 'classes',
     namespace,
     base: base && baseClassName ? baseClassName : undefined,
@@ -795,7 +826,8 @@ function createTemplateDimensionedComponent<V extends VariantDefinitions>(
   classNaming: ClassNamingConfig,
   namespace: string,
   config: ComponentConfig<V>,
-  layer?: string,
+  layer: string | undefined,
+  recordPlan: RecordPlan,
 ): ComponentReturn<V> {
   const { base, variants = {} as V, compoundVariants = [], defaultVariants = {} } = config;
 
@@ -922,7 +954,7 @@ function createTemplateDimensionedComponent<V extends VariantDefinitions>(
     classMap,
   ) as ComponentReturn<V>;
 
-  recordClientPlan(() => ({
+  recordPlan(() => ({
     kind: 'classes',
     namespace,
     base: hasBase ? blockClassName : undefined,
@@ -1089,7 +1121,8 @@ function createAttributeDimensionedComponent<V extends VariantDefinitions>(
   classNaming: ClassNamingConfig,
   namespace: string,
   config: ComponentConfig<V>,
-  layer?: string,
+  layer: string | undefined,
+  recordPlan: RecordPlan,
 ): ComponentAttrsReturn<V> {
   const { base, variants = {} as V, compoundVariants = [], defaultVariants = {} } = config;
   warnKebabAttributeCollisions(namespace, Object.keys(variants));
@@ -1164,7 +1197,7 @@ function createAttributeDimensionedComponent<V extends VariantDefinitions>(
 
   // Everything a *call* of this recipe does is determined by this plan, so a
   // zero-runtime build can replace the whole definition with it (see `typestyles/lite`).
-  recordClientPlan(() => ({
+  recordPlan(() => ({
     kind: 'attrs',
     namespace,
     base: baseClassName,
@@ -1186,7 +1219,8 @@ function createAttributeSlotComponent<
   classNaming: ClassNamingConfig,
   namespace: string,
   config: SlotComponentConfig<Slots, V>,
-  layer?: string,
+  layer: string | undefined,
+  recordPlan: RecordPlan,
 ): SlotAttrsReturn<Slots, V> {
   const {
     slots,
@@ -1282,7 +1316,7 @@ function createAttributeSlotComponent<
     ),
   });
 
-  recordClientPlan(() => ({
+  recordPlan(() => ({
     kind: 'attrs-slots',
     namespace,
     slots: { ...baseClassBySlot },
@@ -1305,7 +1339,8 @@ function createSemanticFlatComponent<K extends string>(
   classNaming: ClassNamingConfig,
   namespace: string,
   config: FlatComponentConfig<K>,
-  layer?: string,
+  layer: string | undefined,
+  recordPlan: RecordPlan,
 ): FlatComponentReturn<K> {
   const rules: Array<{ key: string; css: string }> = [];
   const classMap: Record<string, string> = {};
@@ -1385,7 +1420,7 @@ function createSemanticFlatComponent<K extends string>(
     ),
   });
 
-  recordClientPlan(() => ({
+  recordPlan(() => ({
     kind: 'flat',
     namespace,
     classMap: { ...classMap },
@@ -1542,7 +1577,8 @@ function createTemplateMultiSlotComponent<Slots extends readonly string[]>(
   classNaming: ClassNamingConfig,
   namespace: string,
   config: MultiSlotConfig<Slots>,
-  layer?: string,
+  layer: string | undefined,
+  recordPlan: RecordPlan,
 ): MultiSlotReturn<Slots> {
   const { slots } = config;
 
@@ -1583,7 +1619,7 @@ function createTemplateMultiSlotComponent<Slots extends readonly string[]>(
       (slots as readonly string[]).map((slot) => [slot, firstClassToken(slotClassMap[slot] ?? '')]),
     ),
   });
-  recordClientPlan(() => ({ kind: 'multi-slot', namespace, slots: { ...slotClassMap } }));
+  recordPlan(() => ({ kind: 'multi-slot', namespace, slots: { ...slotClassMap } }));
   return result;
 }
 
@@ -1598,7 +1634,8 @@ function createTemplateSlotComponent<
   classNaming: ClassNamingConfig,
   namespace: string,
   config: SlotComponentConfig<Slots, V>,
-  layer?: string,
+  layer: string | undefined,
+  recordPlan: RecordPlan,
 ): SlotComponentFunction<Slots, V> {
   const {
     slots,
@@ -1739,7 +1776,7 @@ function createTemplateSlotComponent<
     ) as Record<Slots[number], string>;
   }) as SlotComponentFunction<Slots, V>;
 
-  recordClientPlan(() => ({
+  recordPlan(() => ({
     kind: 'class-slots',
     namespace,
     slots: { ...baseClassBySlot },

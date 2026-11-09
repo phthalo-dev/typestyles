@@ -1,5 +1,4 @@
 import type {
-  CSSVarRef,
   PropertyOptions,
   PropertyRegistration,
   RegisteredPropertyRef,
@@ -9,6 +8,9 @@ import { sanitizeClassSegment, scopedTokenNamespace, type ClassNamingConfig } fr
 import { syntaxPlaceholderFor } from './at-property';
 import { registerCustomProperty } from './custom-properties';
 import { insertRule } from '#sheet';
+import { createRegisteredPropertyRef } from './var-ref-tree';
+
+export { createRegisteredPropertyRef };
 
 const propertyRegistrations = new Map<
   string,
@@ -33,20 +35,6 @@ export function resetPropertyRegistrations(): void {
 
 export function escapePropertySyntaxString(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
-export function createRegisteredPropertyRef(name: string): RegisteredPropertyRef {
-  const varRef = `var(${name})` as CSSVarRef;
-  return {
-    name,
-    var: varRef,
-    toString() {
-      return varRef;
-    },
-    valueOf() {
-      return varRef;
-    },
-  };
 }
 
 /**

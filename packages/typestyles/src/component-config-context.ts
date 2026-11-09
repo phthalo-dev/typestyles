@@ -6,6 +6,7 @@ import {
   registerAtPropertyRule,
   registerAtPropertySchema,
 } from './registered-property';
+import { buildVarRefTree } from './var-ref-tree';
 import { flattenTokenSchema } from './token-schema';
 import type {
   ComponentConfigContext,
@@ -81,95 +82,6 @@ export function flattenComponentVars(
   return out;
 }
 
-function pathPrefixes(path: string): string[] {
-  const parts = path.split('-');
-  const prefixes: string[] = [];
-  for (let i = 1; i <= parts.length; i++) {
-    prefixes.push(parts.slice(0, i).join('-'));
-  }
-  return prefixes;
-}
-
-function collectPathKeys(entries: FlatComponentVarEntry[]): Set<string> {
-  const keys = new Set<string>();
-  for (const e of entries) {
-    for (const p of pathPrefixes(e.path)) {
-      keys.add(p);
-    }
-  }
-  return keys;
-}
-
-function createVarRefsProxy(
-  refByPath: Map<string, ComponentInternalVarRef>,
-  allPathKeys: Set<string>,
-  prefix: string,
-): object {
-  const handler: ProxyHandler<object> = {
-    get(_target, prop: string | symbol): unknown {
-      if (typeof prop === 'symbol') {
-        return undefined;
-      }
-      if (prop === 'constructor') return Object;
-      if (prop === '__esModule') return false;
-
-      const newPrefix = prefix ? `${prefix}-${prop}` : prop;
-
-      if (refByPath.has(newPrefix)) {
-        const hasChildren = [...refByPath.keys()].some(
-          (k) => k !== newPrefix && k.startsWith(`${newPrefix}-`),
-        );
-        if (hasChildren) {
-          return createVarRefsProxy(refByPath, allPathKeys, newPrefix);
-        }
-        return refByPath.get(newPrefix);
-      }
-
-      if ([...refByPath.keys()].some((k) => k.startsWith(`${newPrefix}-`))) {
-        return createVarRefsProxy(refByPath, allPathKeys, newPrefix);
-      }
-
-      if (prefix !== '' && allPathKeys.has(newPrefix)) {
-        return createVarRefsProxy(refByPath, allPathKeys, newPrefix);
-      }
-
-      return undefined;
-    },
-    has(_target, prop: string | symbol) {
-      if (typeof prop !== 'string') return false;
-      const newPrefix = prefix ? `${prefix}-${prop}` : prop;
-      if (refByPath.has(newPrefix)) return true;
-      return [...refByPath.keys()].some((k) => k.startsWith(`${newPrefix}-`));
-    },
-    set(_target, _prop, _value) {
-      return false;
-    },
-  };
-
-  return new Proxy({}, handler);
-}
-
-/** Build the ref tree for all vars registered on this component context so far. */
-export function buildVarRefTreeFromRegistry(
-  refByPath: Map<string, ComponentInternalVarRef>,
-  pathKeys?: Set<string>,
-): ComponentVarRefTree<ComponentVarDefinitions> | undefined {
-  if (refByPath.size === 0) return undefined;
-  const allPathKeys = pathKeys ?? new Set<string>();
-  if (!pathKeys) {
-    for (const path of refByPath.keys()) {
-      for (const p of pathPrefixes(path)) {
-        allPathKeys.add(p);
-      }
-    }
-  }
-  return createVarRefsProxy(
-    refByPath,
-    allPathKeys,
-    '',
-  ) as ComponentVarRefTree<ComponentVarDefinitions>;
-}
-
 function mergeComponentVarDefinitions(
   a: ComponentVarDefinitions,
   b: ComponentVarDefinitions,
@@ -198,19 +110,6 @@ function mergeComponentVarDefinitions(
   }
 
   return result;
-}
-
-function attachVarDefinitionsBrand<T extends ComponentVarDefinitions>(
-  tree: ComponentVarRefTree<T>,
-  definitions: T,
-): ComponentVarRefTree<T> {
-  Object.defineProperty(tree, componentVarDefinitionsKey, {
-    value: definitions,
-    enumerable: false,
-    writable: false,
-    configurable: true,
-  });
-  return tree;
 }
 
 /** Read definitions stamped on a `ctx.vars()` ref tree. */
@@ -347,6 +246,8 @@ export function createComponentConfigContextPair(
   mergeVarDefaultsInto: (config: Record<string, unknown>) => Record<string, unknown>;
   buildVarRegistry: (config: Record<string, unknown>) => ComponentVarRegistry | undefined;
   buildVarRefTree: () => ComponentVarRefTree<ComponentVarDefinitions> | undefined;
+  /** Logical var path -> custom property name (what `typestyles/lite` needs to rebuild `.vars`). */
+  buildVarNames: () => Record<string, string> | undefined;
   buildCapturedVarDefinitions: () => ComponentVarDefinitions | undefined;
 } {
   const seen = new Set<string>();
@@ -510,25 +411,22 @@ export function createComponentConfigContextPair(
   }
 
   function varsFn<const T extends ComponentVarDefinitions>(definitions: T): ComponentVarRefTree<T> {
-    const entries = flattenComponentVars(definitions);
-    const allPathKeys = collectPathKeys(entries);
-
-    for (const e of entries) {
-      registerVarValue(e.path, e);
+    const refByPath = new Map<string, ComponentInternalVarRef>();
+    for (const e of flattenComponentVars(definitions)) {
+      refByPath.set(e.path, registerVarValue(e.path, e));
     }
-
-    const tree = buildVarRefTreeFromRegistry(varRefByPath, allPathKeys)! as ComponentVarRefTree<T>;
-    return attachVarDefinitionsBrand(tree, captureVarDefinitions(definitions));
+    // The brand lets `vars: c.vars({ … })` on the config reuse these registrations.
+    return buildVarRefTree(refByPath, {
+      [componentVarDefinitionsKey]: captureVarDefinitions(definitions),
+    }) as ComponentVarRefTree<T>;
   }
 
   function varsDeclareFn<const T extends ComponentVarSchema>(
     schema: T,
   ): ComponentVarRefTree<InferFromSchema<T>> {
     const refByPath = new Map<string, ComponentInternalVarRef>();
-    const allPathKeys = new Set<string>();
 
     for (const { path } of flattenTokenSchema(schema)) {
-      for (const p of pathPrefixes(path)) allPathKeys.add(p);
       const safeId = sanitizeClassSegment(path);
       trackSeen(safeId, `internal var path "${path}"`);
       const name = `--${ns}-${safeId}`;
@@ -544,9 +442,7 @@ export function createComponentConfigContextPair(
       return ref;
     });
 
-    return buildVarRefTreeFromRegistry(refByPath, allPathKeys)! as unknown as ComponentVarRefTree<
-      InferFromSchema<T>
-    >;
+    return buildVarRefTree(refByPath) as unknown as ComponentVarRefTree<InferFromSchema<T>>;
   }
 
   const varCallable = Object.assign(varFn, { declare: declareVarFn });
@@ -599,7 +495,11 @@ export function createComponentConfigContextPair(
     },
     buildVarRegistry: (config: Record<string, unknown>) =>
       finalizeVarRegistry(registeredVars, byPath, config),
-    buildVarRefTree: () => buildVarRefTreeFromRegistry(varRefByPath),
+    buildVarRefTree: () => buildVarRefTree(varRefByPath),
+    buildVarNames: () =>
+      varRefByPath.size === 0
+        ? undefined
+        : Object.fromEntries([...varRefByPath].map(([path, ref]) => [path, ref.name])),
     buildCapturedVarDefinitions: () => capturedVarDefinitions,
   };
 }

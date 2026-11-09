@@ -45,4 +45,28 @@ export const btn = recipe({
       await rm(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('extracts a module under a dot directory given as a root-relative path', async () => {
+    const projectRoot = process.cwd();
+    // e.g. `.storybook/styles.ts`: without a leading `./` esbuild reads it as a package name.
+    const dotDir = await mkdtemp(join(projectRoot, '.typestyles-dot-dir-'));
+    try {
+      const entryFile = join(dotDir, 'styles.ts');
+      await writeFile(
+        entryFile,
+        `
+import { createTypeStyles } from 'typestyles';
+const { style } = createTypeStyles({ scopeId: 'dot' });
+export const panel = style('extract-dot-dir-panel', { color: 'red' });
+`,
+        'utf8',
+      );
+      const rel = relative(projectRoot, entryFile);
+      expect(rel.startsWith('.typestyles-dot-dir-')).toBe(true);
+      const { css } = await runTypestylesExtract({ root: projectRoot, modules: [rel] });
+      expect(css).toContain('extract-dot-dir-panel');
+    } finally {
+      await rm(dotDir, { recursive: true, force: true });
+    }
+  });
 });
