@@ -96,7 +96,7 @@ export type AttrsRecipePlan = AttrsRecipeCallPlan & {
   vars?: Record<string, string>;
 };
 
-type AttrsRecipeCallPlan =
+export type AttrsRecipeCallPlan =
   | {
       kind: 'attrs';
       namespace: string;

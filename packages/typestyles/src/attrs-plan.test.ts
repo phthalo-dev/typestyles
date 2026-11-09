@@ -219,6 +219,52 @@ describe('attribute-mode client plans', () => {
     expect('vars' in (createAttrsRecipeFromPlan(plan) as object)).toBe(false);
   });
 
+  it('builds `.vars` as plain objects that iterate the same way in both runtimes', () => {
+    type VarRef = { name: string; var: string };
+    const full = recipe({
+      name: 'planitervars',
+      vars: { fill: { value: '0%' }, track: { color: 'gray', width: '2px' } },
+      base: { color: 'red' },
+    } as never) as unknown as {
+      vars: { fill: VarRef; track: { color: VarRef; width: VarRef } };
+    };
+    const plan = getClientPlans().find((p) => p.namespace === 'planitervars') as AttrsRecipePlan;
+    const lite = createAttrsRecipeFromPlan(JSON.parse(JSON.stringify(plan))) as typeof full;
+
+    for (const vars of [full.vars, lite.vars]) {
+      expect(Object.keys(vars)).toEqual(['fill', 'track']);
+      expect(Object.keys(vars.track)).toEqual(['color', 'width']);
+      expect(Object.isFrozen(vars) && Object.isFrozen(vars.track)).toBe(true);
+      // A dashed path reads the same ref as the nesting, without showing up when iterating.
+      expect((vars as unknown as Record<string, VarRef>)['track-color']).toBe(vars.track.color);
+      expect('track-color' in vars).toBe(true);
+    }
+    expect(JSON.parse(JSON.stringify(lite.vars))).toEqual(JSON.parse(JSON.stringify(full.vars)));
+    expect(JSON.parse(JSON.stringify(full.vars)).track.color.name).toBe(full.vars.track.color.name);
+  });
+
+  it('records one complete entry per recipe, with that recipe’s own vars', () => {
+    const before = getClientPlans().length;
+    recipe({ name: 'planonea', vars: { a: { value: '1px' } }, base: { color: 'red' } } as never);
+    createTypeStyles({ scopeId: 'plan3', mode: 'hashed' }).recipe({
+      name: 'planoneb',
+      slots: ['root'],
+      vars: { b: { value: '2px' } },
+      root: { color: 'red' },
+    } as never);
+    recipe({ name: 'planonec', vars: { c: { value: '3px' } }, base: { color: 'red' } } as never);
+
+    const added = getClientPlans().slice(before);
+    expect(added.map((p) => [p.kind, p.namespace])).toEqual([
+      ['flat', 'planonea'],
+      ['unplanned', 'planoneb'],
+      ['flat', 'planonec'],
+    ]);
+    expect(Object.keys((added[0] as AttrsRecipePlan).vars!)).toEqual(['a']);
+    expect('vars' in added[1]!).toBe(false);
+    expect(Object.keys((added[2] as AttrsRecipePlan).vars!)).toEqual(['c']);
+  });
+
   it('does not record plans for shapes it cannot reproduce (slots in hashed mode)', () => {
     const hashed = createTypeStyles({ scopeId: 'plan2', mode: 'hashed' });
     hashed.recipe({

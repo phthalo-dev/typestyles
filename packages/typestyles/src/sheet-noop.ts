@@ -20,8 +20,6 @@ export function devDiagnosticsEnabled(): boolean {
 
 export function recordClientPlan(_build: () => unknown): void {}
 
-export function recordClientPlanVars(_namespace: string, _vars: Record<string, string>): void {}
-
 export function getClientPlans(): readonly never[] {
   return [];
 }

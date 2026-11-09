@@ -54,17 +54,6 @@ export function recordClientPlan(build: () => ClientPlanEntry): void {
   clientPlans.push(build());
 }
 
-/**
- * Add a recipe's `.vars` (logical path -> custom property name) to the plan its definition just
- * recorded, so the lite handle exposes the same refs. No-op for `unplanned` markers.
- */
-export function recordClientPlanVars(namespace: string, vars: Record<string, string>): void {
-  if (globalThis.__TYPESTYLES_RECORD_PLANS__ !== true) return;
-  const last = clientPlans[clientPlans.length - 1];
-  if (!last || last.namespace !== namespace || last.kind === 'unplanned') return;
-  last.vars = { ...vars };
-}
-
 /** Plans recorded since the last `reset()` (empty unless recording is on). */
 export function getClientPlans(): readonly ClientPlanEntry[] {
   return clientPlans;

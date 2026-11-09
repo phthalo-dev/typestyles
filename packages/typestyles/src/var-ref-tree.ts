@@ -24,90 +24,63 @@ export function createRegisteredPropertyRef(name: string): RegisteredPropertyRef
   };
 }
 
-export function pathPrefixes(path: string): string[] {
-  const parts = path.split('-');
-  const prefixes: string[] = [];
-  for (let i = 1; i <= parts.length; i++) {
-    prefixes.push(parts.slice(0, i).join('-'));
-  }
-  return prefixes;
-}
-
-function createVarRefsProxy(
-  refByPath: Map<string, ComponentInternalVarRef>,
-  allPathKeys: Set<string>,
-  prefix: string,
-): object {
-  const handler: ProxyHandler<object> = {
-    get(_target, prop: string | symbol): unknown {
-      if (typeof prop === 'symbol') {
-        return undefined;
-      }
-      if (prop === 'constructor') return Object;
-      if (prop === '__esModule') return false;
-
-      const newPrefix = prefix ? `${prefix}-${prop}` : prop;
-
-      if (refByPath.has(newPrefix)) {
-        const hasChildren = [...refByPath.keys()].some(
-          (k) => k !== newPrefix && k.startsWith(`${newPrefix}-`),
-        );
-        if (hasChildren) {
-          return createVarRefsProxy(refByPath, allPathKeys, newPrefix);
-        }
-        return refByPath.get(newPrefix);
-      }
-
-      if ([...refByPath.keys()].some((k) => k.startsWith(`${newPrefix}-`))) {
-        return createVarRefsProxy(refByPath, allPathKeys, newPrefix);
-      }
-
-      if (prefix !== '' && allPathKeys.has(newPrefix)) {
-        return createVarRefsProxy(refByPath, allPathKeys, newPrefix);
-      }
-
-      return undefined;
-    },
-    has(_target, prop: string | symbol) {
-      if (typeof prop !== 'string') return false;
-      const newPrefix = prefix ? `${prefix}-${prop}` : prop;
-      if (refByPath.has(newPrefix)) return true;
-      return [...refByPath.keys()].some((k) => k.startsWith(`${newPrefix}-`));
-    },
-    set(_target, _prop, _value) {
-      return false;
-    },
-  };
-
-  return new Proxy({}, handler);
-}
-
-/** Build the ref tree for all vars registered on this component context so far. */
-export function buildVarRefTreeFromRegistry(
-  refByPath: Map<string, ComponentInternalVarRef>,
-  pathKeys?: Set<string>,
+/**
+ * Build the `.vars` tree for refs keyed by logical path (`'track-color'`), once, as frozen plain
+ * objects: reads are ordinary property lookups, and `Object.keys` / spread / `JSON.stringify` see
+ * the nesting (`{ track: { color } }`).
+ *
+ * Path segments are joined by `-`, so a dashed key can be read either way: `vars.track.color` and
+ * `vars['track-color']` are the same ref (the joined spellings are non-enumerable, so iteration
+ * only sees the nesting). A path that is both a var and the parent of another resolves to the
+ * parent.
+ *
+ * `hidden` adds non-enumerable properties to the root before it is frozen.
+ */
+export function buildVarRefTree(
+  refByPath: ReadonlyMap<string, ComponentInternalVarRef>,
+  hidden?: Record<string, unknown>,
 ): ComponentVarRefTree<ComponentVarDefinitions> | undefined {
   if (refByPath.size === 0) return undefined;
-  const allPathKeys = pathKeys ?? new Set<string>();
-  if (!pathKeys) {
-    for (const path of refByPath.keys()) {
-      for (const p of pathPrefixes(path)) {
-        allPathKeys.add(p);
-      }
+
+  const root: Record<string, unknown> = {};
+  const nodes = new Map<string, Record<string, unknown>>([['', root]]);
+  const segmentsByPath = new Map<string, string[]>();
+  for (const path of refByPath.keys()) {
+    const segments = path.split('-');
+    for (let end = 1; end <= segments.length; end++) {
+      const prefix = segments.slice(0, end).join('-');
+      if (prefix === '') continue;
+      if (!segmentsByPath.has(prefix)) segmentsByPath.set(prefix, segments.slice(0, end));
+      if (end < segments.length && !nodes.has(prefix)) nodes.set(prefix, {});
     }
   }
-  return createVarRefsProxy(
-    refByPath,
-    allPathKeys,
-    '',
-  ) as ComponentVarRefTree<ComponentVarDefinitions>;
+
+  const valueAt = (path: string): unknown => nodes.get(path) ?? refByPath.get(path);
+  for (const [path, segments] of segmentsByPath) {
+    const last = segments.length - 1;
+    for (let start = last; start >= 0; start--) {
+      const parent = nodes.get(segments.slice(0, start).join('-'))!;
+      const key = segments.slice(start).join('-');
+      if (Object.prototype.hasOwnProperty.call(parent, key)) continue;
+      Object.defineProperty(parent, key, {
+        value: valueAt(path),
+        enumerable: start === last,
+      });
+    }
+  }
+
+  for (const [key, value] of Object.entries(hidden ?? {})) {
+    Object.defineProperty(root, key, { value });
+  }
+  for (const node of nodes.values()) Object.freeze(node);
+  return root as ComponentVarRefTree<ComponentVarDefinitions>;
 }
 
 /** Rebuild a `.vars` tree from logical path -> custom property name (see `AttrsRecipePlan.vars`). */
 export function buildVarRefTreeFromNames(
   names: Record<string, string>,
 ): ComponentVarRefTree<ComponentVarDefinitions> | undefined {
-  return buildVarRefTreeFromRegistry(
+  return buildVarRefTree(
     new Map(Object.entries(names).map(([path, name]) => [path, createRegisteredPropertyRef(name)])),
   );
 }
