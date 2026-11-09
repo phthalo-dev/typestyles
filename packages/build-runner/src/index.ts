@@ -95,9 +95,14 @@ export interface RunTypestylesBuildOptions {
   sourceComments?: boolean;
 }
 
+/**
+ * An import specifier esbuild resolves as a file, relative to the extraction root. Only `./`,
+ * `../` and absolute paths are left as-is: a root-relative path under a dot directory
+ * (`.storybook/styles.ts`) still needs `./`, or it is read as a package name.
+ */
 function toImportPath(modulePath: string): string {
   const normalized = modulePath.replace(/\\/g, '/');
-  if (normalized.startsWith('.') || normalized.startsWith('/')) {
+  if (/^(\.{1,2}\/|\/|[A-Za-z]:\/)/.test(normalized)) {
     return normalized;
   }
   return `./${normalized}`;
