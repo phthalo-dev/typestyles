@@ -2,7 +2,7 @@
   "name": "typestyles-monorepo",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.11.1",
+  "packageManager": "pnpm@12.18.0",
   "scripts": {
     "build": "vp run -F \"./packages/*\" build",
     "test": "vp run -r test",
