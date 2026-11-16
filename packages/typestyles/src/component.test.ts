@@ -4,6 +4,7 @@ import { defaultClassNamingConfig, mergeClassNaming } from './class-naming';
 import { reset, flushSync, getRegisteredCss } from './sheet';
 import { registeredNamespaces } from './registry';
 import { createStyles } from './styles';
+import { variant } from './variant';
 
 /** Declarations inside the rule whose selector is exactly `selector`. */
 function declarationsFor(css: string, selector: string): string {
@@ -1174,6 +1175,166 @@ describe('recipe var slots', () => {
     expect(root).toContain('--menu-slot-vars-anchorx: 0px');
     expect(popover).toContain('--menu-slot-vars-popoverbackground: var(--color-surface)');
     expect(popover).not.toContain('--menu-slot-vars-anchorx');
+  });
+
+  it('routes a slot-read var default to that slot without an explicit slots option (#322)', () => {
+    // Issue #322 (mobileNav): the toggle slot renders outside the popup host,
+    // so a default declared only on the host never reaches it and `color`
+    // silently falls back to the `@property` initial value (`transparent`).
+    const styles = createStyles();
+    styles.component({
+      name: 'auto-route-nav',
+      slots: ['popup', 'header', 'toggle'] as const,
+      variants: { open: variant.boolean({ default: false }) },
+      vars: {
+        toggleColor: { value: 'var(--color-text)', syntax: '<color>' as const },
+      },
+      styles: ({ vars }) => ({
+        base: {
+          popup: { display: 'flex' },
+          header: { display: 'flex' },
+          toggle: { color: vars.toggleColor.var },
+        },
+      }),
+    });
+    flushSync();
+
+    const css = getRegisteredCss();
+    // The host slot (`popup`, the first one) always carries the default…
+    expect(declarationsFor(css, '.auto-route-nav__popup')).toContain(
+      '--auto-route-nav-togglecolor: var(--color-text)',
+    );
+    // …and `toggle` reads the var in its styles, so it gets its own copy too.
+    expect(declarationsFor(css, '.auto-route-nav__toggle')).toContain(
+      '--auto-route-nav-togglecolor: var(--color-text)',
+    );
+    // `header` never reads the var — no routing.
+    expect(declarationsFor(css, '.auto-route-nav__header')).not.toContain(
+      '--auto-route-nav-togglecolor',
+    );
+  });
+
+  it('routes a var default to a slot whose styles only read it in variant options', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'auto-route-variant',
+      slots: ['root', 'panel'] as const,
+      variants: { tone: variant.enum(['danger'], { default: 'danger' }) },
+      vars: {
+        ink: { value: '#111', syntax: '<color>' as const },
+      },
+      styles: ({ vars }) => ({
+        base: { root: { color: '#000' } }, // `panel` has no base styles at all
+        variants: {
+          tone: {
+            danger: { panel: { color: vars.ink.var } },
+          },
+        },
+      }),
+    });
+    flushSync();
+
+    expect(declarationsFor(getRegisteredCss(), '.auto-route-variant__panel')).toContain(
+      '--auto-route-variant-ink: #111',
+    );
+  });
+
+  it('routes a var default to a slot whose styles only read it in compound variants', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'auto-route-compound',
+      slots: ['root', 'panel'] as const,
+      variants: { tone: variant.enum(['danger'], { default: 'danger' }) },
+      vars: {
+        ink: { value: '#111', syntax: '<color>' as const },
+      },
+      styles: ({ vars }) => ({
+        base: { root: { color: '#000' } },
+        variants: { tone: { danger: { root: { fontWeight: 700 } } } },
+        compoundVariants: [
+          { variants: { tone: 'danger' }, style: { panel: { color: vars.ink.var } } },
+        ],
+      }),
+    });
+    flushSync();
+
+    expect(declarationsFor(getRegisteredCss(), '.auto-route-compound__panel')).toContain(
+      '--auto-route-compound-ink: #111',
+    );
+  });
+
+  it('routes a var default to reading slots in multi-slot recipes', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'auto-route-multi',
+      slots: ['icon', 'label', 'badge'] as const,
+      vars: {
+        ink: { value: '#111' },
+      },
+      styles: ({ vars }) => ({
+        base: {
+          icon: { color: vars.ink.var },
+          label: { color: vars.ink.var },
+        },
+      }),
+    });
+    flushSync();
+
+    const css = getRegisteredCss();
+    for (const selector of ['.auto-route-multi__icon', '.auto-route-multi__label']) {
+      expect(declarationsFor(css, selector)).toContain('--auto-route-multi-ink: #111');
+    }
+    expect(declarationsFor(css, '.auto-route-multi__badge')).not.toContain(
+      '--auto-route-multi-ink',
+    );
+  });
+
+  it('combines auto-routed slots with explicit slots options without duplicating defaults', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'auto-route-explicit',
+      slots: ['root', 'popover', 'toggle'] as const,
+      vars: {
+        // `popover` reads the var (auto-routed); `toggle` is listed explicitly
+        // without reading it (it might be styled only by an override).
+        ink: { value: '#111', slots: ['toggle'] },
+      },
+      styles: ({ vars }) => ({
+        base: {
+          popover: { color: vars.ink.var },
+          toggle: { display: 'block' },
+        },
+      }),
+    });
+    flushSync();
+
+    const css = getRegisteredCss();
+    for (const selector of [
+      '.auto-route-explicit',
+      '.auto-route-explicit__popover',
+      '.auto-route-explicit__toggle',
+    ]) {
+      const declarations = declarationsFor(css, selector);
+      expect(declarations.match(/--auto-route-explicit-ink: #111/g)).toHaveLength(1);
+    }
+  });
+
+  it('does not route a var read only by the host slot a second time', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'auto-route-host-only',
+      slots: ['root', 'content'] as const,
+      vars: {
+        ink: { value: '#111' },
+      },
+      styles: ({ vars }) => ({
+        base: { root: { color: vars.ink.var } },
+      }),
+    });
+    flushSync();
+
+    const root = declarationsFor(getRegisteredCss(), '.auto-route-host-only');
+    expect(root.match(/--auto-route-host-only-ink: #111/g)).toHaveLength(1);
   });
 
   it('warns when a var names a slot the recipe does not declare', () => {

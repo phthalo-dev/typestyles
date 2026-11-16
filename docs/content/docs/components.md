@@ -556,10 +556,12 @@ import type { OverrideConfigFor } from 'typestyles';
 export type SideNavThemeOverride = OverrideConfigFor<typeof sideNav>;
 ```
 
-A var can name extra slots that must carry it. The default and every theme override
-are still emitted on the host, and also on each named slot. That is what a portaled
-popover needs: it is not a descendant of the host, so it never inherits a custom
-property set only there. Omitting `slots` keeps the host-only behavior.
+A slot rendered outside the host element never inherits a custom property declared
+on the host, so a var's default is routed to every slot whose styles read it.
+TypeStyles records those reads while building the recipe — in `base` blocks,
+variant options, and compound variants — and emits the default on each of those
+slots too. Theme overrides for the var are emitted on those slots as well, so a
+portaled popover picks up the theme value on itself.
 
 ```ts
 const menu = recipe({
@@ -569,7 +571,6 @@ const menu = recipe({
     popoverBackground: {
       value: 'var(--color-background-surface)',
       syntax: '<color>' as const,
-      slots: ['popover'],
     },
     anchorX: { value: '0px', syntax: '<length>' as const },
   },
@@ -581,15 +582,30 @@ const menu = recipe({
 });
 ```
 
-`anchorX` stays on the host. `popoverBackground` is declared on `.menu` and on
-`.menu__popover`, and a theme override for it is emitted on both selectors. A slot
-name that the recipe does not declare logs a dev warning and is ignored.
+`popoverBackground` is declared on `.menu` and on `.menu__popover`, and a theme
+override for it is emitted on both selectors. No explicit `slots` option is needed:
+the slot that reads the var gets it automatically. `anchorX` stays on the host
+because no slot styles read it.
+
+The explicit `slots` option is an override for slots that must carry a var without
+reading it in the recipe styles — for example a portaled slot styled only through
+an override, or by the consumer:
+
+```ts
+vars: {
+  toggleColor: { value: 'var(--color-text)', slots: ['toggle'] },
+},
+```
+
+A slot name that the recipe does not declare logs a dev warning and is ignored.
 
 Notes:
 
 - **`vars` target the var host slot** — `base` for dimensioned/flat recipes,
-  `root` (or the first slot when there is no `root`) for slotted recipes. A var's
-  `slots` list copies that declaration onto those slots as well. Layout
+  `root` (or the first slot when there is no `root`) for slotted recipes. Every
+  slot whose styles read a var gets that var's default and theme overrides on
+  itself (so portal-rendered slots keep working), and a var's explicit `slots`
+  list adds further slots. Layout
   overrides stay in `base` / slot blocks.
 - **Nested paths** flatten to dashed custom properties (`padding.outer.x` →
   `padding-outer-x`). Dotted keys (`'padding.outer.x'`) are also accepted.

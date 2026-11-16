@@ -38,7 +38,10 @@ export type FlatComponentVarEntry = {
   syntax?: string;
   inherits?: boolean;
   initial?: string | number;
-  /** Extra slots that receive this default, in addition to the host. */
+  /**
+   * Extra slots that receive this default, in addition to the host and any
+   * slots whose styles read the var (those are routed automatically, #322).
+   */
   slots?: readonly string[];
 };
 
@@ -169,7 +172,10 @@ function declareVarSchema(
 export type ComponentVarDefaultDecl = {
   name: string;
   value: string;
-  /** Extra slots that receive this default, in addition to the host. */
+  /**
+   * Slots that receive this default (and theme overrides) beyond the host: the
+   * var's explicit `slots` option plus every slot whose styles read the var.
+   */
   slots?: readonly string[];
 };
 
@@ -236,6 +242,114 @@ export function mergeComponentVarDefaultsInto(
     next = writeSlotDeclarations(next, slot, declarations);
   }
   return next;
+}
+
+// ---------------------------------------------------------------------------
+// Var slot auto-routing (#322)
+// ---------------------------------------------------------------------------
+
+/** Config keys that are never per-slot style blocks when scanning a multi-slot config. */
+const SLOT_SCAN_RESERVED_KEYS = new Set(['slots', 'vars']);
+
+/** Collect `var(--…)` names read anywhere inside a style node (values, nested selectors, at-rules). */
+function collectVarReadNames(node: unknown, pattern: RegExp, into: Set<string>): void {
+  if (typeof node === 'string') {
+    for (const match of node.matchAll(pattern)) {
+      const name = match[1];
+      if (name) into.add(name);
+    }
+    return;
+  }
+  if (Array.isArray(node)) {
+    for (const item of node) collectVarReadNames(item, pattern, into);
+    return;
+  }
+  if (node !== null && typeof node === 'object') {
+    for (const value of Object.values(node)) collectVarReadNames(value, pattern, into);
+  }
+}
+
+/**
+ * Which recipe slots read which internal var in their styles.
+ *
+ * Slot style blocks can only reach a custom property two ways: inheritance from
+ * the host slot, or a declaration of their own. A slot rendered outside the host
+ * element gets neither and silently falls back to the `@property` initial value
+ * (Issue #322), so every slot whose styles read a var gets its default routed to
+ * it (`collectVarSlotUsage` feeds the default merge and the var registry).
+ *
+ * Only slots declared on the recipe are considered — those are the only slots a
+ * slot style block can be emitted for. The host slot is excluded from the result;
+ * it always receives defaults anyway.
+ */
+function collectVarSlotUsage(
+  config: Record<string, unknown>,
+  names: readonly string[],
+): Map<string, string[]> {
+  const usage = new Map<string, string[]>();
+  const slots = Array.isArray(config.slots) ? config.slots.map(String) : [];
+  if (slots.length === 0 || names.length === 0) return usage;
+
+  const pattern = new RegExp(`var\\(\\s*(${names.join('|')})\\s*[,)]`, 'g');
+  const readsFor = (node: unknown): Set<string> => {
+    const found = new Set<string>();
+    collectVarReadNames(node, pattern, found);
+    return found;
+  };
+  const usageFor = (slot: string, node: unknown): void => {
+    for (const name of readsFor(node)) {
+      const list = usage.get(name);
+      if (list) {
+        if (!list.includes(slot)) list.push(slot);
+      } else {
+        usage.set(name, [slot]);
+      }
+    }
+  };
+
+  if (usesBaseSlotContainer(config)) {
+    const base = (config.base ?? {}) as Record<string, unknown>;
+    for (const slot of slots) {
+      usageFor(slot, base[slot]);
+    }
+    const variants = config.variants;
+    if (variants != null && typeof variants === 'object' && !Array.isArray(variants)) {
+      for (const optionMap of Object.values(variants)) {
+        if (optionMap == null || typeof optionMap !== 'object' || Array.isArray(optionMap)) {
+          continue;
+        }
+        for (const optionStyles of Object.values(optionMap)) {
+          if (optionStyles == null || typeof optionStyles !== 'object') continue;
+          for (const slot of slots) {
+            usageFor(slot, (optionStyles as Record<string, unknown>)[slot]);
+          }
+        }
+      }
+    }
+    const compoundVariants = config.compoundVariants;
+    if (Array.isArray(compoundVariants)) {
+      for (const cv of compoundVariants) {
+        const style = (cv as Record<string, unknown> | null)?.style;
+        if (style == null || typeof style !== 'object') continue;
+        for (const slot of slots) {
+          usageFor(slot, (style as Record<string, unknown>)[slot]);
+        }
+      }
+    }
+  } else {
+    for (const slot of slots) {
+      if (SLOT_SCAN_RESERVED_KEYS.has(slot)) continue;
+      usageFor(slot, config[slot]);
+    }
+  }
+
+  const hostKey = resolveVarHostSlot(config);
+  for (const [name, readSlots] of usage) {
+    const routed = readSlots.filter((slot) => slot !== hostKey);
+    if (routed.length === 0) usage.delete(name);
+    else usage.set(name, routed);
+  }
+  return usage;
 }
 
 export function createComponentConfigContextPair(
@@ -481,15 +595,32 @@ export function createComponentConfigContextPair(
   return {
     ctx,
     mergeVarDefaultsInto: (config: Record<string, unknown>) => {
+      // Auto-route (#322): every slot whose styles read a var receives its default
+      // (and theme overrides) — explicit `slots` options stack on top of that.
+      const usage = collectVarSlotUsage(config, [
+        ...new Set([...registeredVars.map((reg) => reg.name), ...varBaseDefaults.keys()]),
+      ]);
+      const host = resolveVarHostSlot(config);
+      const slotsFor = (
+        declared: readonly string[] | undefined,
+        name: string,
+      ): readonly string[] | undefined => {
+        const merged = [...(declared ?? [])];
+        for (const slot of usage.get(name) ?? []) {
+          if (slot === host || merged.includes(slot)) continue;
+          merged.push(slot);
+        }
+        return merged.length > 0 ? merged : undefined;
+      };
       for (const reg of registeredVars) {
-        reg.slots = retainKnownVarSlots(config, reg.slots, false);
+        reg.slots = slotsFor(retainKnownVarSlots(config, reg.slots, false), reg.name);
       }
       return mergeComponentVarDefaultsInto(
         config,
         [...varBaseDefaults.entries()].map(([name, entry]) => ({
           name,
           value: entry.value,
-          slots: retainKnownVarSlots(config, entry.slots, true),
+          slots: slotsFor(retainKnownVarSlots(config, entry.slots, true), name),
         })),
       );
     },

@@ -1006,6 +1006,37 @@ describe('styles.override() + __tsMeta', () => {
       expect(popover).not.toContain('--ov-slot-vars-anchorx');
     });
 
+    it('emits a var override on slots that read the var without an explicit slots option', () => {
+      const styles = createStyles();
+      const menu = styles.component({
+        name: 'ov-auto-slot-vars',
+        slots: ['root', 'toggle'] as const,
+        vars: {
+          toggleColor: { value: 'var(--color-text)', syntax: '<color>' as const },
+        },
+        styles: ({ vars }) => ({
+          base: { toggle: { color: vars.toggleColor.var } },
+        }),
+      });
+
+      styles.override({
+        recipe: menu,
+        selectorPrefix: '.theme-forest',
+        vars: { toggleColor: 'hotpink' },
+      });
+      flushSync();
+
+      const css = getRegisteredCss();
+      // The toggle slot can render outside the host (#322), so the override
+      // must reach it directly instead of relying on inheritance.
+      expect(declarationsFor(css, '.theme-forest .ov-auto-slot-vars')).toContain(
+        '--ov-auto-slot-vars-togglecolor: hotpink',
+      );
+      expect(declarationsFor(css, '.theme-forest .ov-auto-slot-vars__toggle')).toContain(
+        '--ov-auto-slot-vars-togglecolor: hotpink',
+      );
+    });
+
     it('emits a prefers-dark var override on each named slot', () => {
       const styles = createStyles({ colorModes });
       const menu = styles.component({
