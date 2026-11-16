@@ -737,7 +737,12 @@ export type ComponentVarDescriptor = (
   | PropertyOptions
   | (ComponentVarOptions & { value: string | number })
 ) & {
-  /** Extra recipe slots that receive this var's default and theme overrides, in addition to the host. */
+  /**
+   * Extra recipe slots that receive this var's default and theme overrides.
+   * Slots whose styles read the var are routed automatically; `slots` is only
+   * needed for slots that must carry the default without reading it (the var
+   * host slot is always included, whether or not it is listed here).
+   */
   slots?: readonly string[];
 };
 

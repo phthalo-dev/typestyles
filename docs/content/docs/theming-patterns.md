@@ -1193,8 +1193,9 @@ override({
 Declaring `vars` on the recipe makes `OverrideConfigFor<typeof sideNav>` infer those keys.
 
 Var overrides emit on the **var host class** (same element that owns default var
-declarations from the recipe). A var that lists `slots` also emits its override on
-each of those slot classes, so a portaled element picks up the theme value on
+declarations from the recipe) and on every slot that carries the var's default —
+slots whose styles read the var are routed automatically, plus any slot the var
+lists explicitly in `slots`. A portaled element picks up the theme value on
 itself. Overrides compose with `base` slot overrides on that host; if both set the
 same custom property, **`base` wins**.
 

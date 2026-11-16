@@ -181,6 +181,8 @@ const badge = recipe({
 
 A leaf is a string, a number, or `{ value, syntax?, inherits? }`. For an `@property` that should not carry a recipe default, use `property.declare` and reference it from `styles`.
 
+Slot recipe defaults are emitted on the host slot and on every slot whose styles read the var (plus any slot listed in a var's explicit `slots` option), so slots rendered outside the host element — portaled popovers, flyouts — keep their values.
+
 See [Components — Expose themeable properties as vars](/docs/components#expose-themeable-properties-as-vars).
 
 ## Relationship to tokens
