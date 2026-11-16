@@ -1,5 +1,5 @@
 import type { CSSProperties } from './types';
-import { toKebabCase } from './serialize-style';
+import { formatDeclaration } from './serialize-style';
 import { insertRule } from '#sheet';
 
 /**
@@ -18,9 +18,15 @@ function serializeDeclarations(properties: CSSProperties): string {
     // Keyframe stops only contain plain properties — skip nested selectors/at-rules
     if (prop.startsWith('&') || prop.startsWith('@')) continue;
 
-    const kebabProp = toKebabCase(prop);
-    const serialized = typeof value === 'number' ? (value === 0 ? '0' : value + 'px') : value;
-    declarations.push(`${kebabProp}: ${serialized}`);
+    // Custom properties are case-sensitive and never take a unit
+    if (prop.startsWith('--')) {
+      declarations.push(`${prop}: ${value}`);
+      continue;
+    }
+
+    // Same serialization rules as styles: numbers get px unless the
+    // property is unitless (e.g. `opacity`, `lineHeight`), zero stays `0`
+    declarations.push(formatDeclaration(prop, value as string | number));
   }
 
   return declarations.join('; ');
