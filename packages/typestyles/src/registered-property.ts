@@ -8,9 +8,9 @@ import { sanitizeClassSegment, scopedTokenNamespace, type ClassNamingConfig } fr
 import { syntaxPlaceholderFor } from './at-property';
 import { registerCustomProperty } from './custom-properties';
 import { insertRule } from '#sheet';
-import { createRegisteredPropertyRef } from './var-ref-tree';
+import { createRegisteredPropertyRef, isRegisteredPropertyRef } from './var-ref-tree';
 
-export { createRegisteredPropertyRef };
+export { createRegisteredPropertyRef, isRegisteredPropertyRef };
 
 const propertyRegistrations = new Map<
   string,

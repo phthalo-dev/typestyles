@@ -57,7 +57,7 @@ export { mediaQueries } from './media-queries';
 export type { ColorModeMap, ModeAwareValue, LightDarkColorModes } from './color-modes';
 export { colorModes, resolveColorModes, acceptsLightDark } from './color-modes';
 export type { ConditionCompileContext } from './condition-compile';
-export { getTokenLeafValues, getDeclaredNamespace } from './tokens';
+export { getTokenLeafValues, getDeclaredNamespace, isTokenRef } from './tokens';
 export type { SerializeStyleOptions } from './serialize-style';
 
 export type { CascadeLayersInput, CascadeLayersObjectInput, ResolvedCascadeLayers } from './layers';
@@ -192,6 +192,7 @@ export type {
   TokenRefTree,
   TokenDescriptor,
   CreatedTokenRef,
+  TokenLeafRef,
   ModeAwareTokenLeaf,
   ModeAwareTokenObject,
   InferTokenValues,

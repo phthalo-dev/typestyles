@@ -3,7 +3,8 @@
  * Issue #172 — failures here fail `pnpm typecheck`.
  */
 import { createTokens } from './tokens';
-import type { ModeAwareTokenLeaf, SyntaxRef, TokenRefTree } from './types';
+import { isTokenRef } from './tokens';
+import type { ModeAwareTokenLeaf, SyntaxRef, TokenLeafRef, TokenRefTree } from './types';
 
 const tokens = createTokens({ colorModes: ['light', 'dark'] });
 
@@ -73,3 +74,38 @@ type RefFromValues = TokenRefTree<{
 
 const _refShape: RefFromValues = brand;
 void _refShape;
+
+// --- runtime ref introspection (#321) ---
+const introspect = createTokens();
+const introspectDecl = introspect.declare('introspect', {
+  accent: { default: true, deep: { syntax: '<color>' } },
+});
+
+if (isTokenRef(introspectDecl.accent.deep)) {
+  // Leaf branch narrows to the `{ name, var }` ref shape.
+  const leaf: TokenLeafRef = introspectDecl.accent.deep;
+  const varRef: string = leaf.var;
+  void varRef;
+} else {
+  // @ts-expect-error — a group has no `var` member to read
+  const groupVar: unknown = introspectDecl.accent.var;
+  void groupVar;
+}
+
+// Groups never satisfy the guard; `var(…)` strings from plain create() leaves do not either.
+const _groupIsNoLeaf: boolean = isTokenRef(introspectDecl.accent);
+const _plainStringIsNoLeaf: boolean = isTokenRef('var(--introspect-accent-default)');
+void _groupIsNoLeaf;
+void _plainStringIsNoLeaf;
+
+// entries/walk enumerate leaf refs with dashed namespace-relative paths.
+const leafEntries: Array<[string, TokenLeafRef]> = introspect.entries(introspectDecl);
+const subtreeEntries: Array<[string, TokenLeafRef]> = introspect.entries(introspectDecl.accent);
+void leafEntries;
+void subtreeEntries;
+introspect.walk(introspectDecl, (path, ref) => {
+  const p: string = path;
+  const v: string = ref.var;
+  void p;
+  void v;
+});
