@@ -1,5 +1,5 @@
 import { atRuleBlock } from './at-rule-block';
-import { toMediaAtRuleKey, type BreakpointMap } from './breakpoints';
+import { normalizeBareBreakpoint, toMediaAtRuleKey, type BreakpointMap } from './breakpoints';
 import type { CSSProperties } from './types';
 
 /**
@@ -11,7 +11,9 @@ export type MediaQueryKey = `@media ${string}`;
 /** `@media` key inferred from a stored breakpoint condition (mirrors {@link toMediaAtRuleKey}). */
 export type MediaKeyFromCondition<C extends string> = C extends `(${string}`
   ? `@media ${C}`
-  : `@media (${C})`;
+  : C extends `${string}:${string}`
+    ? `@media (${C})`
+    : `@media (min-width: ${C})`;
 
 /** Viewport width/height feature for {@link breakpoint} / {@link media}. */
 export type MediaBreakpointFeature = 'min' | 'max' | 'minHeight' | 'maxHeight';
@@ -89,7 +91,10 @@ function resolveBreakpointCondition(
   }
 
   if (!featureArg) {
-    return condition;
+    // Bare lengths (`80rem`) normalize to `(min-width: 80rem)` — `@media (80rem)`
+    // is invalid. `resolveBreakpoints` already normalizes at registration; this
+    // covers hand-built maps passed to the exported media helpers.
+    return normalizeBareBreakpoint(condition);
   }
 
   const parsed = parseMediaCondition(condition);

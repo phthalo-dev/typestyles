@@ -48,11 +48,31 @@ export function toMediaAtRuleKey(condition: string): `@media ${string}` {
   return `@media (${trimmed})`;
 }
 
+/**
+ * Wrap a bare length (`80rem`) as an explicit `(min-width: 80rem)` condition —
+ * `@media (80rem)` is invalid CSS and silently never matches. Conditions that
+ * already name a feature (`min-width: 80rem`) or carry parentheses pass through.
+ */
+export function normalizeBareBreakpoint(condition: string): string {
+  const trimmed = condition.trim();
+  if (!trimmed || trimmed.includes('(') || trimmed.includes(':')) return trimmed;
+  return `(min-width: ${trimmed})`;
+}
+
 function finalizeBreakpointMap(map: BreakpointMap): BreakpointMap {
   const result: BreakpointMap = {};
   for (const [name, condition] of Object.entries(map)) {
     validateMediaCondition(name, condition);
-    result[name] = normalizeMediaCondition(condition);
+    const normalized = normalizeMediaCondition(condition);
+    const withFeature = normalizeBareBreakpoint(normalized);
+    if (process.env.NODE_ENV !== 'production' && withFeature !== normalized) {
+      console.warn(
+        `[typestyles] Breakpoint "${name}" is a bare value ${JSON.stringify(normalized)}; ` +
+          `treating it as ${JSON.stringify(withFeature)}. ` +
+          `Register a full condition like \`(min-width: 768px)\` to make the feature explicit.`,
+      );
+    }
+    result[name] = withFeature;
   }
   return result;
 }

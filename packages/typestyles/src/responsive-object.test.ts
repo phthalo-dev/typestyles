@@ -67,6 +67,44 @@ describe('resolveBreakpoints', () => {
 
     process.env.NODE_ENV = originalEnv;
   });
+
+  it('wraps bare-length values as min-width conditions and warns in development', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(resolveBreakpoints({ md: '48rem', lg: '(min-width: 1024px)' })).toEqual({
+      md: '(min-width: 48rem)',
+      lg: '(min-width: 1024px)',
+    });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('bare value'));
+
+    warn.mockRestore();
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  it('wraps bare-length values silently in production', () => {
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(resolveBreakpoints({ md: '48rem' })).toEqual({ md: '(min-width: 48rem)' });
+    expect(warn).not.toHaveBeenCalled();
+
+    warn.mockRestore();
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  it('expands responsive objects on bare-length breakpoints into valid @media keys', () => {
+    const resolved = resolveBreakpoints({ md: '48rem' }) ?? {};
+    const expanded = expandResponsiveProperty('padding', { base: '8px', md: '16px' }, resolved);
+
+    expect(expanded).toEqual({
+      padding: '8px',
+      '@media (min-width: 48rem)': { padding: '16px' },
+    });
+  });
 });
 
 describe('expandResponsiveProperty', () => {

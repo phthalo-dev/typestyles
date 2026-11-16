@@ -641,7 +641,7 @@ This compiles to the same CSS you would write with explicit `'@media (min-width:
 **Conventions:**
 
 - `base` is the mobile-first default; `_` is an alias (Panda migration).
-- Breakpoint values are media conditions **without** the `@media` wrapper — same strings as `@typestyles/props` `{ '@media': '(min-width: 640px)' }`.
+- Breakpoint values are media conditions **without** the `@media` wrapper — same strings as `@typestyles/props` `{ '@media': '(min-width: 640px)' }`. Bare lengths (`md: '48rem'`) default to `min-width`.
 - Values must be scalars (`string | number`); for nested style blocks per breakpoint, use [`media()` / `breakpoint()`](/docs/custom-at-rules#viewport-breakpoints-from-config) instead of hand-written `@media` keys.
 - Responsive objects work in `style`, `recipe`, `scope`, and `createTypeStyles({ breakpoints }).global.rule` (or `createGlobal({ breakpoints }).rule`). Use a `createTypeStyles` / `createGlobal` instance — there is no root singleton.
 

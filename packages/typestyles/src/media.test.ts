@@ -77,6 +77,17 @@ describe('resolveBreakpointMediaKey', () => {
   it('throws when breakpoints are unset', () => {
     expect(() => resolveBreakpointMediaKey(undefined, 'md')).toThrow(/require `breakpoints`/);
   });
+
+  it('normalizes bare-length breakpoints to min-width when no feature is passed', () => {
+    const bare = { md: '48rem', xl: '80rem' } as const;
+    expect(resolveBreakpointMediaKey(bare, 'xl')).toBe('@media (min-width: 80rem)');
+    expect(resolveBreakpointMediaKey(bare, 'md')).toBe('@media (min-width: 48rem)');
+  });
+
+  it('maps bare-length breakpoints to max-width when a feature is passed', () => {
+    const bare = { xl: '80rem' } as const;
+    expect(resolveBreakpointMediaKey(bare, 'xl', 'max')).toBe('@media (max-width: 80rem)');
+  });
 });
 
 describe('createMediaFn', () => {
@@ -124,6 +135,28 @@ describe('createStyles breakpoint helpers', () => {
     const css = getRegisteredCss();
     expect(css).toContain('@media (min-width: 768px)');
     expect(css).toContain('grid-template-columns: repeat(2, 1fr)');
+  });
+
+  it('emits valid media rules for bare-length breakpoints', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const styles = createStyles({
+      scopeId: 'media-test-bare',
+      breakpoints: { xl: '80rem' },
+    });
+    styles.class('reveal', {
+      display: 'none',
+      ...styles.atRuleBlock(styles.breakpoint('xl'), {
+        display: 'block',
+      }),
+    });
+
+    const css = getRegisteredCss();
+    expect(css).toContain('@media (min-width: 80rem)');
+    expect(css).not.toContain('@media (80rem)');
+    expect(css).toContain('display: block');
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('bare value'));
+
+    warn.mockRestore();
   });
 
   it('works with styles.breakpoint + atRuleBlock', () => {
