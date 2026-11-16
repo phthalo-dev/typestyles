@@ -130,4 +130,47 @@ describe('createKeyframes', () => {
     expect(css).toContain('margin: 0;');
     expect(css).toContain('margin: 20px;');
   });
+
+  it('keeps unitless properties unitless', () => {
+    createKeyframes('fade', {
+      from: { opacity: 0, lineHeight: 1 },
+      to: { opacity: 1, lineHeight: 1.5 },
+    });
+
+    flushSync();
+
+    const css = getInjectedCSS();
+    expect(css).toContain('opacity: 0');
+    expect(css).toContain('opacity: 1');
+    expect(css).toContain('line-height: 1;');
+    expect(css).toContain('line-height: 1.5;');
+    expect(css).not.toContain('opacity: 1px');
+  });
+
+  it('never appends a unit to custom properties', () => {
+    createKeyframes('hueCycle', {
+      from: { '--hue': 175 },
+      to: { '--hue': 535 },
+    });
+
+    flushSync();
+
+    const css = getInjectedCSS();
+    expect(css).toContain('--hue: 175;');
+    expect(css).toContain('--hue: 535;');
+    expect(css).not.toContain('px');
+  });
+
+  it('preserves the case of custom property names', () => {
+    createKeyframes('caseCheck', {
+      from: { '--accentColor': 0 },
+      to: { '--accentColor': 1 },
+    });
+
+    flushSync();
+
+    const css = getInjectedCSS();
+    expect(css).toContain('--accentColor: 0;');
+    expect(css).not.toContain('--accent-color');
+  });
 });
