@@ -274,6 +274,54 @@ assignable where `<length-percentage>` is expected (for example `width` and `pad
 Exported types: `SyntaxRef`, `CssSyntax`, `SyntaxRefAccepts`, `CreateValueForSyntax`,
 `CompatibleSourceSyntax`, `SyntaxAwareLonghands`, `CSSPropertyValue`.
 
+## Runtime ref introspection (`isTokenRef`, `tokens.entries`, `tokens.walk`)
+
+Token refs are lazy proxies: a **group** (`color.accent`) and a **leaf**
+(`color.accent.default`) both behave like objects until coerced. Three supported ways to
+work with them at runtime — no proxy internals required:
+
+- **`isTokenRef(value)`** — true only for **leaf refs** (the `{ name, var }` objects a
+  tree returns for leaf paths). Token groups always return `false`, so
+  `isTokenRef(t.fontSize.display)` is `false` while `isTokenRef(t.fontSize.md)` is `true`.
+- **`tokens.entries(refs)`** — `[path, ref]` pairs for every leaf of a refs tree, with
+  namespace-relative dashed paths (`'accent-default'`) in declaration order. Refs are
+  normalized to the `{ name, var }` shape — including plain `tokens.create()` leaves,
+  which are `var(--…)` strings when accessed directly.
+- **`tokens.walk(refs, (path, ref) => …)`** — same enumeration, callback style.
+
+All three accept any tree or subtree from `tokens.declare()`, `tokens.create()`, or
+`tokens.use()`:
+
+```ts
+import { isTokenRef, createTypeStyles } from 'typestyles';
+
+const { tokens } = createTypeStyles({ scopeId: 'app' });
+
+const color = tokens.declare('color', {
+  accent: { default: true, subtle: true },
+  bg: { app: { syntax: '<color>', inherits: false } },
+});
+
+for (const [path, ref] of tokens.entries(color)) {
+  cssVars.set(path, ref.var);
+}
+// cssVars: 'accent-default' → 'var(--color-accent-default)',
+//          'accent-subtle'   → 'var(--color-accent-subtle)',
+//          'bg-app'          → 'var(--color-bg-app)'
+
+tokens.walk(color, (path, ref) => console.log(path, String(ref)));
+tokens.entries(color.bg); // subtree: [['bg-app', { name, var }]]
+
+isTokenRef(color.accent); // false — group
+isTokenRef(color.accent.default); // true — leaf
+```
+
+The `in` operator is honest on refs trees too: `'var' in ref` is `true` only for leaves,
+and `'path' in tree` is `true` only for declared or created paths
+(`'accent' in color` ✓, `'bogus' in color` ✗). Keep using `typeof ref === 'string'` for
+plain `tokens.create()` leaves, or prefer `tokens.walk()` / `tokens.entries()`, which
+normalize every leaf to one shape.
+
 ## Mode-aware token leaves
 
 Register color modes once on your TypeStyles instance, then use `{ light, dark }` on **token

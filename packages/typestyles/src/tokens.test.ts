@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, expectTypeOf } from 'vite-plus/test';
-import { createTokens } from './tokens';
+import { createTokens, isTokenRef } from './tokens';
 import { createTheme, when } from './theme';
 import { createTypeStyles } from './create-type-styles';
 import { atProperty } from './at-property';
 import { reset, flushSync, getRegisteredCss } from './sheet';
-import type { TokenRef, TokenValues } from './types';
+import type { TokenLeafRef, TokenRef, TokenValues } from './types';
 
 describe('createTokens factory', () => {
   it('exposes scopeId on the instance', () => {
@@ -787,6 +787,174 @@ describe('tokens.declare', () => {
 
     const color = api.declare('color', { accent: true });
     expect(`${color.accent}`).toBe('var(--ds-color-accent)');
+  });
+});
+
+describe('token ref introspection (#321)', () => {
+  beforeEach(() => {
+    reset();
+  });
+
+  it('groups never claim a `var` member, leaves do (`in` operator)', () => {
+    const api = createTokens();
+    const t = api.declare('', {
+      fontSize: { md: atProperty.length, display: { sm: atProperty.length } },
+    });
+
+    expect('var' in t.fontSize.display).toBe(false);
+    expect('var' in t.fontSize).toBe(false);
+    expect('var' in t).toBe(false);
+    // Leaves resolve to `{ name, var }` objects with real properties.
+    expect('var' in t.fontSize.md).toBe(true);
+    expect('name' in t.fontSize.md).toBe(true);
+  });
+
+  it('`in` reports declared paths only, including nested groups', () => {
+    const api = createTokens();
+    const t = api.declare('color', {
+      accent: { default: true, deep: { subtle: true } },
+    });
+
+    expect('accent' in t).toBe(true);
+    expect('default' in t.accent).toBe(true);
+    expect('deep' in t.accent).toBe(true);
+    expect('subtle' in t.accent.deep).toBe(true);
+    expect('bogus' in t).toBe(false);
+    expect('bogus' in t.accent).toBe(false);
+    expect('default' in t).toBe(false);
+    // Dashed keys resolve like the `get` trap does.
+    expect('accent-default' in t).toBe(true);
+  });
+
+  it('`in` honors created paths on create()/use() refs', () => {
+    const api = createTokens();
+    const color = api.create('color', { primary: '#0066ff', bg: { app: '#0a0a0a' } });
+
+    expect('primary' in color).toBe(true);
+    expect('bg' in color).toBe(true);
+    expect('app' in color.bg).toBe(true);
+    expect('var' in color.bg).toBe(false);
+    expect('bogus' in color).toBe(false);
+
+    const used = api.use('color');
+    expect('primary' in used).toBe(true);
+    expect('bogus' in used).toBe(false);
+  });
+
+  it('a token path may be named `var` or `length` despite the member shims', () => {
+    const api = createTokens();
+    const t = api.declare('color', { var: { md: true }, length: true });
+
+    expect('var' in t).toBe(true);
+    expect('length' in t).toBe(true);
+    expect('md' in t.var).toBe(true);
+    expect(String(t.length)).toBe('var(--color-length)');
+    expect(String(t.var.md)).toBe('var(--color-var-md)');
+    // Without a real `length` path, the array-length coercion shim still applies.
+    const plain = api.declare('plain', { accent: true });
+    expect(plain.length).toBe(0);
+  });
+
+  it('isTokenRef is true only for leaf refs', () => {
+    const api = createTokens();
+    const color = api.declare('color', {
+      accent: { default: true },
+      nested: { deep: { syntax: '<color>' } },
+    });
+
+    expect(isTokenRef(color.accent.default)).toBe(true);
+    expect(isTokenRef(color.nested.deep)).toBe(true);
+    expect(isTokenRef(color.nested)).toBe(false);
+    expect(isTokenRef(color)).toBe(false);
+
+    const decl = api.declare('size', {
+      tinted: { syntax: '<color>' },
+      primary: true,
+    });
+    const created = api.create('size', { primary: '#0066ff', tinted: '#fff' }, { decl });
+    // Created descriptor leaves are `{ name, var }` refs.
+    expect(isTokenRef(created.tinted)).toBe(true);
+    // Plain created leaves are `var(--…)` strings — not refs; groups are not either.
+    expect(isTokenRef(created.primary)).toBe(false);
+    expect(isTokenRef(created)).toBe(false);
+
+    expect(isTokenRef('var(--color-primary)')).toBe(false);
+    expect(isTokenRef('#0066ff')).toBe(false);
+    expect(isTokenRef(null)).toBe(false);
+    expect(isTokenRef({ var: 'var(--x)' })).toBe(false);
+  });
+
+  it('isTokenRef narrows to a `{ name, var }` leaf ref', () => {
+    const api = createTokens();
+    const color = api.declare('color', { accent: { default: { syntax: '<color>' } } });
+    const value: unknown = color.accent.default;
+    if (isTokenRef(value)) {
+      expectTypeOf(value).toMatchTypeOf<{ name: string; var: string }>();
+      expect(value.var).toBe('var(--color-accent-default)');
+    } else {
+      expect.unreachable('declared leaf must satisfy isTokenRef');
+    }
+  });
+
+  it('entries enumerates declared leaves with dashed paths and `{ name, var }` refs', () => {
+    const api = createTokens();
+    const color = api.declare('color', {
+      accent: { default: true, subtle: true },
+      bg: { app: { syntax: '<color>' } },
+    });
+
+    const list = api.entries(color);
+    expect(list.map(([path]) => path)).toEqual(['accent-default', 'accent-subtle', 'bg-app']);
+    for (const [, ref] of list) {
+      expect(typeof ref.var).toBe('string');
+      expect(ref.var).toMatch(/^var\(--color-/);
+    }
+    expect(`${list[0][1]}`).toBe('var(--color-accent-default)');
+    expect(list[2][1].name).toBe('--color-bg-app');
+  });
+
+  it('entries works on subtrees, created refs, and use() results', () => {
+    const api = createTokens();
+    const created = api.create('color', { primary: '#0066ff', bg: { app: '#0a0a0a' } });
+
+    expect(api.entries(created).map(([path]) => path)).toEqual(['primary', 'bg-app']);
+    expect(api.entries(created.bg).map(([path]) => path)).toEqual(['bg-app']);
+    expect(`${api.entries(created)[0][1]}`).toBe('var(--color-primary)');
+    // Group nodes are skipped even though the created path set contains them.
+    expect(api.entries(created).some(([path]) => path === 'bg')).toBe(false);
+
+    const declared = api.declare('size', { md: true });
+    expect(api.entries(api.use(declared)).map(([path]) => path)).toEqual(['md']);
+    expect(`${api.entries(api.use(declared))[0][1]}`).toBe('var(--size-md)');
+  });
+
+  it('walk visits every leaf; both throw on non-refs input', () => {
+    const api = createTokens();
+    const color = api.declare('color', { accent: { default: true, subtle: true } });
+
+    const seen: Array<[string, TokenLeafRef]> = [];
+    api.walk(color, (path, ref) => seen.push([path, ref]));
+    expect(seen.map(([path]) => path)).toEqual(['accent-default', 'accent-subtle']);
+    expect(`${seen[0][1].var}`).toBe('var(--color-accent-default)');
+
+    expect(() => api.entries({} as object)).toThrow(/refs tree/);
+    expect(() => api.walk(color.accent.default, () => {})).toThrow(/refs tree/);
+  });
+
+  it('supports the Var UI docs walker pattern end to end (#321)', () => {
+    const api = createTokens();
+    const t = api.declare('', {
+      fontSize: { md: atProperty.length, display: { sm: atProperty.length } },
+    });
+
+    // Walk a refs tree pairing defaults with refs; leaves are detectable and `.var`
+    // is always a string — the case that crashed with `cssVar.replace is not a function`.
+    const cssVars: Array<[string, string]> = [];
+    api.walk(t, (path, ref) => cssVars.push([path, ref.var]));
+    expect(cssVars).toEqual([
+      ['fontSize-md', 'var(--fontSize-md)'],
+      ['fontSize-display-sm', 'var(--fontSize-display-sm)'],
+    ]);
   });
 });
 

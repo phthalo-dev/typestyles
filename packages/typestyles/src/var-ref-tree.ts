@@ -10,9 +10,11 @@ import type {
   RegisteredPropertyRef,
 } from './types';
 
+const registeredPropertyRefs = new WeakSet<object>();
+
 export function createRegisteredPropertyRef(name: string): RegisteredPropertyRef {
   const varRef = `var(${name})` as CSSVarRef;
-  return {
+  const ref: RegisteredPropertyRef = {
     name,
     var: varRef,
     toString() {
@@ -22,6 +24,17 @@ export function createRegisteredPropertyRef(name: string): RegisteredPropertyRef
       return varRef;
     },
   };
+  registeredPropertyRefs.add(ref);
+  return ref;
+}
+
+/**
+ * True for objects created by {@link createRegisteredPropertyRef} — the leaf ref shape
+ * (`{ name, var }`) used by token trees, `styles.property`, and component vars.
+ * Powers `isTokenRef` (#321).
+ */
+export function isRegisteredPropertyRef(value: unknown): value is RegisteredPropertyRef {
+  return typeof value === 'object' && value !== null && registeredPropertyRefs.has(value);
 }
 
 /**

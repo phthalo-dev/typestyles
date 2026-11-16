@@ -14,6 +14,7 @@ import type {
   InferFromSchema,
   TokenRefTree,
   TokenSchemaLeaf,
+  TokenLeafRef,
 } from './types';
 import { flattenTokenEntries, flattenTokenPaths, isTokenDescriptor } from './types';
 import {
@@ -34,7 +35,11 @@ import {
 } from './token-naming';
 import { formatCustomPropertiesCss } from './custom-properties';
 import { insertRule, insertRules, invalidateKeys } from '#sheet';
-import { createRegisteredPropertyRef, registerAtPropertySchema } from './registered-property';
+import {
+  createRegisteredPropertyRef,
+  isRegisteredPropertyRef,
+  registerAtPropertySchema,
+} from './registered-property';
 import {
   createTheme,
   when,
@@ -81,6 +86,30 @@ export function getDeclaredNamespace(ref: object): string | undefined {
 
 function attachTokenLeafValues(ref: object, leafValues: Record<string, string>): void {
   tokenLeafValuesByRef.set(ref, leafValues);
+}
+
+/**
+ * Metadata for every token refs proxy (roots and nested groups), keyed by the proxy
+ * itself. Powers `isTokenRef` (group proxies are never leaf refs) and
+ * `tokens.entries()` / `tokens.walk()` (#321).
+ */
+type TokenProxyMeta = {
+  /** Namespace-relative dashed path of this proxy (`''` for a namespace root). */
+  prefix: string;
+  /** Declared leaf paths (declare proxies) or all created paths (create/use proxies). */
+  paths: Set<string>;
+  /** Resolve a namespace-relative path to its custom property name, as the `get` trap does. */
+  resolvePathName: (path: string) => string;
+};
+const tokenProxyMeta = new WeakMap<object, TokenProxyMeta>();
+
+/** True when any path nests under `path` (i.e. `path` is a group in the dashed path space). */
+function hasChildPaths(paths: Set<string>, path: string): boolean {
+  const withDash = `${path}-`;
+  for (const p of paths) {
+    if (p.startsWith(withDash)) return true;
+  }
+  return false;
 }
 
 function getTokenNamespace(ref: object): string | undefined {
@@ -196,6 +225,17 @@ export type TokensApi<R extends TokenRegistry = Record<string, never>> = {
       options?: { nameTemplate?: TokenNameTemplate },
     ): DeclaredTokenRef<TSchema, N>;
   };
+  /**
+   * Enumerate the leaves of a token refs tree as `[path, ref]` pairs — namespace-relative
+   * dashed paths (e.g. `'accent-default'`) in declaration order, refs normalized to the
+   * `{ name, var }` leaf shape. Accepts any tree or subtree from `tokens.declare()`,
+   * `tokens.create()`, or `tokens.use()`.
+   */
+  entries: (refs: object) => Array<[string, TokenLeafRef]>;
+  /**
+   * Call `visit(path, ref)` for every leaf of a token refs tree (same inputs as `entries`).
+   */
+  walk: (refs: object, visit: (path: string, ref: TokenLeafRef) => void) => void;
   createTheme: {
     <const C extends Omit<ThemeConfig, 'components'>>(
       input: { name: string; replace?: boolean } & C & ThemeComponentsFor<C>,
@@ -294,7 +334,11 @@ function createTokenProxy(
         return false;
       }
       if (prop === 'length') {
-        return 0;
+        // Coercion shim — a real created path named `length` wins over it.
+        const lengthPath = prefix ? `${prefix}-length` : 'length';
+        if (!allKeys.has(lengthPath) && !hasChildPaths(allKeys, lengthPath)) {
+          return 0;
+        }
       }
 
       const newPrefix = prefix ? `${prefix}-${prop}` : prop;
@@ -319,15 +363,27 @@ function createTokenProxy(
 
       return createTokenProxy(resolvePathName, newPrefix, allKeys, descriptorLeaves);
     },
-    has(_target, _prop) {
-      return true;
+    has(_target, prop) {
+      if (typeof prop === 'symbol') return false;
+      if (prop === 'toString' || prop === 'valueOf' || prop === 'constructor') return true;
+      const childPath = prefix ? `${prefix}-${prop}` : prop;
+      // A real created path wins over the member shims (`var`, `name`).
+      if (allKeys.has(childPath) || hasChildPaths(allKeys, childPath)) return true;
+      if (prop === 'var' || prop === 'name') {
+        // Leaf-only members: this proxy is a leaf only when its own path is a created
+        // leaf with no children (#321 — groups must not claim a `var`).
+        return allKeys.has(prefix) && !hasChildPaths(allKeys, prefix);
+      }
+      return false;
     },
     set(_target, _prop, _value) {
       return false;
     },
   };
 
-  return new Proxy({}, handler);
+  const proxy = new Proxy({}, handler);
+  tokenProxyMeta.set(proxy, { prefix, paths: allKeys, resolvePathName });
+  return proxy;
 }
 
 /**
@@ -361,7 +417,11 @@ function createDeclaredTokenProxy(
         return false;
       }
       if (prop === 'length') {
-        return 0;
+        // Coercion shim — a real declared path named `length` wins over it.
+        const lengthPath = prefix ? `${prefix}-length` : 'length';
+        if (!leafPaths.has(lengthPath) && !hasChildPaths(leafPaths, lengthPath)) {
+          return 0;
+        }
       }
 
       const newPrefix = prefix ? `${prefix}-${prop}` : prop;
@@ -370,15 +430,88 @@ function createDeclaredTokenProxy(
       }
       return createDeclaredTokenProxy(resolvePathName, newPrefix, leafPaths);
     },
-    has(_target, _prop) {
-      return true;
+    has(_target, prop) {
+      if (typeof prop === 'symbol') return false;
+      if (prop === 'toString' || prop === 'valueOf' || prop === 'constructor') return true;
+      const childPath = prefix ? `${prefix}-${prop}` : prop;
+      // A real declared path wins over the member shims (`var`, `name`).
+      if (leafPaths.has(childPath) || hasChildPaths(leafPaths, childPath)) return true;
+      if (prop === 'var' || prop === 'name') {
+        // Leaf-only members: a group proxy must not claim a `var` (#321).
+        return leafPaths.has(prefix);
+      }
+      return false;
     },
     set(_target, _prop, _value) {
       return false;
     },
   };
 
-  return new Proxy({}, handler);
+  const proxy = new Proxy({}, handler);
+  tokenProxyMeta.set(proxy, { prefix, paths: leafPaths, resolvePathName });
+  return proxy;
+}
+
+/**
+ * True when `value` is a token **leaf** ref — the `{ name, var }` object a token refs
+ * tree returns for a leaf path: every `tokens.declare()` leaf (typed or `true`) and
+ * `tokens.create()` leaves declared with `syntax`. Token groups (nested refs trees
+ * from `tokens.declare()` / `tokens.create()` / `tokens.use()`) return `false`.
+ *
+ * Leaves of plain `tokens.create()` trees without a schema are `var(--…)` strings —
+ * detect those with `typeof value === 'string'`, or enumerate either tree shape with
+ * `tokens.entries()` / `tokens.walk()`, which normalize every leaf to `{ name, var }`.
+ *
+ * @example
+ * ```ts
+ * if (isTokenRef(value)) use(value.var); // group proxies never pass (#321)
+ * ```
+ */
+export function isTokenRef(value: unknown): value is TokenLeafRef {
+  return isRegisteredPropertyRef(value);
+}
+
+/**
+ * Enumerate the leaves of a token refs tree as `[path, ref]` pairs — namespace-relative
+ * dashed paths (e.g. `'accent-default'`) in declaration order, refs normalized to the
+ * `{ name, var }` leaf shape. Accepts any tree or subtree from `tokens.declare()`,
+ * `tokens.create()`, or `tokens.use()`.
+ */
+function tokenRefsEntries(refs: object): Array<[string, TokenLeafRef]> {
+  const meta = tokenProxyMeta.get(refs);
+  if (meta === undefined) {
+    throw new Error(
+      '[typestyles] tokens.entries()/tokens.walk() expect a token refs tree — the return value of ' +
+        'tokens.declare(), tokens.create(), or tokens.use() (or a subtree of one).',
+    );
+  }
+  const { prefix, paths, resolvePathName } = meta;
+  // Mark dashed ancestors so group nodes (present in created paths) are skipped;
+  // declared paths contain leaves only, where this is a no-op.
+  const groupPaths = new Set<string>();
+  for (const path of paths) {
+    let rest = path;
+    for (;;) {
+      const dash = rest.lastIndexOf('-');
+      if (dash <= 0) break;
+      rest = rest.slice(0, dash);
+      groupPaths.add(rest);
+    }
+  }
+  const subtreePrefix = prefix === '' ? '' : `${prefix}-`;
+  const out: Array<[string, TokenLeafRef]> = [];
+  for (const path of paths) {
+    if (path === prefix) continue;
+    if (prefix !== '' && !path.startsWith(subtreePrefix)) continue;
+    if (groupPaths.has(path)) continue;
+    out.push([path, createRegisteredPropertyRef(resolvePathName(path))]);
+  }
+  return out;
+}
+
+/** Call `visit(path, ref)` for every leaf of a token refs tree (same inputs as `entries`). */
+function tokenRefsWalk(refs: object, visit: (path: string, ref: TokenLeafRef) => void): void {
+  for (const [path, ref] of tokenRefsEntries(refs)) visit(path, ref);
 }
 
 /**
@@ -894,6 +1027,8 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
     create: create as TokensApi<R>['create'],
     use: use as TokensApi<R>['use'],
     declare: declare as TokensApi<R>['declare'],
+    entries: tokenRefsEntries,
+    walk: tokenRefsWalk,
     createTheme: ((input: CreateThemeInput) => {
       const { name, replace, components, modes, tokens: themeTokens, resolvedDarkWhen } = input;
       const config: ThemeConfig = {

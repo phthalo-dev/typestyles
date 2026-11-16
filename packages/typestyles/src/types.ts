@@ -382,6 +382,15 @@ export type CreatedTokenRef<
   readonly [CreatedTokenBrand]: { readonly values: T; readonly namespace: N };
 };
 
+/**
+ * A token **leaf** ref — the `{ name, var }` object a refs tree returns for a declared
+ * leaf path (every `tokens.declare()` leaf, and `tokens.create()` leaves declared with
+ * `syntax`). True leaves of `tokens.create()` trees without a schema are plain
+ * `var(--…)` strings; `isTokenRef` and `tokens.entries()` / `tokens.walk()` normalize
+ * to this shape. Token groups (nested refs trees) are never `TokenLeafRef`s.
+ */
+export type TokenLeafRef = RegisteredPropertyRef;
+
 /** Extract token value shape from a `tokens.create()` return value. */
 export type InferTokenValues<R> =
   R extends CreatedTokenRef<infer T, string>
