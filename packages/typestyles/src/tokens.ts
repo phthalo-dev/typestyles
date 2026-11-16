@@ -613,6 +613,12 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
       nameTemplate?: TokenNameTemplate;
       decl?: DeclaredTokenRef<TokenSchema, string>;
     },
+    /**
+     * Internal (theme registration) options. `emit: false` registers the namespace for
+     * refs and name resolution without emitting `:root` CSS — theme token values are
+     * emitted on the theme class by `createTheme`, never on `:root` (#325).
+     */
+    internal?: { emit?: boolean },
   ): CreatedTokenRef<CreateTokenValues, string> {
     const hasNamespace = typeof namespaceOrValues === 'string';
     const namespace = hasNamespace ? namespaceOrValues : '';
@@ -677,11 +683,20 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
 
     registeredNamespaces.add(namespace);
 
-    const mergedValues = mergeCreateValues(namespaceValueTrees.get(namespace), values);
-    namespaceValueTrees.set(namespace, mergedValues);
+    // Registration-only mode (theme token namespaces): keep the shared `:root` value
+    // tree untouched so a later `tokens.create()` cannot re-emit theme values at
+    // `:root`, and skip CSS emission entirely — `createTheme` owns theme CSS.
+    const emitRootCss = internal?.emit !== false;
+
+    let emissionSource = values;
+    if (emitRootCss) {
+      const mergedValues = mergeCreateValues(namespaceValueTrees.get(namespace), values);
+      namespaceValueTrees.set(namespace, mergedValues);
+      emissionSource = mergedValues;
+    }
 
     const { expanded: emissionValues, darkOnly } = expandModeAwareTokenValues(
-      mergedValues as TokenValues,
+      emissionSource as TokenValues,
       colorModes,
     );
 
@@ -737,7 +752,7 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
     const css = formatCustomPropertiesCss(':root', props);
     const rulesToInsert: Array<{ key: string; css: string }> = [];
 
-    if (darkOnly != null && typeof darkOnly === 'object') {
+    if (emitRootCss && darkOnly != null && typeof darkOnly === 'object') {
       const darkProps: Record<string, string> = {};
       for (const [path, value] of flattenTokenEntries(darkOnly as TokenValues)) {
         const propName =
@@ -759,7 +774,9 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
       }
     }
 
-    if (themeLayerContext) {
+    // Registration-only (theme token namespaces) inserts nothing: theme surfaces
+    // emit this namespace's CSS under the theme class, never at `:root`.
+    if (emitRootCss && themeLayerContext) {
       const layer = options?.layer ?? themeLayerContext.layer;
       assertOwnLayer(themeLayerContext.stack, layer, 'tokens.create');
       const key = `tokens:${cssNs}@${layer}`;
@@ -767,7 +784,7 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
       insertRules(
         applyLayerToRules([{ key, css }, ...rulesToInsert], layer, themeLayerContext.stack),
       );
-    } else {
+    } else if (emitRootCss) {
       const key = `tokens:${cssNs}`;
       invalidateKeys([key, ...rulesToInsert.map((r) => r.key)], []);
       insertRule(key, css);
@@ -776,6 +793,10 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
 
     const mergedSchema = namespaceSchemas.get(namespace);
     const allKeys = collectAllKeysFromValues(emissionValues as CreateTokenValues, '', colorModes);
+    const priorKeys = createdTokenKeys.get(namespace);
+    if (priorKeys) {
+      for (const prior of priorKeys) allKeys.add(prior);
+    }
     if (mergedSchema) {
       for (const { path } of flattenTokenSchema(mergedSchema)) {
         allKeys.add(path);
@@ -787,6 +808,14 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
     createdTokenKeys.set(namespace, allKeys);
     createdDescriptorLeaves.set(namespace, descriptorLeaves);
     createdTokenTemplates.set(namespace, effectiveTemplate);
+    // Merge prior per-path names (registration-only calls only cover their own paths;
+    // names are deterministic from the template, so entries agree across calls).
+    const priorNames = createdTokenNameByPath.get(namespace);
+    if (priorNames) {
+      for (const [path, name] of priorNames) {
+        if (!nameByPath.has(path)) nameByPath.set(path, name);
+      }
+    }
     createdTokenNameByPath.set(namespace, nameByPath);
 
     const resolvePathName = buildResolvePathName(namespace, effectiveTemplate, nameByPath);
@@ -996,8 +1025,10 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
 
     const source = themeConfigToSource(resolved);
     const tokenContext = createThemeTokenContext(use);
+    // Register namespaces for `theme.tokens` refs without `:root` emission —
+    // theme token values must only appear on the theme class (#325).
     const prepared = applyThemeTokensToConfig(resolved, (namespace, values) => {
-      create(namespace, values);
+      create(namespace, values, undefined, { emit: false });
     });
 
     const darkWhen = callOptions?.resolvedDarkWhen ?? themeOptions.resolvedDarkWhen;

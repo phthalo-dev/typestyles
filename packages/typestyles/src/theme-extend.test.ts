@@ -82,4 +82,79 @@ describe('createTheme({ tokens })', () => {
     expect(css).toContain('#222');
     expect(css).not.toContain('#111');
   });
+
+  it('emits mode-aware leaves that cannot use light-dark() on the theme class only (#325)', () => {
+    const { tokens } = createTypeStyles({
+      scopeId: 'var-ui',
+      colorModes: ['light', 'dark'],
+    });
+    tokens.createTheme({
+      name: 'ai-glow',
+      tokens: {
+        shadow: {
+          sm: {
+            light: '0 0.5rem 1.5rem color-mix(in oklch, #DB2777 12%, transparent)',
+            dark: '0 0.5rem 1.875rem color-mix(in oklch, #F0ABFC 18%, transparent)',
+          },
+        },
+      },
+    });
+    flushSync();
+    const css = getRegisteredCss();
+
+    // Light value on the theme class.
+    expect(css).toMatch(
+      /\.theme-var-ui-ai-glow \{[^}]*--var-ui-shadow-sm: 0 0\.5rem 1\.5rem color-mix\(in oklch, #DB2777 12%, transparent\)/,
+    );
+    // Dark-only fallback rules anchored on the theme class (same selector as extraction).
+    expect(css).toMatch(
+      /@media \(prefers-color-scheme: dark\) \{ \.theme-var-ui-ai-glow:not\(\[data-color-mode="light"\]\) \{ --var-ui-shadow-sm: 0 0\.5rem 1\.875rem color-mix\(in oklch, #F0ABFC 18%, transparent\); \} \}/,
+    );
+    // Never on :root — importing the theme module must not restyle the page.
+    expect(css).not.toMatch(/^:root[^.]*--var-ui-shadow-sm/m);
+    expect(css).not.toMatch(/:root[^.]*\{[^}]*--var-ui-shadow-sm/);
+  });
+
+  it('never emits theme token values on :root, including light values', () => {
+    const { tokens } = createTypeStyles({ scopeId: 'nr', colorModes: ['light', 'dark'] });
+    tokens.createTheme({
+      name: 'brand',
+      tokens: {
+        color: { brand: { light: 'red', dark: 'green' } },
+      },
+    });
+    flushSync();
+    const css = getRegisteredCss();
+    expect(css).toMatch(/\.theme-nr-brand \{[^}]*--nr-color-brand: light-dark\(red, green\)/);
+    expect(css).not.toMatch(/:root[^.]*\{[^}]*--nr-color-brand/);
+  });
+
+  it('keeps :root defaults when a theme registers overrides on the same namespace', () => {
+    const { tokens } = createTypeStyles({ scopeId: 'mix', colorModes: ['light', 'dark'] });
+    tokens.create('shadow', { sm: '0 1px 2px black' });
+    tokens.createTheme({
+      name: 'brand',
+      tokens: {
+        shadow: {
+          sm: {
+            light: '0 2px 4px red',
+            dark: '0 2px 4px blue',
+          },
+        },
+      },
+    });
+    flushSync();
+    const css = getRegisteredCss();
+    // :root keeps the shared default…
+    expect(css).toContain(':root { --mix-shadow-sm: 0 1px 2px black; }');
+    // …the theme class carries its own values…
+    expect(css).toMatch(/\.theme-mix-brand \{[^}]*--mix-shadow-sm: 0 2px 4px red/);
+    // …and a later tokens.create() does not re-emit theme values at :root.
+    tokens.create('shadow', { xl: '0 8px 16px black' });
+    flushSync();
+    const updated = getRegisteredCss();
+    expect(updated).toContain('--mix-shadow-xl: 0 8px 16px black');
+    expect(updated).not.toMatch(/:root[^.]*\{[^}]*--mix-shadow-sm: 0 2px 4px red/);
+    expect(updated).not.toMatch(/:root[^.]*\{[^}]*--mix-shadow-sm: 0 2px 4px blue/);
+  });
 });

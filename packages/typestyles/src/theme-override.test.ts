@@ -111,4 +111,40 @@ describe('Theme.override', () => {
     expect(css).toMatch(/--ov-rep-color-brand:\s*green/);
     expect(css).not.toMatch(/--ov-rep-color-brand:\s*blue/);
   });
+
+  it('keeps mode-aware non-color leaves on the child theme class, never :root (#325)', () => {
+    const { tokens } = createTypeStyles({
+      scopeId: 'var-ui',
+      colorModes: ['light', 'dark'],
+    });
+    const root = tokens.createTheme({
+      name: 'default',
+      tokens: {
+        shadow: {
+          sm: '0 0.5rem 1.5rem color-mix(in oklch, #000 10%, transparent)',
+        },
+      },
+    });
+
+    root.override({
+      name: 'ai-glow',
+      tokens: {
+        shadow: {
+          sm: {
+            light: '0 0.5rem 1.5rem color-mix(in oklch, #DB2777 12%, transparent)',
+            dark: '0 0.5rem 1.875rem color-mix(in oklch, #F0ABFC 18%, transparent)',
+          },
+        },
+      },
+    });
+
+    flushSync();
+    const css = getRegisteredCss();
+    // Dark fallback rule matches the extracted selector shape.
+    expect(css).toMatch(
+      /@media \(prefers-color-scheme: dark\) \{ \.theme-var-ui-ai-glow:not\(\[data-color-mode="light"\]\)/,
+    );
+    // Nothing from either theme's tokens lands on :root.
+    expect(css).not.toMatch(/:root[^.]*\{[^}]*--var-ui-shadow-sm/);
+  });
 });
