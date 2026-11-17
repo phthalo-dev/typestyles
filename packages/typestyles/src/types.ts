@@ -738,6 +738,13 @@ export type ComponentVarDescriptor = (
   | (ComponentVarOptions & { value: string | number })
 ) & {
   /**
+   * When `true`, the var default is emitted as a `var(--name, <default>)` fallback
+   * wherever the var is read, instead of being re-declared on the host class.
+   * This lets an ancestor set the custom property and have that value flow down
+   * without being shadowed by the component's own default.
+   */
+  inheritOverride?: boolean;
+  /**
    * Extra recipe slots that receive this var's default and theme overrides.
    * Slots whose styles read the var are routed automatically; `slots` is only
    * needed for slots that must carry the default without reading it (the var
@@ -768,6 +775,13 @@ export type ComponentVarOptions = {
   inherits?: boolean;
   /** @see {@link TokenDescriptor.initial} */
   initial?: string | number;
+  /**
+   * When `true`, the var default is emitted as a `var(--name, <default>)` fallback
+   * wherever the var is read, instead of being re-declared on the host class.
+   * This lets an ancestor set the custom property and have that value flow down
+   * without being shadowed by the component's own default.
+   */
+  inheritOverride?: boolean;
 };
 
 /**

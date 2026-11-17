@@ -39,6 +39,12 @@ export type FlatComponentVarEntry = {
   inherits?: boolean;
   initial?: string | number;
   /**
+   * When `true`, the default is emitted as a `var(--name, <default>)` fallback at
+   * read sites instead of being declared on the host/slots. This lets ancestor
+   * custom-property values flow down without being shadowed by the recipe default.
+   */
+  inheritOverride?: boolean;
+  /**
    * Extra slots that receive this default, in addition to the host and any
    * slots whose styles read the var (those are routed automatically, #322).
    */
@@ -75,6 +81,7 @@ export function flattenComponentVars(
         syntax: value.syntax,
         inherits: value.inherits,
         initial: value.initial,
+        inheritOverride: value.inheritOverride,
         slots: readVarSlots(value),
       });
     } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
@@ -173,6 +180,11 @@ export type ComponentVarDefaultDecl = {
   name: string;
   value: string;
   /**
+   * When `true`, the default is not declared on the host/slots. The value is
+   * instead emitted as a `var(--name, <value>)` fallback at read sites.
+   */
+  inheritOverride?: boolean;
+  /**
    * Slots that receive this default (and theme overrides) beyond the host: the
    * var's explicit `slots` option plus every slot whose styles read the var.
    */
@@ -224,6 +236,7 @@ export function mergeComponentVarDefaultsInto(
   const hostDeclarations: Record<string, string> = {};
   const bySlot = new Map<string, Record<string, string>>();
   for (const decl of defaults) {
+    if (decl.inheritOverride) continue;
     hostDeclarations[decl.name] = decl.value;
     for (const slot of decl.slots ?? []) {
       const bucket = bySlot.get(slot) ?? {};
@@ -362,6 +375,8 @@ export function createComponentConfigContextPair(
   buildVarRefTree: () => ComponentVarRefTree<ComponentVarDefinitions> | undefined;
   /** Logical var path -> custom property name (what `typestyles/lite` needs to rebuild `.vars`). */
   buildVarNames: () => Record<string, string> | undefined;
+  /** Logical var path -> fallback value for `inheritOverride` vars (for `typestyles/lite`). */
+  buildVarFallbacks: () => Record<string, string> | undefined;
   buildCapturedVarDefinitions: () => ComponentVarDefinitions | undefined;
 } {
   const seen = new Set<string>();
@@ -370,7 +385,10 @@ export function createComponentConfigContextPair(
     sanitizeClassSegment(namespace),
   );
 
-  const varBaseDefaults = new Map<string, { value: string; slots?: readonly string[] }>();
+  const varBaseDefaults = new Map<
+    string,
+    { value: string; slots?: readonly string[]; inheritOverride?: boolean }
+  >();
   const registeredVars: RegisteredComponentVar[] = [];
   const byPath = new Map<string, RegisteredComponentVar>();
   const varRefByPath = new Map<string, ComponentInternalVarRef>();
@@ -426,10 +444,15 @@ export function createComponentConfigContextPair(
       syntax?: string;
       inherits?: boolean;
       initial?: string | number;
+      inheritOverride?: boolean;
       slots?: readonly string[];
     },
   ): void {
-    varBaseDefaults.set(name, { value: entry.value, slots: entry.slots });
+    varBaseDefaults.set(name, {
+      value: entry.value,
+      slots: entry.slots,
+      inheritOverride: entry.inheritOverride,
+    });
     const reg = byPath.get(logicalPath);
     if (reg) {
       reg.defaultValue = entry.value;
@@ -453,6 +476,7 @@ export function createComponentConfigContextPair(
       syntax?: string;
       inherits?: boolean;
       initial?: string | number;
+      inheritOverride?: boolean;
       slots?: readonly string[];
     },
   ): ComponentInternalVarRef {
@@ -467,7 +491,11 @@ export function createComponentConfigContextPair(
 
     trackSeen(safeId, `internal var path "${logicalPath}"`);
 
-    varBaseDefaults.set(name, { value: entry.value, slots: entry.slots });
+    varBaseDefaults.set(name, {
+      value: entry.value,
+      slots: entry.slots,
+      inheritOverride: entry.inheritOverride,
+    });
     trackRegisteredVar(logicalPath, name, {
       syntax: entry.syntax,
       defaultValue: entry.value,
@@ -483,7 +511,7 @@ export function createComponentConfigContextPair(
       });
     }
 
-    const ref = createRegisteredPropertyRef(name);
+    const ref = createRegisteredPropertyRef(name, entry.inheritOverride ? entry.value : undefined);
     trackVarRef(logicalPath, ref);
     return ref;
   }
@@ -513,6 +541,7 @@ export function createComponentConfigContextPair(
         syntax: options?.syntax,
         inherits: options?.inherits,
         initial: options?.initial,
+        inheritOverride: options?.inheritOverride,
       });
     }
 
@@ -620,12 +649,23 @@ export function createComponentConfigContextPair(
         [...varBaseDefaults.entries()].map(([name, entry]) => ({
           name,
           value: entry.value,
+          inheritOverride: entry.inheritOverride,
           slots: slotsFor(retainKnownVarSlots(config, entry.slots, true), name),
         })),
       );
     },
     buildVarRegistry: (config: Record<string, unknown>) =>
       finalizeVarRegistry(registeredVars, byPath, config),
+    buildVarFallbacks: () => {
+      const fallbacks: Record<string, string> = {};
+      for (const [path, ref] of varRefByPath) {
+        const entry = varBaseDefaults.get(ref.name);
+        if (entry?.inheritOverride) {
+          fallbacks[path] = entry.value;
+        }
+      }
+      return Object.keys(fallbacks).length > 0 ? fallbacks : undefined;
+    },
     buildVarRefTree: () => buildVarRefTree(varRefByPath),
     buildVarNames: () =>
       varRefByPath.size === 0

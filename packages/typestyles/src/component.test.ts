@@ -1464,3 +1464,123 @@ describe('recipe var slots', () => {
     expect(popover).not.toContain('--menu-no-root-anchorx');
   });
 });
+
+describe('recipe inheritOverride vars (#333)', () => {
+  beforeEach(() => {
+    reset();
+    registeredNamespaces.clear();
+  });
+
+  it('emits the default as a var() fallback instead of declaring it on the host', () => {
+    const styles = createStyles();
+    const card = styles.component({
+      name: 'io-card',
+      vars: {
+        background: { value: '#fff', inheritOverride: true },
+      },
+      styles: ({ vars }) => ({
+        base: { backgroundColor: vars.background.var },
+      }),
+    });
+
+    flushSync();
+    const css = getRegisteredCss();
+
+    expect(css).toContain('background-color: var(--io-card-background, #fff)');
+    expect(declarationsFor(css, '.io-card')).not.toContain('--io-card-background: #fff');
+    expect(String(card.vars.background)).toBe('var(--io-card-background, #fff)');
+  });
+
+  it('does not re-declare inheritOverride defaults on slots that read the var', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'io-slot',
+      slots: ['root', 'thumb'] as const,
+      vars: {
+        thumbColor: { value: '#111', inheritOverride: true },
+      },
+      styles: ({ vars }) => ({
+        base: {
+          root: { display: 'flex' },
+          thumb: { color: vars.thumbColor.var },
+        },
+      }),
+    });
+
+    flushSync();
+    const css = getRegisteredCss();
+
+    expect(css).toContain('color: var(--io-slot-thumbcolor, #111)');
+    expect(declarationsFor(css, '.io-slot')).not.toContain('--io-slot-thumbcolor: #111');
+    expect(declarationsFor(css, '.io-slot__thumb')).not.toContain('--io-slot-thumbcolor: #111');
+  });
+
+  it('still declares non-inheritOverride defaults on the host', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'io-mixed',
+      vars: {
+        background: { value: '#fff', inheritOverride: true },
+        foreground: { value: '#000' },
+      },
+      styles: ({ vars }) => ({
+        base: {
+          backgroundColor: vars.background.var,
+          color: vars.foreground.var,
+        },
+      }),
+    });
+
+    flushSync();
+    const css = getRegisteredCss();
+
+    expect(css).toContain('background-color: var(--io-mixed-background, #fff)');
+    expect(css).toContain('color: var(--io-mixed-foreground)');
+    expect(declarationsFor(css, '.io-mixed')).toContain('--io-mixed-foreground: #000');
+    expect(declarationsFor(css, '.io-mixed')).not.toContain('--io-mixed-background: #fff');
+  });
+
+  it('supports inheritOverride with var()-dependent defaults', () => {
+    const styles = createStyles();
+    styles.component({
+      name: 'io-dependent',
+      vars: {
+        background: { value: 'var(--surface)', inheritOverride: true },
+      },
+      styles: ({ vars }) => ({
+        base: { backgroundColor: vars.background.var },
+      }),
+    });
+
+    flushSync();
+    const css = getRegisteredCss();
+
+    expect(css).toContain('background-color: var(--io-dependent-background, var(--surface))');
+    expect(declarationsFor(css, '.io-dependent')).not.toContain('--io-dependent-background:');
+  });
+
+  it('supports inheritOverride via c.var() and c.vars()', () => {
+    const badge = createComponent(defaultClassNamingConfig, 'io-fn', (c) => {
+      const bg = c.var('bg', { value: '#eee', inheritOverride: true });
+      const v = c.vars({
+        border: { value: '#ccc', inheritOverride: true },
+      });
+      return {
+        base: {
+          backgroundColor: bg.var,
+          borderColor: v.border.var,
+        },
+      };
+    });
+
+    flushSync();
+    const css = getRegisteredCss();
+
+    expect(css).toContain('background-color: var(--io-fn-bg, #eee)');
+    expect(css).toContain('border-color: var(--io-fn-border, #ccc)');
+    expect(declarationsFor(css, '.io-fn')).not.toContain('--io-fn-bg:');
+    expect(declarationsFor(css, '.io-fn')).not.toContain('--io-fn-border:');
+    expect(String(badge.vars.bg)).toBe('var(--io-fn-bg, #eee)');
+    expect(String(badge.vars.border)).toBe('var(--io-fn-border, #ccc)');
+  });
+});
