@@ -12,8 +12,13 @@ import type {
 
 const registeredPropertyRefs = new WeakSet<object>();
 
-export function createRegisteredPropertyRef(name: string): RegisteredPropertyRef {
-  const varRef = `var(${name})` as CSSVarRef;
+export function createRegisteredPropertyRef(
+  name: string,
+  fallback?: string,
+): RegisteredPropertyRef {
+  const varRef = (
+    fallback != null && fallback !== '' ? `var(${name}, ${fallback})` : `var(${name})`
+  ) as CSSVarRef;
   const ref: RegisteredPropertyRef = {
     name,
     var: varRef,
@@ -92,8 +97,14 @@ export function buildVarRefTree(
 /** Rebuild a `.vars` tree from logical path -> custom property name (see `AttrsRecipePlan.vars`). */
 export function buildVarRefTreeFromNames(
   names: Record<string, string>,
+  fallbacks?: Record<string, string>,
 ): ComponentVarRefTree<ComponentVarDefinitions> | undefined {
   return buildVarRefTree(
-    new Map(Object.entries(names).map(([path, name]) => [path, createRegisteredPropertyRef(name)])),
+    new Map(
+      Object.entries(names).map(([path, name]) => [
+        path,
+        createRegisteredPropertyRef(name, fallbacks?.[path]),
+      ]),
+    ),
   );
 }

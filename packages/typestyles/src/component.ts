@@ -192,6 +192,7 @@ function resolveComponentConfig(
   varRegistry?: ComponentVarRegistry;
   varRefTree?: object;
   varNames?: Record<string, string>;
+  varFallbacks?: Record<string, string>;
   varDefinitions?: ComponentVarDefinitions;
 } {
   const {
@@ -200,6 +201,7 @@ function resolveComponentConfig(
     buildVarRegistry,
     buildVarRefTree,
     buildVarNames,
+    buildVarFallbacks,
     buildCapturedVarDefinitions,
   } = createComponentConfigContextPair(classNaming, namespace);
 
@@ -215,6 +217,7 @@ function resolveComponentConfig(
       varRegistry: buildVarRegistry(resolved),
       varRefTree: buildVarRefTree(),
       varNames: buildVarNames(),
+      varFallbacks: buildVarFallbacks(),
       varDefinitions: defsFromConfig ?? buildCapturedVarDefinitions(),
     };
   }
@@ -230,6 +233,7 @@ function resolveComponentConfig(
       varRegistry: buildVarRegistry(resolved),
       varRefTree: buildVarRefTree(),
       varNames: buildVarNames(),
+      varFallbacks: buildVarFallbacks(),
       varDefinitions: defsFromConfig,
     };
   }
@@ -387,6 +391,7 @@ export function createComponent(
     varRegistry,
     varRefTree,
     varNames,
+    varFallbacks,
     varDefinitions: configVarDefinitions,
   } = resolveComponentConfig(classNaming, namespace, config);
   const recipeVarDefinitions = configVarDefinitions;
@@ -403,7 +408,10 @@ export function createComponent(
     recordClientPlan((): ClientPlanEntry => {
       if (!buildPlan) return { kind: 'unplanned', namespace };
       const plan = buildPlan();
-      return varNames ? { ...plan, vars: { ...varNames } } : plan;
+      if (!varNames) return plan;
+      const withVars: ClientPlanEntry = { ...plan, vars: { ...varNames } };
+      if (varFallbacks) (withVars as Record<string, unknown>).varFallbacks = { ...varFallbacks };
+      return withVars;
     });
     return finishComponentResult(result, varRegistry, recipeVarDefinitions, varRefTree);
   };

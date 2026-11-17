@@ -94,6 +94,11 @@ export type AttrsRecipePlan = AttrsRecipeCallPlan & {
    * rebuilds `.vars` (`{ name, var }` refs) from it.
    */
   vars?: Record<string, string>;
+  /**
+   * Logical var path -> fallback value for `inheritOverride` vars. Used by the lite handle to
+   * rebuild `.vars` refs with the same `var(--name, <fallback>)` value the full runtime emits.
+   */
+  varFallbacks?: Record<string, string>;
 };
 
 export type AttrsRecipeCallPlan =
@@ -202,7 +207,7 @@ export function createAttrsRecipeFromPlan(plan: AttrsRecipePlan): unknown {
   const handle = createCallHandle(plan) as object;
   if (plan.vars) {
     Object.defineProperty(handle, 'vars', {
-      value: buildVarRefTreeFromNames(plan.vars),
+      value: buildVarRefTreeFromNames(plan.vars, plan.varFallbacks),
       enumerable: true,
       writable: false,
       configurable: true,

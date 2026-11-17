@@ -219,6 +219,33 @@ describe('attribute-mode client plans', () => {
     expect('vars' in (createAttrsRecipeFromPlan(plan) as object)).toBe(false);
   });
 
+  it('records inheritOverride fallback values so the lite handle matches the full runtime', () => {
+    type VarRef = { name: string; var: string };
+    const full = recipe({
+      name: 'planinherit',
+      vars: {
+        background: { value: '#fff', inheritOverride: true },
+        foreground: { value: '#000' },
+      },
+      base: {
+        backgroundColor: 'var(--planinherit-background)',
+        color: 'var(--planinherit-foreground)',
+      },
+    } as never) as unknown as {
+      vars: { background: VarRef; foreground: VarRef };
+    };
+
+    const plan = getClientPlans().find((p) => p.namespace === 'planinherit') as AttrsRecipePlan;
+    expect(plan.vars).toBeDefined();
+    expect(plan.varFallbacks).toEqual({ background: '#fff' });
+
+    const lite = createAttrsRecipeFromPlan(JSON.parse(JSON.stringify(plan))) as typeof full;
+
+    expect(lite.vars.background.var).toBe(full.vars.background.var);
+    expect(lite.vars.background.name).toBe(full.vars.background.name);
+    expect(lite.vars.foreground.var).toBe(full.vars.foreground.var);
+  });
+
   it('builds `.vars` as plain objects that iterate the same way in both runtimes', () => {
     type VarRef = { name: string; var: string };
     const full = recipe({

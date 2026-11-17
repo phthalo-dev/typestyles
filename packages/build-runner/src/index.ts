@@ -126,6 +126,8 @@ export async function runTypestylesBuild(options: RunTypestylesBuildOptions): Pr
 export type ClientRecipePlan = ClientRecipeCallPlan & {
   /** Logical var path -> custom property name, for recipes that declare `vars`. */
   vars?: Record<string, string>;
+  /** Logical var path -> fallback value for `inheritOverride` vars (mirrors `AttrsRecipePlan`). */
+  varFallbacks?: Record<string, string>;
 };
 
 type ClientRecipeCallPlan =
