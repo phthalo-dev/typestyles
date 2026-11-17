@@ -73,13 +73,15 @@ export function makeCallableObject(
     return selectorFn(...args);
   };
 
-  // Copy class map properties onto the function
+  // Copy class map properties onto the function. Use writable+configurable so that
+  // keys colliding with read-only function own props (e.g. `name`, `length`) don't
+  // crash (Issue #323).
   Object.defineProperties(
     fn,
     Object.fromEntries(
       Object.entries(classMap).map(([key, value]) => [
         key,
-        { value, enumerable: true, writable: false, configurable: false },
+        { value, enumerable: true, writable: true, configurable: true },
       ]),
     ),
   );
@@ -267,10 +269,22 @@ function createCallHandle(plan: AttrsRecipePlan): unknown {
   return withDefaults(handle, defaults);
 }
 
+// Slot names that cannot be stored as own properties of a function: `prototype`
+// is non-configurable on functions, so defining it throws. Surface a clear error.
+const RESERVED_SLOT_NAMES = new Set(['prototype']);
+
 export function makeMultiSlotObject(
   selectorFn: () => Record<string, string>,
   slotClassMap: Record<string, string>,
 ): unknown {
+  for (const slot of Object.keys(slotClassMap)) {
+    if (RESERVED_SLOT_NAMES.has(slot)) {
+      throw new Error(
+        `[typestyles] slot "${slot}" is reserved (collides with Function.prototype.${slot}); rename it.`,
+      );
+    }
+  }
+
   const fn = function (this: unknown) {
     return selectorFn();
   };
@@ -280,7 +294,7 @@ export function makeMultiSlotObject(
     Object.fromEntries(
       Object.entries(slotClassMap).map(([key, value]) => [
         key,
-        { value, enumerable: true, writable: false, configurable: false },
+        { value, enumerable: true, writable: true, configurable: true },
       ]),
     ),
   );

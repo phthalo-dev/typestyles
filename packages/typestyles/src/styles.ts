@@ -397,7 +397,27 @@ function presentRecipeHandle(handle: object, hasSlots: boolean): object {
     if (typeof result === 'string') return createComponentAttrsResult(result);
     return result;
   };
-  Object.assign(wrapped, handle);
+  // Copy handle's enumerable own properties onto `wrapped`. Use `Object.defineProperty`
+  // (not `Object.assign`) so keys that collide with read-only function own props
+  // such as `name` / `length` are redefined instead of throwing (Issue #323).
+  for (const key of Object.keys(handle as unknown as Record<string, unknown>)) {
+    const value = (handle as unknown as Record<string, unknown>)[key];
+    try {
+      Object.defineProperty(wrapped, key, {
+        value,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
+    } catch {
+      // Fall back to assignment for any property that can't be redefined.
+      try {
+        (wrapped as unknown as Record<string, unknown>)[key] = value;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
   const meta = getComponentMeta(handle);
   if (meta) attachComponentMeta(wrapped, meta);
   const defs = (handle as { __varDefinitions?: Record<string, unknown> }).__varDefinitions;
