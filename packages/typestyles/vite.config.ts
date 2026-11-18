@@ -33,6 +33,7 @@ export default defineConfig({
         hmr: 'src/hmr.ts',
         build: 'src/build.ts',
         testing: 'src/testing.ts',
+        inspect: 'src/inspect.ts',
         lite: 'src/lite.ts',
         // The sheet is the only module that differs between the full runtime and
         // zero-runtime builds. Both ship as standalone files. Source modules

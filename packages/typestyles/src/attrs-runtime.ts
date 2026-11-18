@@ -24,11 +24,14 @@ export function toDataAttributeName(dimension: string): string {
 export function createComponentAttrsResult(
   className: string,
   attrs: Record<string, string> = {},
+  /** Dev-only source location, surfaced as `data-ts-source` in attribute mode. */
+  source?: string,
 ): ComponentAttrsResult {
-  const props = { className, ...attrs };
+  const devAttrs = source ? { 'data-ts-source': source, ...attrs } : attrs;
+  const props = { className, ...devAttrs };
   return {
     className,
-    attrs,
+    attrs: devAttrs,
     props,
     toString() {
       return className;

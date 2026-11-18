@@ -338,6 +338,34 @@ styles.component({ name: 'docs-sidebar', styles: { base: { color: 'red' } } });`
     expect(result.code).toContain('.docs-sidebar-');
   });
 
+  it('injects the inspect helper in dev so the global is console-reachable', async () => {
+    const mod = await import('./index');
+    const plugin = mod.default();
+    viteHookFn(plugin.configResolved)?.({ command: 'serve' } as ResolvedConfig);
+    const code = `import { createStyles } from 'typestyles';
+const styles = createStyles({ scopeId: 'docs' });
+styles.class('page', { color: 'red' });`;
+    const transform = viteHookFn(plugin.transform);
+    if (transform == null) throw new Error('expected plugin.transform');
+    const result = await transform.call({ warn: () => {} } as never, code, '/src/styles/page.ts');
+    expect(result).not.toBeNull();
+    if (result == null) throw new Error('expected transform result');
+    expect(result.code).toContain("import 'typestyles/inspect';");
+  });
+
+  it('does not inject the inspect helper in production builds', async () => {
+    const mod = await import('./index');
+    const plugin = mod.default();
+    viteHookFn(plugin.configResolved)?.({ command: 'build' } as ResolvedConfig);
+    const code = `import { createStyles } from 'typestyles';
+const styles = createStyles({ scopeId: 'docs' });
+styles.class('page', { color: 'red' });`;
+    const transform = viteHookFn(plugin.transform);
+    if (transform == null) throw new Error('expected plugin.transform');
+    const result = await transform.call({ warn: () => {} } as never, code, '/src/styles/page.ts');
+    expect(result).toBeNull();
+  });
+
   it('injects override HMR for createDesignTheme sugar without styles.override in source', async () => {
     const mod = await import('./index');
     const plugin = mod.default();

@@ -15,7 +15,9 @@ import {
 import type { ClientPlanEntry } from './attrs-runtime';
 import { consolidateCascadeLayers } from './consolidate-cascade-layers';
 import {
+  captureDevSourceLocation,
   captureSourceLocation,
+  devInspectEnabled,
   formatSourceComment,
   sourceCommentsConfig,
 } from './source-comments';
@@ -550,11 +552,43 @@ export function invalidateOverrideRuleKeys(keys: readonly string[]): void {
   removeCssomRulesMatching(removedCss);
 }
 
+/** Extract every CSS class name token from a rule's selector text. */
+function* extractClassNamesFromCss(css: string): Generator<string> {
+  // Only scan the selector portion (everything before the first `{`).
+  const selectorEnd = css.indexOf('{');
+  const selector = selectorEnd === -1 ? css : css.slice(0, selectorEnd);
+  const classRe = /\.([a-zA-Z0-9_-]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = classRe.exec(selector)) !== null) {
+    yield match[1]!;
+  }
+}
+
+function recordClassSources(state: SheetState, css: string, source: string | undefined): void {
+  if (!source) return;
+  for (const className of extractClassNamesFromCss(css)) {
+    const existing = state.sourceByClassName.get(className);
+    if (existing) {
+      existing.css.push(css);
+      if (!existing.source) existing.source = source;
+    } else {
+      state.sourceByClassName.set(className, { source, css: [css] });
+    }
+  }
+}
+
 function recordSource(state: SheetState, css: string): void {
   const config = sourceCommentsConfig();
-  if (!config) return;
-  const location = captureSourceLocation(config);
-  if (location) state.sourceByCss.set(css, location);
+  const inspectEnabled = devInspectEnabled();
+  let location: string | undefined;
+  if (config) {
+    location = captureSourceLocation(config);
+    if (location) state.sourceByCss.set(css, location);
+  }
+  if (inspectEnabled) {
+    if (!location) location = captureDevSourceLocation();
+    recordClassSources(state, css, location);
+  }
 }
 
 /**

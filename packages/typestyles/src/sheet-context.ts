@@ -1,3 +1,12 @@
+export type ClassSourceInfo = {
+  /** `path:line` of the call that registered this class, if captured. */
+  source?: string;
+  /** Logical namespace (recipe name or class name) when it can be inferred. */
+  namespace?: string;
+  /** Every registered CSS rule whose selector includes this class. */
+  css: string[];
+};
+
 export type SheetState = {
   insertedRules: Set<string>;
   ruleCssByKey: Map<string, string>;
@@ -7,6 +16,8 @@ export type SheetState = {
   ssrBuffer: string[] | null;
   /** Rule CSS → `path:line`; only filled when source comments are enabled. */
   sourceByCss: Map<string, string>;
+  /** Class name → aggregated debug info; only filled when dev inspect is enabled. */
+  sourceByClassName: Map<string, ClassSourceInfo>;
 };
 
 export function createSheetState(): SheetState {
@@ -18,6 +29,7 @@ export function createSheetState(): SheetState {
     flushScheduled: false,
     ssrBuffer: null,
     sourceByCss: new Map(),
+    sourceByClassName: new Map(),
   };
 }
 
@@ -29,6 +41,7 @@ export function resetSheetState(state: SheetState): void {
   state.flushScheduled = false;
   state.ssrBuffer = null;
   state.sourceByCss.clear();
+  state.sourceByClassName.clear();
 }
 
 const globalSheetState = createSheetState();
