@@ -7,11 +7,14 @@
  */
 
 export type SourceCommentsConfig = { root?: string };
+export type SourceMapConfig = { root?: string };
 export type DevInspectConfig = { root?: string } | boolean;
 
 declare global {
   // eslint-disable-next-line no-var
   var __TYPESTYLES_SOURCE_COMMENTS__: SourceCommentsConfig | undefined;
+  // eslint-disable-next-line no-var
+  var __TYPESTYLES_SOURCE_MAP__: SourceMapConfig | undefined;
   // eslint-disable-next-line no-var
   var __TYPESTYLES_DEV_INSPECT__: DevInspectConfig | undefined;
   // eslint-disable-next-line no-var
@@ -34,6 +37,10 @@ function isProductionEnv(): boolean {
 
 export function sourceCommentsConfig(): SourceCommentsConfig | undefined {
   return typeof globalThis === 'undefined' ? undefined : globalThis.__TYPESTYLES_SOURCE_COMMENTS__;
+}
+
+export function sourceMapConfig(): SourceMapConfig | undefined {
+  return typeof globalThis === 'undefined' ? undefined : globalThis.__TYPESTYLES_SOURCE_MAP__;
 }
 
 function inspectConfig(): DevInspectConfig | undefined {
@@ -68,6 +75,21 @@ function devInspectRoot(): string | undefined {
   return globalThis.__TYPESTYLES_DEV_INSPECT_ROOT__;
 }
 
+function sourceMapRoot(): string | undefined {
+  const config = sourceMapConfig();
+  return config?.root;
+}
+
+/** `path:line` of the first stack frame outside typestyles, for source map generation. */
+export function captureSourceMapLocation(): string | undefined {
+  return captureLocation(sourceMapRoot());
+}
+
+/** `path:line` of the first stack frame outside typestyles, or `undefined` if none is found. */
+export function captureSourceLocation(config: SourceCommentsConfig): string | undefined {
+  return captureLocation(config.root);
+}
+
 function relativize(file: string, root: string | undefined): string {
   let path = file.startsWith('file://') ? decodeURIComponent(file.slice(7)) : file;
   path = path.replace(/\\/g, '/');
@@ -90,11 +112,6 @@ function captureLocation(root: string | undefined): string | undefined {
     return `${relativize(file, root)}:${match[2]}`;
   }
   return undefined;
-}
-
-/** `path:line` of the first stack frame outside typestyles, or `undefined` if none is found. */
-export function captureSourceLocation(config: SourceCommentsConfig): string | undefined {
-  return captureLocation(config.root);
 }
 
 /** `path:line` of the first stack frame outside typestyles, for runtime dev inspection. */

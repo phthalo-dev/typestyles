@@ -39,6 +39,13 @@ export interface TypestylesExtractOptions {
    * time and adds bytes to the CSS, so enable it for debugging.
    */
   sourceComments?: boolean;
+  /**
+   * When true, generate a real CSS source map mapping each extracted rule back to the
+   * `recipe()` / `style()` call that registered it. The map is emitted as a separate
+   * `.css.map` asset and referenced via a `/*# sourceMappingURL=... *\/` comment. Off by
+   * default; costs one stack capture per rule at extract time.
+   */
+  sourceMap?: boolean;
 }
 
 /**

@@ -38,6 +38,13 @@ export function getRegisteredCss(): string {
   return '';
 }
 
+export function getRegisteredCssForSourceMap(): {
+  css: string;
+  rules: Array<{ css: string; source?: string }>;
+} {
+  return { css: '', rules: [] };
+}
+
 export function subscribeRegisteredCss(_listener: () => void): () => void {
   return () => {};
 }

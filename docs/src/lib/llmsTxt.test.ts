@@ -15,8 +15,8 @@ describe('buildLlmsTxt', () => {
     const docsBySlug = Object.fromEntries(
       docNavigation.categories
         .flatMap((c) => c.items)
-        .filter((item) => item.slug)
-        .map((item) => [item.slug!, stubDoc(item.slug!, `${item.slug} description`)]),
+        .filter((item): item is typeof item & { slug: string } => Boolean(item.slug))
+        .map((item) => [item.slug, stubDoc(item.slug, `${item.slug} description`)]),
     );
 
     const txt = buildLlmsTxt(docsBySlug);

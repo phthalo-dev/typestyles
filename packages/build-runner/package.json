@@ -30,7 +30,8 @@
     "@jridgewell/remapping": "^2.3.5",
     "acorn": "^8.16.0",
     "esbuild": "^0.27.3",
-    "magic-string": "^0.30.21"
+    "magic-string": "^0.30.21",
+    "source-map-js": "^1.2.1"
   },
   "devDependencies": {
     "@types/node": "^24.13.0",

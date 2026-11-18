@@ -10,7 +10,6 @@ import {
   resolveExtractModules,
   indexPlans,
   isTransformableId,
-  runTypestylesBuild,
   runTypestylesExtract,
   transformRecipeCalls,
   mayNeedRecompile,
@@ -166,6 +165,12 @@ function renderCssFileName(pattern: string, source: string): string {
   );
 }
 
+/** Append a `/*# sourceMappingURL=... *\/` comment referencing the CSS's companion `.map` file. */
+function appendSourceMappingUrl(css: string, cssFileName: string): string {
+  const mapName = `${cssFileName.split('/').pop()}.map`;
+  return `${css}\n/*# sourceMappingURL=${mapName} */`;
+}
+
 function isTypestylesStylesheetHref(href: string, cssHref: string, bareName: string): boolean {
   return (
     href === cssHref ||
@@ -272,7 +277,8 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
 
   /** Dev-only cache for on-demand extract CSS (avoids SPA fallback serving HTML for the link href). */
   let devExtractCss: string | null = null;
-  let devExtractInFlight: Promise<string> | null = null;
+  let devExtractMap: string | null = null;
+  let devExtractInFlight: Promise<TypestylesExtractResult> | null = null;
 
   /**
    * One extraction run per build: it feeds both the emitted CSS (`generateBundle`) and the
@@ -285,6 +291,7 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
       root,
       modules: resolvedExtractModules,
       sourceComments: extract?.sourceComments,
+      sourceMap: extract?.sourceMap,
     });
     return extraction;
   }
@@ -356,6 +363,7 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
 
       const invalidateDevExtract = (): void => {
         devExtractCss = null;
+        devExtractMap = null;
         devExtractInFlight = null;
       };
 
@@ -380,15 +388,47 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
           base === '' || base === '/'
             ? `/${fileName.replace(/^\//, '')}`
             : `${base}/${fileName.replace(/^\//, '')}`;
+        const expectedMapPath = `${expectedPath}.map`;
+        const isMapRequest = url === expectedMapPath;
 
-        if (url !== expectedPath) {
+        if (url !== expectedPath && !isMapRequest) {
           next();
+          return;
+        }
+
+        if (isMapRequest && !extract?.sourceMap) {
+          res.statusCode = 404;
+          res.end('Not found');
           return;
         }
 
         const root = config.root ?? process.cwd();
 
         try {
+          if (isMapRequest) {
+            if (devExtractMap !== null) {
+              res.statusCode = 200;
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.setHeader('Cache-Control', 'no-cache');
+              res.end(devExtractMap);
+              return;
+            }
+            // Map requests always wait for the in-flight extraction.
+            const result = devExtractInFlight ?? extractOnce(root);
+            const { map } = await result;
+            if (!map) {
+              res.statusCode = 404;
+              res.end('Not found');
+              return;
+            }
+            devExtractMap = map;
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.end(map);
+            return;
+          }
+
           if (devExtractCss !== null) {
             res.statusCode = 200;
             res.setHeader('Content-Type', 'text/css; charset=utf-8');
@@ -397,20 +437,16 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
             return;
           }
           if (!devExtractInFlight) {
-            devExtractInFlight = runTypestylesBuild({
-              root,
-              modules: resolvedExtractModules,
-              sourceComments: extract?.sourceComments,
-            })
-              .then((css) => {
-                devExtractCss = css;
-                return css;
-              })
-              .finally(() => {
-                devExtractInFlight = null;
-              });
+            devExtractInFlight = extractOnce(root).finally(() => {
+              devExtractInFlight = null;
+            });
           }
-          const css = await devExtractInFlight;
+          const result = await devExtractInFlight;
+          devExtractCss = result.css;
+          devExtractMap = result.map ?? null;
+          const css = extract?.sourceMap
+            ? `${result.css}\n/*# sourceMappingURL=${fileName}.map */`
+            : result.css;
           res.statusCode = 200;
           res.setHeader('Content-Type', 'text/css; charset=utf-8');
           res.setHeader('Cache-Control', 'no-cache');
@@ -603,35 +639,56 @@ if (import.meta.hot) {
       }
 
       try {
-        const { css } = await extractOnce(root);
+        const { css, map } = await extractOnce(root);
         if (requestedFileName && cssFileNameHasPlaceholder(requestedFileName)) {
           builtCssFileName = renderCssFileName(requestedFileName, css);
-          this.emitFile({
-            type: 'asset',
-            fileName: builtCssFileName,
-            source: css,
-          });
+          const cssWithMap = map ? appendSourceMappingUrl(css, builtCssFileName) : css;
+          this.emitFile({ type: 'asset', fileName: builtCssFileName, source: cssWithMap });
+          if (map) {
+            this.emitFile({ type: 'asset', fileName: `${builtCssFileName}.map`, source: map });
+          }
         } else if (requestedFileName) {
           builtCssFileName = requestedFileName;
-          this.emitFile({
-            type: 'asset',
-            fileName: requestedFileName,
-            source: css,
-          });
+          const cssWithMap = map ? appendSourceMappingUrl(css, builtCssFileName) : css;
+          this.emitFile({ type: 'asset', fileName: requestedFileName, source: cssWithMap });
+          if (map) {
+            this.emitFile({ type: 'asset', fileName: `${builtCssFileName}.map`, source: map });
+          }
         } else {
-          const referenceId = this.emitFile({
-            type: 'asset',
-            name: DEFAULT_CSS_FILE_NAME,
-            source: css,
-          });
-          builtCssFileName = this.getFileName(referenceId);
-          // Rollup hashed the original source; the rebase is deterministic, so the hash stays valid.
-          const asset = bundle?.[builtCssFileName];
-          if (asset?.type === 'asset' && typeof asset.source === 'string') {
-            asset.source = rebaseRelativeCssUrls(
-              asset.source,
-              builtCssFileName.split('/').length - 1,
-            );
+          if (map) {
+            // Emit the map first so its hashed filename is known before the CSS source
+            // (which references it) is finalized. The CSS hash is still deterministic
+            // because the map content does not depend on the CSS filename.
+            const mapReferenceId = this.emitFile({
+              type: 'asset',
+              name: `${DEFAULT_CSS_FILE_NAME}.map`,
+              source: map,
+            });
+            const mapFileName = this.getFileName(mapReferenceId);
+            const mapBasename = mapFileName.split('/').pop() ?? mapFileName;
+            const depth = mapFileName.split('/').length - 1;
+            const finalCss = `${rebaseRelativeCssUrls(css, depth)}\n/*# sourceMappingURL=${mapBasename} */`;
+            const referenceId = this.emitFile({
+              type: 'asset',
+              name: DEFAULT_CSS_FILE_NAME,
+              source: finalCss,
+            });
+            builtCssFileName = this.getFileName(referenceId);
+          } else {
+            const referenceId = this.emitFile({
+              type: 'asset',
+              name: DEFAULT_CSS_FILE_NAME,
+              source: css,
+            });
+            builtCssFileName = this.getFileName(referenceId);
+            // Rollup hashed the original source; the rebase is deterministic, so the hash stays valid.
+            const asset = bundle?.[builtCssFileName];
+            if (asset?.type === 'asset' && typeof asset.source === 'string') {
+              asset.source = rebaseRelativeCssUrls(
+                asset.source,
+                builtCssFileName.split('/').length - 1,
+              );
+            }
           }
         }
       } catch (err) {

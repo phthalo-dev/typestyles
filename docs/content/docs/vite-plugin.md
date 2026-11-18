@@ -149,6 +149,18 @@ typestyles({ extract: { sourceComments: true } });
 
 Paths are relative to the project root; rules from a library bundled into the extract show the library's path. This applies to the extracted stylesheet only (dev `/typestyles.css` and `vite build`). Runtime injection goes through `CSSStyleSheet.insertRule`, which drops comments. Enable it for debugging rather than production, since it adds bytes and a stack capture per rule at extract time.
 
+## Source maps
+
+For a real CSS source map that maps each extracted rule back to the `recipe()` / `style()` call that registered it, enable `extract.sourceMap`:
+
+```ts
+typestyles({ extract: { sourceMap: true } });
+```
+
+In `vite build`, the plugin emits a companion `.css.map` asset and appends a `/*# sourceMappingURL=... */` comment to the CSS. In `vite dev`, the dev-server middleware serves the map at `/typestyles.css.map` (or your `fileName` with `.map` appended) so DevTools can resolve the same mappings for the extracted stylesheet.
+
+Like source comments, this costs one stack capture per rule at extract time and is intended for development/debugging rather than production.
+
 ## Dev inspect
 
 When styles are injected at runtime (the default in `vite dev`), `CSSStyleSheet.insertRule` strips comments, so the source-comment trick above does not help. Instead, TypeStyles can keep a dev-only registry that maps generated class names back to the `recipe()` / `style()` call that registered them.
@@ -359,6 +371,5 @@ If you prefer full page reloads or use a different bundler, you don't need this 
 Planned enhancements (not yet implemented):
 
 - **Dead style detection**: Warn when styles are defined but never used
-- **Source maps**: A real CSS source map for extracted CSS (today, [source comments](#source-comments) cover extracted CSS and [dev inspect](#dev-inspect) covers runtime)
 
 Stay tuned to the [GitHub repository](https://github.com/phthalo-dev/typestyles) for updates.
