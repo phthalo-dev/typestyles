@@ -64,15 +64,9 @@ function finalizeBreakpointMap(map: BreakpointMap): BreakpointMap {
   for (const [name, condition] of Object.entries(map)) {
     validateMediaCondition(name, condition);
     const normalized = normalizeMediaCondition(condition);
-    const withFeature = normalizeBareBreakpoint(normalized);
-    if (process.env.NODE_ENV !== 'production' && withFeature !== normalized) {
-      console.warn(
-        `[typestyles] Breakpoint "${name}" is a bare value ${JSON.stringify(normalized)}; ` +
-          `treating it as ${JSON.stringify(withFeature)}. ` +
-          `Register a full condition like \`(min-width: 768px)\` to make the feature explicit.`,
-      );
-    }
-    result[name] = withFeature;
+    // A bare length (`48rem`) is the mobile-first `(min-width: 48rem)`: the universal convention,
+    // so it is supported as-is, not warned about.
+    result[name] = normalizeBareBreakpoint(normalized);
   }
   return result;
 }
