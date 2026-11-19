@@ -52,7 +52,11 @@ import type { CascadeLayersInput } from './layers';
 import { applyLayerToRules, assertOwnLayer, resolveCascadeLayers } from './layers';
 import type { ColorModeMap } from './color-modes';
 import { isColorModeObject } from './color-modes';
-import { expandModeAwareTokenValues, normalizeThemeConfig } from './token-color-modes';
+import {
+  expandModeAwareTokenValues,
+  markDeclaredGroupProxy,
+  normalizeThemeConfig,
+} from './token-color-modes';
 import { compileThemeCondition, buildSelectorForContext } from './condition-compile';
 import { disposeThemeByName } from './theme-dispose';
 import {
@@ -110,6 +114,20 @@ function hasChildPaths(paths: Set<string>, path: string): boolean {
     if (p.startsWith(withDash)) return true;
   }
   return false;
+}
+
+/** Immediate child keys of `prefix` among declared leaf paths, in declaration order. */
+function declaredChildKeys(paths: Set<string>, prefix: string): string[] {
+  const start = prefix ? `${prefix}-` : '';
+  const keys = new Set<string>();
+  for (const p of paths) {
+    if (!p.startsWith(start)) continue;
+    const rest = p.slice(start.length);
+    if (!rest) continue;
+    const dash = rest.indexOf('-');
+    keys.add(dash === -1 ? rest : rest.slice(0, dash));
+  }
+  return [...keys];
 }
 
 function getTokenNamespace(ref: object): string | undefined {
@@ -428,7 +446,26 @@ function createDeclaredTokenProxy(
       if (leafPaths.has(newPrefix)) {
         return createRegisteredPropertyRef(resolvePathName(newPrefix));
       }
+      if (!hasChildPaths(leafPaths, newPrefix)) {
+        // Not in the schema: a typo or probe (`then`, `$$typeof`, `toJSON`…) must not
+        // answer with a plausible-looking `var(--…)` for a token that doesn't exist.
+        return undefined;
+      }
       return createDeclaredTokenProxy(resolvePathName, newPrefix, leafPaths);
+    },
+    ownKeys() {
+      return declaredChildKeys(leafPaths, prefix);
+    },
+    getOwnPropertyDescriptor(_target, prop) {
+      if (typeof prop === 'symbol') return undefined;
+      if (!declaredChildKeys(leafPaths, prefix).includes(prop)) return undefined;
+      // Must be configurable: the proxy target is an empty extensible object.
+      return {
+        enumerable: true,
+        configurable: true,
+        writable: false,
+        value: handler.get!(_target, prop, _target),
+      };
     },
     has(_target, prop) {
       if (typeof prop === 'symbol') return false;
@@ -449,6 +486,7 @@ function createDeclaredTokenProxy(
 
   const proxy = new Proxy({}, handler);
   tokenProxyMeta.set(proxy, { prefix, paths: leafPaths, resolvePathName });
+  markDeclaredGroupProxy(proxy);
   return proxy;
 }
 
