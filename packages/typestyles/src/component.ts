@@ -50,6 +50,7 @@ import {
   normalizeSelection,
   toDataAttributeName,
 } from './attrs-runtime';
+import { captureDevSourceLocation, devSourceAttributeEnabled } from './source-comments';
 import type { AttrsRecipeCallPlan, ClientPlanEntry } from './attrs-runtime';
 
 export { createComponentAttrsResult };
@@ -1178,6 +1179,8 @@ function createAttributeDimensionedComponent<V extends VariantDefinitions>(
 
   insertRules(finalizeComponentRules(classNaming, layer, rules));
 
+  const source = devSourceAttributeEnabled() ? captureDevSourceLocation() : undefined;
+
   const selectorFn = (selections: Record<string, unknown> = {}): ComponentAttrsResult => {
     return createComponentAttrsResult(
       baseClassName,
@@ -1187,6 +1190,7 @@ function createAttributeDimensionedComponent<V extends VariantDefinitions>(
         defaultVariants as Record<string, unknown>,
         selections,
       ),
+      source,
     );
   };
 
@@ -1296,6 +1300,8 @@ function createAttributeSlotComponent<
   }
   insertRules(finalizeComponentRules(classNaming, layer, rules));
 
+  const source = devSourceAttributeEnabled() ? captureDevSourceLocation() : undefined;
+
   const result = ((selections: Record<string, unknown> = {}) => {
     const attrs = resolveAttributeAttrs(
       namespace,
@@ -1307,7 +1313,7 @@ function createAttributeSlotComponent<
     return Object.fromEntries(
       (slots as readonly string[]).map((slot) => [
         slot,
-        createComponentAttrsResult(baseClassBySlot[slot], attrs),
+        createComponentAttrsResult(baseClassBySlot[slot], attrs, source),
       ]),
     ) as Record<Slots[number], ComponentAttrsResult>;
   }) as SlotAttrsReturn<Slots, V>;

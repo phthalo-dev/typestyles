@@ -126,6 +126,16 @@
         "types": "./dist/testing.d.cts",
         "default": "./dist/testing.cjs"
       }
+    },
+    "./inspect": {
+      "import": {
+        "types": "./dist/inspect.d.ts",
+        "default": "./dist/inspect.js"
+      },
+      "require": {
+        "types": "./dist/inspect.d.cts",
+        "default": "./dist/inspect.cjs"
+      }
     }
   },
   "sideEffects": [
@@ -136,7 +146,9 @@
     "./dist/build.js",
     "./dist/build.cjs",
     "./dist/testing.js",
-    "./dist/testing.cjs"
+    "./dist/testing.cjs",
+    "./dist/inspect.js",
+    "./dist/inspect.cjs"
   ],
   "files": [
     "dist",

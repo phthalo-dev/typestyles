@@ -149,6 +149,44 @@ typestyles({ extract: { sourceComments: true } });
 
 Paths are relative to the project root; rules from a library bundled into the extract show the library's path. This applies to the extracted stylesheet only (dev `/typestyles.css` and `vite build`). Runtime injection goes through `CSSStyleSheet.insertRule`, which drops comments. Enable it for debugging rather than production, since it adds bytes and a stack capture per rule at extract time.
 
+## Dev inspect
+
+When styles are injected at runtime (the default in `vite dev`), `CSSStyleSheet.insertRule` strips comments, so the source-comment trick above does not help. Instead, TypeStyles can keep a dev-only registry that maps generated class names back to the `recipe()` / `style()` call that registered them.
+
+The registry is on by default in non-production builds. Import the helpers in your app entry or open the console:
+
+```ts
+import { inspect } from 'typestyles/inspect';
+
+inspect('button-base');
+// { className: 'button-base', source: 'src/Button.ts:12', css: ['.button-base { ... }'] }
+```
+
+Or use the global that is registered automatically:
+
+```js
+window.__TYPESTYLES_INSPECT__.inspect('button-base');
+window.__TYPESTYLES_INSPECT__.inspectElement($0);
+```
+
+### `data-ts-source` attribute
+
+In attribute mode, you can also surface the source location directly on elements. Opt in by setting the dev-inspect flag before your recipes execute:
+
+```ts
+if (typeof window !== 'undefined') {
+  window.__TYPESTYLES_DEV_INSPECT__ = true;
+}
+```
+
+Attribute-mode recipes then emit a `data-ts-source` attribute:
+
+```html
+<button class="button" data-intent="primary" data-ts-source="src/Button.ts:12"></button>
+```
+
+Set the flag to `false` to disable both the registry and the attribute, or pass `{ root: '/project/root' }` to relativize captured paths.
+
 ## How HMR works
 
 When you save a file that imports from `typestyles`, the plugin:
@@ -321,6 +359,6 @@ If you prefer full page reloads or use a different bundler, you don't need this 
 Planned enhancements (not yet implemented):
 
 - **Dead style detection**: Warn when styles are defined but never used
-- **Source maps**: A real CSS source map (today, [source comments](#source-comments) cover extracted CSS)
+- **Source maps**: A real CSS source map for extracted CSS (today, [source comments](#source-comments) cover extracted CSS and [dev inspect](#dev-inspect) covers runtime)
 
 Stay tuned to the [GitHub repository](https://github.com/phthalo-dev/typestyles) for updates.

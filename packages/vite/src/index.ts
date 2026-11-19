@@ -508,8 +508,12 @@ if (import.meta.hot) {
   });
 }`;
 
+      // Dev-only: inject the inspect helper so `window.__TYPESTYLES_INSPECT__`
+      // is available from the console without the user importing it manually.
+      const inspectImport = `import 'typestyles/inspect';\n`;
+
       return {
-        code: hmrImports + overrideBootstrap + code + hmrCode,
+        code: inspectImport + hmrImports + overrideBootstrap + code + hmrCode,
         map: null,
       };
     },
