@@ -247,6 +247,45 @@ function formatUnextractedRecipeError(
 }
 
 /**
+ * Mirror the host Vite graph's resolution in the extraction bundle: custom export conditions
+ * (extraction runs in Node, so SSR ones come first) and string aliases.
+ */
+export function hostResolveOptions(config: ResolvedConfig | null): {
+  conditions?: string[];
+  alias?: Record<string, string>;
+} {
+  if (!config) return {};
+  const ssrConditions =
+    (config as { ssr?: { resolve?: { conditions?: string[] } } }).ssr?.resolve?.conditions ?? [];
+  // esbuild already handles its own platform conditions; forward only custom ones.
+  const builtin = new Set([
+    'module',
+    'browser',
+    'development',
+    'production',
+    'default',
+    'import',
+    'require',
+    'node',
+  ]);
+  const conditions = [
+    ...new Set(
+      [...ssrConditions, ...(config.resolve?.conditions ?? [])].filter(
+        (c) => !builtin.has(c) && !c.startsWith('$'),
+      ),
+    ),
+  ];
+  const alias: Record<string, string> = {};
+  for (const { find, replacement } of config.resolve?.alias ?? []) {
+    if (typeof find === 'string' && typeof replacement === 'string') alias[find] = replacement;
+  }
+  return {
+    ...(conditions.length ? { conditions } : {}),
+    ...(Object.keys(alias).length ? { alias } : {}),
+  };
+}
+
+/**
  * Vite plugin for typestyles HMR support.
  *
  * When a module that registers typestyles (e.g. `styles.component`, `styles.class`, `tokens.create`) is edited,
@@ -292,6 +331,7 @@ export default function typestylesPlugin(options: TypestylesPluginOptions = {}):
       modules: resolvedExtractModules,
       sourceComments: extract?.sourceComments,
       sourceMap: extract?.sourceMap,
+      ...hostResolveOptions(resolvedConfig),
     });
     return extraction;
   }

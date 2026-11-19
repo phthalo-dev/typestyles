@@ -1075,3 +1075,31 @@ export const card = style('card', { color: 'red' });
     expect(emitted).toHaveLength(1);
   });
 });
+
+describe('hostResolveOptions', () => {
+  it('forwards custom conditions and string aliases, drops builtin ones', async () => {
+    const { hostResolveOptions } = await import('./index');
+    const config = {
+      resolve: {
+        conditions: ['module', '@acme/source', 'development'],
+        alias: [
+          { find: '@app', replacement: '/abs/src' },
+          { find: /^re/, replacement: 'x' },
+        ],
+      },
+      ssr: { resolve: { conditions: ['@acme/ssr'] } },
+    } as never;
+    expect(hostResolveOptions(config)).toEqual({
+      conditions: ['@acme/ssr', '@acme/source'],
+      alias: { '@app': '/abs/src' },
+    });
+  });
+
+  it('returns nothing for hosts with no custom resolution', async () => {
+    const { hostResolveOptions } = await import('./index');
+    expect(hostResolveOptions({ resolve: { conditions: ['module'], alias: [] } } as never)).toEqual(
+      {},
+    );
+    expect(hostResolveOptions(null)).toEqual({});
+  });
+});
