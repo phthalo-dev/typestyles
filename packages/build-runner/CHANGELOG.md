@@ -1,5 +1,11 @@
 # @typestyles/build-runner
 
+## 0.9.0
+
+### Minor Changes
+
+- [#338](https://github.com/phthalo-dev/typestyles/pull/338) [`54535af`](https://github.com/phthalo-dev/typestyles/commit/54535af11c4f573fb1f334b6a73844270f55224d) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Add real CSS source maps for extracted CSS. Enable with `extract.sourceMap: true` in `@typestyles/vite`. Each extracted rule is mapped back to the `recipe()` / `style()` call site via a VLQ source map emitted as a companion `.css.map` asset, referenced by a `/*# sourceMappingURL=... */` comment. The dev server also serves the map so the same mappings are available during development. The shared `@typestyles/build-runner` extraction pipeline now captures per-rule source locations and generates the map, and `typestyles` exposes `getRegisteredCssForSourceMap()` for consumers that need the raw mapping data. This complements `extract.sourceComments` and `typestyles/inspect` with a standard, tool-friendly source map.
+
 ## 0.8.1
 
 ### Patch Changes

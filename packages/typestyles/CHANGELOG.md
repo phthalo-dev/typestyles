@@ -1,5 +1,60 @@
 # typestyles
 
+## 0.36.0
+
+### Minor Changes
+
+- [#329](https://github.com/phthalo-dev/typestyles/pull/329) [`1bb8e7f`](https://github.com/phthalo-dev/typestyles/commit/1bb8e7fcc658133d9bfe3747da29b1cb4a21be0d) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Auto-route recipe var defaults to slots that read them ([#322](https://github.com/phthalo-dev/typestyles/issues/322)). Recipe `vars` defaults were declared on the var host slot plus any slots listed in the var's explicit `slots` option. A slot rendered **outside** the host element (a portaled popover, a flyout) that read a var without being listed silently computed `var(--x)` to the `@property` `initial-value` instead — for `atProperty.color` that is `transparent`, so the element disappeared.
+  
+  - While building a recipe, TypeStyles now records which slots read `vars.x.var` in their styles — in `base` blocks, variant options, and compound variants — and emits the var's default on each of those slots too, so the default reaches every slot whose styles use it no matter where the slot renders.
+  - Theme (`override()`) values for the var are emitted on those slots as well, so portal-rendered slots pick up theme overrides without relying on inheritance.
+  - The explicit `slots` option is now an override for slots that must carry a var without reading it in the recipe styles (for example a slot styled only through a consumer override); reads and explicit `slots` lists union, and defaults are never emitted twice on the same slot.
+  - Dimensioned / flat recipes are unaffected (there is only the host slot).
+
+- [#338](https://github.com/phthalo-dev/typestyles/pull/338) [`54535af`](https://github.com/phthalo-dev/typestyles/commit/54535af11c4f573fb1f334b6a73844270f55224d) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Add real CSS source maps for extracted CSS. Enable with `extract.sourceMap: true` in `@typestyles/vite`. Each extracted rule is mapped back to the `recipe()` / `style()` call site via a VLQ source map emitted as a companion `.css.map` asset, referenced by a `/*# sourceMappingURL=... */` comment. The dev server also serves the map so the same mappings are available during development. The shared `@typestyles/build-runner` extraction pipeline now captures per-rule source locations and generates the map, and `typestyles` exposes `getRegisteredCssForSourceMap()` for consumers that need the raw mapping data. This complements `extract.sourceComments` and `typestyles/inspect` with a standard, tool-friendly source map.
+
+- [#336](https://github.com/phthalo-dev/typestyles/pull/336) [`9793af7`](https://github.com/phthalo-dev/typestyles/commit/9793af728fdf402f9fb4156488303afc91f4f9cb) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Add dev-only inspection helpers for runtime style debugging. The new `typestyles/inspect` entry point exports `inspect(className)`, `inspectClassList(classNames)`, and `inspectElement(element)`, and registers `window.__TYPESTYLES_INSPECT__` for console use. In attribute mode, opt in to `data-ts-source` attributes by setting `globalThis.__TYPESTYLES_DEV_INSPECT__ = true` (or `{ root }` to relativize paths). This complements the existing `extract.sourceComments` option, which covers extracted CSS, by addressing the runtime injection path where `CSSStyleSheet.insertRule` strips comments. The Vite plugin now auto-imports `typestyles/inspect` in dev so the global is available without manual imports.
+
+- [#334](https://github.com/phthalo-dev/typestyles/pull/334) [`f12cf4d`](https://github.com/phthalo-dev/typestyles/commit/f12cf4d347804ce74d29579e8297da3b7e7cd694) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Add `inheritOverride` option to recipe `vars` so ancestor custom-property values are not shadowed by the host class default ([#333](https://github.com/phthalo-dev/typestyles/issues/333)).
+  
+  Recipe `vars` defaults are normally declared on the recipe's host class — for example `.var-ui-code-block { --var-ui-code-block-fontsize: var(--var-ui-fontSize-sm) }`. Because the host class targets the same element, this re-declaration shadows any value set on an ancestor, so "set this component's var for everything in this region" did not work the way a custom property normally would.
+  
+  - A recipe var can now be marked with `inheritOverride: true`:
+  
+    ```ts
+    recipe({
+      name: 'code-block',
+      vars: {
+        fontSize: { value: 'var(--fontSize-sm)', inheritOverride: true },
+      },
+      styles: ({ vars }) => ({
+        base: { fontSize: vars.fontSize.var },
+      }),
+    });
+    ```
+  
+  - With `inheritOverride: true`, the default is emitted as a `var(--name, <default>)` fallback wherever the var is read, instead of being declared on the host class. An ancestor can now set `--code-block-fontsize` and the component will use that value.
+  - The host class no longer re-declares the default for `inheritOverride` vars, and the default is not copied onto routed slots either; read sites always carry the fallback.
+  - `typestyles/lite` plans record the fallback value so the zero-runtime handle's `.vars.x.var` matches the full runtime.
+  - Non-`inheritOverride` vars keep the existing behavior: defaults are declared on the host and routed slots as before.
+
+- [#328](https://github.com/phthalo-dev/typestyles/pull/328) [`0a8e18c`](https://github.com/phthalo-dev/typestyles/commit/0a8e18ce6a23f864e868239c56e7b051d1de1678) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Add runtime token-ref introspection ([#321](https://github.com/phthalo-dev/typestyles/issues/321)). Token refs from `tokens.declare()` / `tokens.create()` are lazy proxies whose `has` trap used to return `true` for every key, making a token **group** indistinguishable from a **leaf** at runtime (`'var' in group` was `true`, and reading `group.var` handed back another proxy for a custom property that does not exist).
+  
+  - New `isTokenRef(value)` export: `true` only for token **leaf** refs (the `{ name, var }` objects a tree returns for leaf paths); groups always return `false`.
+  - New `tokens.entries(refs)` / `tokens.walk(refs, visit)`: enumerate the leaves of any refs tree or subtree (from `declare`, `create`, or `use`) as `[path, ref]` pairs — namespace-relative dashed paths in declaration order, refs normalized to the `{ name, var }` shape.
+  - The `has` trap on token refs proxies is now honest: `'var' in ref` is `true` only for leaves, and `'path' in tree` is `true` only for declared or created paths. A token path literally named `var`, `name`, or `length` wins over the member shims in both `in` checks and property access.
+  - New `TokenLeafRef` type export (the `{ name, var }` leaf shape).
+
+### Patch Changes
+
+- [#326](https://github.com/phthalo-dev/typestyles/pull/326) [`d083e60`](https://github.com/phthalo-dev/typestyles/commit/d083e60890f39d2ef7feaa46a4b12d4d73f4da5a) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Normalize bare-length breakpoint values to `(min-width: …)` media conditions. Registering `breakpoints: { xl: '80rem' }` and calling `breakpoint('xl')` (or using `xl` in responsive property values) used to emit the invalid, never-matching query `@media (80rem)`; it now emits `@media (min-width: 80rem)`, and the `breakpoint()` return type reflects the wrapped condition. A dev warning is logged when a bare value is normalized.
+
+- [#330](https://github.com/phthalo-dev/typestyles/pull/330) [`c2f9194`](https://github.com/phthalo-dev/typestyles/commit/c2f9194261f959843cb12a92a991d4d497a76366) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Keyframe stops now use the same value serialization as styles: unitless properties (e.g. `opacity`, `lineHeight`, `fontWeight`) keep their numbers unitless instead of getting an invalid `px` appended, and custom properties (`--*`) never receive a unit. Previously `{ opacity: 1 }` in a keyframe stop serialized as `opacity: 1px`, which the browser silently dropped.
+
+- [#332](https://github.com/phthalo-dev/typestyles/pull/332) [`58a9482`](https://github.com/phthalo-dev/typestyles/commit/58a94825686de87746a995235b762829dde538a9) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Fix crash when a slot recipe has a slot named `name` (or `length`): these collide with read-only own properties of functions, which previously threw during recipe creation and took down all extracted CSS. Slot accessors are now defined with `Object.defineProperty` so reserved names are supported.
+
+- [#331](https://github.com/phthalo-dev/typestyles/pull/331) [`e303365`](https://github.com/phthalo-dev/typestyles/commit/e3033655f6fa2c4eb86e4d146b8c7c041425d8e2) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Theme token values no longer emit `:root` rules at runtime. `createTheme({ tokens })` and `Theme.override({ tokens })` register each namespace through `tokens.create`, which also emitted the theme's values as `:root { --scope-ns-token: … }` custom properties plus `:root`-anchored dark-mode override rules for leaves that cannot use `light-dark()` (e.g. `shadow` tokens with `{ light, dark }` leaves). Importing a theme module therefore restyled the whole page — on a dark-mode visit every element picked up that theme's dark shadows, not just elements under `.theme-{name}`. Theme token values now live only on the theme class, which `createTheme` already emits (matching the zero-runtime extraction output), and the shared `:root` value tree is left untouched so a later `tokens.create()` cannot re-emit theme values either.
+
 ## 0.35.2
 
 ### Patch Changes
