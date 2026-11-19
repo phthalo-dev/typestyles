@@ -164,12 +164,7 @@ export function expandVarOverrideDeclarations(
       continue;
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(
-        `[typestyles] Component var "${name}" cannot use \`light-dark()\` — ` +
-          `emitting a dark-mode override rule instead.`,
-      );
-    }
+    // Not a color: a dark-mode override rule carries the dark value (supported, no warning).
     expanded[name] = light;
     darkOnly[name] = dark;
     hasDarkOnly = true;
