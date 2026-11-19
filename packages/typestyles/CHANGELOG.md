@@ -1,5 +1,13 @@
 # typestyles
 
+## 0.36.1
+
+### Patch Changes
+
+- [#359](https://github.com/phthalo-dev/typestyles/pull/359) [`1405fe3`](https://github.com/phthalo-dev/typestyles/commit/1405fe331a4267c85955df4f3ac63adc59597cad) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Fix auto-routed recipe var defaults overriding inherited values (regression in 0.36.0, [#329](https://github.com/phthalo-dev/typestyles/pull/329)). A slot that reads a var now gets the var's default, and its `override()` theme values, only where it has no host ancestor (a portaled popup), through `.slot:where(:not(.host *))`. Before this fix the default was declared on the slot unconditionally. That declaration beat the value the slot should inherit from the host: a variant (a tone colour), an inline `style` or a value set per item (a rating star's fill), so those stopped reaching the slot. Explicit `slots` options keep declaring the default unconditionally.
+
+- [#355](https://github.com/phthalo-dev/typestyles/pull/355) [`0506457`](https://github.com/phthalo-dev/typestyles/commit/050645756a8d7b8000e58a4eaa3f4b26a139b716) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Stop warning when a `syntax: '*'` var/token has a `var()`/`env()`-dependent value. `@property` with `*` adds nothing (no type, no interpolation), so skipping it is the correct result; typed syntaxes without a usable `initial` still warn.
+
 ## 0.36.0
 
 ### Minor Changes
