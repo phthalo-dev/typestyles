@@ -119,7 +119,7 @@ All three repos (`typestyles`, `var-ui`, `homeslate`) use the same pipeline. Eve
 - **Verify** is the status check to require on `main`. It runs `vp run ci`, the same command the pre-push hook runs, so run it before pushing. Every package under `packages/*` is built and published. `Benchmark` runs on PRs that touch `packages/typestyles`, `benchmarks` or the lockfile.
 - **Release** runs on `main` after `Verify`. It reuses the `dist` that `Verify` built, mints a token from the GitHub App (so the version PR and tags trigger CI), and runs the changesets action.
 - **Deploy docs / Preview docs** build the docs site with the Netlify CLI (`netlify deploy --build`) and deploy it: production after `Verify` on `main`, a `deploy-preview-<PR>` alias with a sticky comment on same-repo PRs. They only run when docs or the packages they use changed (the `Changes` job). Netlify's own git builds are turned off (`ignore = "exit 0"` in `netlify.toml`).
-- **Unstable publish** is manual: Actions → CI → Run workflow → tick `unstable`. It versions every package as `0.0.0-unstable.<sha>` and publishes with the `unstable` tag. It lives in `ci.yml` (not its own file) because the npm trusted publisher is bound to that filename.
+- **Unstable publish** runs on every push to `main` (in parallel with Release, after `Verify`), and can also be run manually: Actions → CI → Run workflow → tick `unstable`. It versions every package as `0.0.0-unstable.<sha>` and publishes with the `unstable` tag. It lives in `ci.yml` (not its own file) because the npm trusted publisher is bound to that filename.
 
 ### Releasing
 
