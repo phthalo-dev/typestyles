@@ -16,6 +16,8 @@ export type SheetState = {
   ssrBuffer: string[] | null;
   /** Rule CSS → `path:line`; only filled when source comments are enabled. */
   sourceByCss: Map<string, string>;
+  /** Rule CSS → `path:line`; only filled when source maps are enabled. */
+  sourceMapByCss: Map<string, string>;
   /** Class name → aggregated debug info; only filled when dev inspect is enabled. */
   sourceByClassName: Map<string, ClassSourceInfo>;
 };
@@ -29,6 +31,7 @@ export function createSheetState(): SheetState {
     flushScheduled: false,
     ssrBuffer: null,
     sourceByCss: new Map(),
+    sourceMapByCss: new Map(),
     sourceByClassName: new Map(),
   };
 }
@@ -41,6 +44,7 @@ export function resetSheetState(state: SheetState): void {
   state.flushScheduled = false;
   state.ssrBuffer = null;
   state.sourceByCss.clear();
+  state.sourceMapByCss.clear();
   state.sourceByClassName.clear();
 }
 

@@ -17,9 +17,11 @@ import { consolidateCascadeLayers } from './consolidate-cascade-layers';
 import {
   captureDevSourceLocation,
   captureSourceLocation,
+  captureSourceMapLocation,
   devInspectEnabled,
   formatSourceComment,
   sourceCommentsConfig,
+  sourceMapConfig,
 } from './source-comments';
 
 /** Stable id for the managed `<style>` element (SSR, hydration, and client runtime). */
@@ -579,11 +581,16 @@ function recordClassSources(state: SheetState, css: string, source: string | und
 
 function recordSource(state: SheetState, css: string): void {
   const config = sourceCommentsConfig();
+  const mapConfig = sourceMapConfig();
   const inspectEnabled = devInspectEnabled();
   let location: string | undefined;
   if (config) {
     location = captureSourceLocation(config);
     if (location) state.sourceByCss.set(css, location);
+  }
+  if (mapConfig) {
+    if (!location) location = captureSourceMapLocation();
+    if (location) state.sourceMapByCss.set(css, location);
   }
   if (inspectEnabled) {
     if (!location) location = captureDevSourceLocation();
@@ -723,6 +730,25 @@ export function getRegisteredCss(): string {
       })
       .join('\n'),
   );
+}
+
+export type RegisteredCssMapData = {
+  /** CSS output (rules joined with newlines, not layer-consolidated). */
+  css: string;
+  /** Per-rule source locations in the same order as the generated lines. */
+  rules: Array<{ css: string; source?: string }>;
+};
+
+/**
+ * Return registered CSS together with per-rule source locations for source-map generation.
+ * Rules are not consolidated so generated line numbers stay stable and mappable.
+ */
+export function getRegisteredCssForSourceMap(): RegisteredCssMapData {
+  const { allRules, sourceMapByCss } = getSheetState();
+  return {
+    css: allRules.join('\n'),
+    rules: allRules.map((css) => ({ css, source: sourceMapByCss.get(css) })),
+  };
 }
 
 const registeredCssListeners = new Set<() => void>();

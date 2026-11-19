@@ -78,6 +78,7 @@ import { build as esbuildBuild } from 'esbuild';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { buildCssSourceMap } from './css-source-map';
 
 export interface RunTypestylesBuildOptions {
   /**
@@ -93,6 +94,11 @@ export interface RunTypestylesBuildOptions {
    * Paths are relative to `root`. See {@link TypestylesExtractOptions.sourceComments}.
    */
   sourceComments?: boolean;
+  /**
+   * Generate a real CSS source map mapping each extracted rule to the `recipe()` /
+   * `style()` call that registered it. See {@link TypestylesExtractOptions.sourceMap}.
+   */
+  sourceMap?: boolean;
 }
 
 /**
@@ -117,6 +123,9 @@ function toImportPath(modulePath: string): string {
 export async function runTypestylesBuild(options: RunTypestylesBuildOptions): Promise<string> {
   return (await runTypestylesExtract(options)).css;
 }
+
+export type { GeneratedCssWithMap } from './css-source-map';
+export { buildCssSourceMap } from './css-source-map';
 
 /**
  * What a recipe call needs at runtime. Mirrors `AttrsRecipePlan` from `typestyles` (kept as a
@@ -185,6 +194,11 @@ export interface TypestylesExtractResult {
   /** Collected CSS (what {@link runTypestylesBuild} returns). */
   css: string;
   /**
+   * CSS source map as a JSON string, mapping each rule to the registering call.
+   * Only present when {@link RunTypestylesBuildOptions.sourceMap} is enabled.
+   */
+  map?: string;
+  /**
    * Call-behavior plans recorded while the real runtime ran, for the
    * compile-time transform. Empty with a `typestyles` that predates plans.
    */
@@ -199,8 +213,11 @@ export async function runTypestylesExtract({
   root,
   modules,
   sourceComments = false,
+  sourceMap = false,
 }: RunTypestylesBuildOptions): Promise<TypestylesExtractResult> {
   if (!modules.length) return { css: '', plans: [] };
+
+  const needsSourceCapture = sourceComments || sourceMap;
 
   const importLines = modules
     .map((mod) => `import ${JSON.stringify(toImportPath(mod))};`)
@@ -233,7 +250,7 @@ export async function runTypestylesExtract({
     // annotation so every import in the extraction graph is included.
     ignoreAnnotations: true,
     // Source-mapped stacks (with `--enable-source-maps` below) give original file:line.
-    ...(sourceComments ? { sourcemap: 'inline' as const } : {}),
+    ...(needsSourceCapture ? { sourcemap: 'inline' as const } : {}),
     stdin: {
       contents: importLines,
       resolveDir: root,
@@ -255,19 +272,24 @@ export async function runTypestylesExtract({
     `globalThis.__TYPESTYLES_RECORD_PLANS__ = true;\n` +
     (sourceComments
       ? `globalThis.__TYPESTYLES_SOURCE_COMMENTS__ = { root: ${JSON.stringify(root)} };\n`
+      : '') +
+    (sourceMap
+      ? `globalThis.__TYPESTYLES_SOURCE_MAP__ = { root: ${JSON.stringify(root)} };\n`
       : '');
   const script =
     `${prelude}${bundledCode}\n` +
     `const __ts = require('typestyles');\n` +
+    `const __mapData = ${sourceMap ? 'typeof __ts.getRegisteredCssForSourceMap === "function" ? __ts.getRegisteredCssForSourceMap() : null' : 'null'};\n` +
     `require('node:fs').writeFileSync(${JSON.stringify(resultPath)}, JSON.stringify({ ` +
-    `css: __ts.getRegisteredCss(), ` +
+    `css: __mapData ? __mapData.css : __ts.getRegisteredCss(), ` +
+    `mapData: __mapData ? __mapData.rules : undefined, ` +
     `plans: typeof __ts.getClientPlans === 'function' ? __ts.getClientPlans() : [] }));\n`;
 
   try {
     writeFileSync(scriptPath, script, 'utf8');
     const result = spawnSync(
       process.execPath,
-      [...(sourceComments ? ['--enable-source-maps'] : []), scriptPath],
+      [...(needsSourceCapture ? ['--enable-source-maps'] : []), scriptPath],
       {
         cwd: root,
         encoding: 'utf8',
@@ -285,7 +307,14 @@ export async function runTypestylesExtract({
     }
 
     if (result.stdout) process.stderr.write(result.stdout);
-    return JSON.parse(readFileSync(resultPath, 'utf8')) as TypestylesExtractResult;
+    const raw = JSON.parse(readFileSync(resultPath, 'utf8')) as TypestylesExtractResult & {
+      mapData?: Array<{ css: string; source?: string }>;
+    };
+    if (sourceMap && raw.mapData) {
+      const { map } = buildCssSourceMap(raw.mapData, { file: 'typestyles.css' });
+      return { css: raw.css, map, plans: raw.plans };
+    }
+    return raw;
   } finally {
     for (const path of [scriptPath, resultPath]) {
       if (existsSync(path)) {

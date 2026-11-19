@@ -335,6 +335,11 @@ export const keyframes = {
 export { getRegisteredCss };
 
 /**
+ * Return registered CSS together with per-rule source locations for source-map generation.
+ */
+export { getRegisteredCssForSourceMap, type RegisteredCssMapData } from '#sheet';
+
+/**
  * Subscribe to changes in the registered CSS. Returns an unsubscribe function.
  * Compatible with `useSyncExternalStore`.
  */
