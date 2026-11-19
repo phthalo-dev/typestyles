@@ -68,7 +68,7 @@ describe('resolveBreakpoints', () => {
     process.env.NODE_ENV = originalEnv;
   });
 
-  it('wraps bare-length values as min-width conditions and warns in development', () => {
+  it('wraps bare-length values as min-width conditions, silently', () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'development';
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -77,8 +77,7 @@ describe('resolveBreakpoints', () => {
       md: '(min-width: 48rem)',
       lg: '(min-width: 1024px)',
     });
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('bare value'));
+    expect(warn).not.toHaveBeenCalled();
 
     warn.mockRestore();
     process.env.NODE_ENV = originalEnv;
