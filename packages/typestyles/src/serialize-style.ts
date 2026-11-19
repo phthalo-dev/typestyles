@@ -180,6 +180,14 @@ function serializeStyleExpanded(selector: string, properties: CSSProperties): CS
 export function resolveNestedSelector(parentSelector: string, key: string): string | null {
   // Parent placeholder anywhere in the key (e.g. `html[data-mode="dark"] &`, `.wrap &`).
   if (key.includes('&')) {
+    // CSS nesting: `&` stands for the whole parent list, so a list parent
+    // (`.a &, &.b`) must be substituted item by item — not pasted in whole, which
+    // would leave all but the last item without the nested part.
+    const parents = splitSelectorList(parentSelector);
+    if (parents.length > 1) {
+      const keys = splitSelectorList(key);
+      return parents.flatMap((parent) => keys.map((part) => part.replace(/&/g, parent))).join(', ');
+    }
     return key.replace(/&/g, parentSelector);
   }
 
