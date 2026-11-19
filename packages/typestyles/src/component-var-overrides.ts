@@ -200,6 +200,14 @@ export function finalizeVarRegistry(
   };
 }
 
+/**
+ * Selector for a slot's auto-routed var declarations (#322): the slot only where it
+ * has no host ancestor, at the slot class's own specificity.
+ */
+export function routedSlotSelector(slotClass: string, hostClass: string): string {
+  return `.${slotClass}:where(:not(.${hostClass} *))`;
+}
+
 /** Class token for a named recipe slot. Dimensioned and flat recipes have no slot classes. */
 export function resolveVarSlotClass(meta: ComponentMeta, slot: string): string | null {
   if (meta.kind !== 'slot' && meta.kind !== 'multi-slot') return null;

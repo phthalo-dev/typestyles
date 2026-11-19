@@ -45,8 +45,9 @@ export type FlatComponentVarEntry = {
    */
   inheritOverride?: boolean;
   /**
-   * Extra slots that receive this default, in addition to the host and any
-   * slots whose styles read the var (those are routed automatically, #322).
+   * Extra slots that always receive this default, in addition to the host. Slots
+   * whose styles read the var get it automatically wherever they render outside
+   * the host (#322).
    */
   slots?: readonly string[];
 };
@@ -184,10 +185,7 @@ export type ComponentVarDefaultDecl = {
    * instead emitted as a `var(--name, <value>)` fallback at read sites.
    */
   inheritOverride?: boolean;
-  /**
-   * Slots that receive this default (and theme overrides) beyond the host: the
-   * var's explicit `slots` option plus every slot whose styles read the var.
-   */
+  /** Slots that receive this default (and theme overrides) beyond the host: the var's explicit `slots` option. */
   slots?: readonly string[];
 };
 
@@ -289,7 +287,9 @@ function collectVarReadNames(node: unknown, pattern: RegExp, into: Set<string>):
  * the host slot, or a declaration of their own. A slot rendered outside the host
  * element gets neither and silently falls back to the `@property` initial value
  * (Issue #322), so every slot whose styles read a var gets its default routed to
- * it (`collectVarSlotUsage` feeds the default merge and the var registry).
+ * it for that case only. An unconditional declaration on the slot would beat the
+ * value it inherits from the host (a variant, an inline style), so the routed
+ * default is guarded with `:where(:not(.host *))` when it is emitted.
  *
  * Only slots declared on the recipe are considered — those are the only slots a
  * slot style block can be emitted for. The host slot is excluded from the result;
@@ -371,6 +371,11 @@ export function createComponentConfigContextPair(
 ): {
   ctx: ComponentConfigContext;
   mergeVarDefaultsInto: (config: Record<string, unknown>) => Record<string, unknown>;
+  /**
+   * Defaults for auto-routed slots (#322), by slot: emitted after the recipe is
+   * built, under `.slot:where(:not(.host *))`, once class names are known.
+   */
+  buildRoutedVarDefaults: () => Map<string, Record<string, string>>;
   buildVarRegistry: (config: Record<string, unknown>) => ComponentVarRegistry | undefined;
   buildVarRefTree: () => ComponentVarRefTree<ComponentVarDefinitions> | undefined;
   /** Logical var path -> custom property name (what `typestyles/lite` needs to rebuild `.vars`). */
@@ -621,39 +626,43 @@ export function createComponentConfigContextPair(
     return accepted.length > 0 ? accepted : undefined;
   }
 
+  const routedVarDefaults = new Map<string, Record<string, string>>();
+
   return {
     ctx,
     mergeVarDefaultsInto: (config: Record<string, unknown>) => {
-      // Auto-route (#322): every slot whose styles read a var receives its default
-      // (and theme overrides) — explicit `slots` options stack on top of that.
+      // Auto-route (#322): a slot whose styles read a var gets its default (and theme
+      // overrides) where it renders outside the host. Those are emitted after the
+      // build (`buildRoutedVarDefaults`); explicit `slots` options are written here.
       const usage = collectVarSlotUsage(config, [
         ...new Set([...registeredVars.map((reg) => reg.name), ...varBaseDefaults.keys()]),
       ]);
-      const host = resolveVarHostSlot(config);
-      const slotsFor = (
-        declared: readonly string[] | undefined,
+      const routedFor = (
+        explicit: readonly string[] | undefined,
         name: string,
       ): readonly string[] | undefined => {
-        const merged = [...(declared ?? [])];
-        for (const slot of usage.get(name) ?? []) {
-          if (slot === host || merged.includes(slot)) continue;
-          merged.push(slot);
-        }
-        return merged.length > 0 ? merged : undefined;
+        const routed = (usage.get(name) ?? []).filter((slot) => !explicit?.includes(slot));
+        return routed.length > 0 ? routed : undefined;
       };
       for (const reg of registeredVars) {
-        reg.slots = slotsFor(retainKnownVarSlots(config, reg.slots, false), reg.name);
+        reg.slots = retainKnownVarSlots(config, reg.slots, false);
+        reg.routedSlots = routedFor(reg.slots, reg.name);
       }
-      return mergeComponentVarDefaultsInto(
-        config,
-        [...varBaseDefaults.entries()].map(([name, entry]) => ({
-          name,
-          value: entry.value,
-          inheritOverride: entry.inheritOverride,
-          slots: slotsFor(retainKnownVarSlots(config, entry.slots, true), name),
-        })),
-      );
+      routedVarDefaults.clear();
+      const defaults = [...varBaseDefaults.entries()].map(([name, entry]) => {
+        const slots = retainKnownVarSlots(config, entry.slots, true);
+        if (!entry.inheritOverride) {
+          for (const slot of routedFor(slots, name) ?? []) {
+            const bucket = routedVarDefaults.get(slot) ?? {};
+            bucket[name] = entry.value;
+            routedVarDefaults.set(slot, bucket);
+          }
+        }
+        return { name, value: entry.value, inheritOverride: entry.inheritOverride, slots };
+      });
+      return mergeComponentVarDefaultsInto(config, defaults);
     },
+    buildRoutedVarDefaults: () => routedVarDefaults,
     buildVarRegistry: (config: Record<string, unknown>) =>
       finalizeVarRegistry(registeredVars, byPath, config),
     buildVarFallbacks: () => {

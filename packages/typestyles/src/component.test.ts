@@ -6,6 +6,11 @@ import { registeredNamespaces } from './registry';
 import { createStyles } from './styles';
 import { variant } from './variant';
 
+/** Selector for a slot's routed var defaults: only where the slot has no host ancestor (#322). */
+function outsideHost(slot: string, host: string): string {
+  return `${slot}:where(:not(${host} *))`;
+}
+
 /** Declarations inside the rule whose selector is exactly `selector`. */
 function declarationsFor(css: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1204,9 +1209,14 @@ describe('recipe var slots', () => {
     expect(declarationsFor(css, '.auto-route-nav__popup')).toContain(
       '--auto-route-nav-togglecolor: var(--color-text)',
     );
-    // …and `toggle` reads the var in its styles, so it gets its own copy too.
-    expect(declarationsFor(css, '.auto-route-nav__toggle')).toContain(
-      '--auto-route-nav-togglecolor: var(--color-text)',
+    // …and `toggle` reads the var in its styles, so it gets its own copy for when
+    // it renders outside the host…
+    expect(
+      declarationsFor(css, outsideHost('.auto-route-nav__toggle', '.auto-route-nav__popup')),
+    ).toContain('--auto-route-nav-togglecolor: var(--color-text)');
+    // …but never unconditionally: inside the host it inherits the host's value.
+    expect(declarationsFor(css, '.auto-route-nav__toggle')).not.toContain(
+      '--auto-route-nav-togglecolor:',
     );
     // `header` never reads the var — no routing.
     expect(declarationsFor(css, '.auto-route-nav__header')).not.toContain(
@@ -1234,9 +1244,12 @@ describe('recipe var slots', () => {
     });
     flushSync();
 
-    expect(declarationsFor(getRegisteredCss(), '.auto-route-variant__panel')).toContain(
-      '--auto-route-variant-ink: #111',
-    );
+    expect(
+      declarationsFor(
+        getRegisteredCss(),
+        outsideHost('.auto-route-variant__panel', '.auto-route-variant'),
+      ),
+    ).toContain('--auto-route-variant-ink: #111');
   });
 
   it('routes a var default to a slot whose styles only read it in compound variants', () => {
@@ -1258,9 +1271,12 @@ describe('recipe var slots', () => {
     });
     flushSync();
 
-    expect(declarationsFor(getRegisteredCss(), '.auto-route-compound__panel')).toContain(
-      '--auto-route-compound-ink: #111',
-    );
+    expect(
+      declarationsFor(
+        getRegisteredCss(),
+        outsideHost('.auto-route-compound__panel', '.auto-route-compound'),
+      ),
+    ).toContain('--auto-route-compound-ink: #111');
   });
 
   it('routes a var default to reading slots in multi-slot recipes', () => {
@@ -1281,9 +1297,13 @@ describe('recipe var slots', () => {
     flushSync();
 
     const css = getRegisteredCss();
-    for (const selector of ['.auto-route-multi__icon', '.auto-route-multi__label']) {
-      expect(declarationsFor(css, selector)).toContain('--auto-route-multi-ink: #111');
-    }
+    // `icon` is the host (first slot); `label` reads the var and is routed.
+    expect(declarationsFor(css, '.auto-route-multi__icon')).toContain(
+      '--auto-route-multi-ink: #111',
+    );
+    expect(
+      declarationsFor(css, outsideHost('.auto-route-multi__label', '.auto-route-multi__icon')),
+    ).toContain('--auto-route-multi-ink: #111');
     expect(declarationsFor(css, '.auto-route-multi__badge')).not.toContain(
       '--auto-route-multi-ink',
     );
@@ -1311,12 +1331,47 @@ describe('recipe var slots', () => {
     const css = getRegisteredCss();
     for (const selector of [
       '.auto-route-explicit',
-      '.auto-route-explicit__popover',
+      outsideHost('.auto-route-explicit__popover', '.auto-route-explicit'),
+      // Listed explicitly, so it carries the default unconditionally.
       '.auto-route-explicit__toggle',
     ]) {
       const declarations = declarationsFor(css, selector);
       expect(declarations.match(/--auto-route-explicit-ink: #111/g)).toHaveLength(1);
     }
+  });
+
+  it('keeps host-set values inheriting into a reading slot inside the host', () => {
+    // A slot that reads a var must not carry its own unconditional default: that
+    // declaration beats the value it inherits from the host (a variant, an inline
+    // `style`, a per-item value), e.g. a rating star's fill or a meter's tone.
+    const styles = createStyles();
+    styles.component({
+      name: 'route-inherit',
+      slots: ['root', 'item', 'fill'] as const,
+      variants: { tone: variant.enum(['accent', 'danger'], { default: 'accent' }) },
+      vars: {
+        ink: { value: '#111', syntax: '<color>' as const },
+        share: { value: '0%' },
+      },
+      styles: ({ vars }) => ({
+        base: {
+          item: { '&[data-filled]': { [vars.share.name]: '100%' } },
+          fill: { color: vars.ink.var, width: vars.share.var },
+        },
+        variants: { tone: { accent: {}, danger: { root: { [vars.ink.name]: 'red' } } } },
+      }),
+    });
+    flushSync();
+
+    const css = getRegisteredCss();
+    expect(declarationsFor(css, '.route-inherit__fill')).not.toMatch(
+      /--route-inherit-(ink|share):/,
+    );
+    const outside = declarationsFor(css, outsideHost('.route-inherit__fill', '.route-inherit'));
+    expect(outside).toContain('--route-inherit-ink: #111');
+    expect(outside).toContain('--route-inherit-share: 0%');
+    // `item` sets `share` but does not read it, so it is not routed.
+    expect(css).not.toContain('.route-inherit__item:where(');
   });
 
   it('does not route a var read only by the host slot a second time', () => {

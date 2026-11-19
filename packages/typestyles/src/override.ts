@@ -14,6 +14,7 @@ import {
   resolveVarHostClass,
   resolveVarOverrides,
   resolveVarSlotClass,
+  routedSlotSelector,
 } from './component-var-overrides';
 import { serializeStyle } from './serialize-style';
 import { applyLayerToRules, assertOwnLayer } from './layers';
@@ -459,6 +460,35 @@ function emitVarOverrides(
       `vars-${slot}`,
     );
   }
+
+  // Slots that read a var get the override only where they render outside the host
+  // (#322); inside it they inherit, so a host-set value still reaches them.
+  for (const slot of routedVarSlots(registry, declarations)) {
+    const slotClass = resolveVarSlotClass(meta, slot);
+    if (!slotClass || slotClass === hostClass) continue;
+    emitVarOverrideDeclarations(
+      classNaming,
+      routedSlotSelector(slotClass, hostClass),
+      declarationsForSlot(registry, declarations, slot, 'routedSlots'),
+      options,
+      `vars-routed-${slot}`,
+    );
+  }
+}
+
+function routedVarSlots(
+  registry: ComponentVarRegistry,
+  declarations: Record<string, string | { light: string; dark: string }>,
+): string[] {
+  const slots: string[] = [];
+  for (const name of Object.keys(declarations)) {
+    const registered = registry.vars.find((entry) => entry.name === name);
+    for (const slot of registered?.routedSlots ?? []) {
+      if (slot === registry.hostSlot || slots.includes(slot)) continue;
+      slots.push(slot);
+    }
+  }
+  return slots;
 }
 
 function extraVarSlots(
@@ -480,11 +510,12 @@ function declarationsForSlot(
   registry: ComponentVarRegistry,
   declarations: Record<string, string | { light: string; dark: string }>,
   slot: string,
+  list: 'slots' | 'routedSlots' = 'slots',
 ): Record<string, string | { light: string; dark: string }> {
   const subset: Record<string, string | { light: string; dark: string }> = {};
   for (const [name, value] of Object.entries(declarations)) {
     const registered = registry.vars.find((entry) => entry.name === name);
-    if (registered?.slots?.includes(slot)) subset[name] = value;
+    if (registered?.[list]?.includes(slot)) subset[name] = value;
   }
   return subset;
 }
