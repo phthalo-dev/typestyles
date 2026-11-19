@@ -1,5 +1,12 @@
 # @typestyles/props
 
+## 0.4.46
+
+### Patch Changes
+
+- Updated dependencies [[`1bb8e7f`](https://github.com/phthalo-dev/typestyles/commit/1bb8e7fcc658133d9bfe3747da29b1cb4a21be0d), [`d083e60`](https://github.com/phthalo-dev/typestyles/commit/d083e60890f39d2ef7feaa46a4b12d4d73f4da5a), [`54535af`](https://github.com/phthalo-dev/typestyles/commit/54535af11c4f573fb1f334b6a73844270f55224d), [`9793af7`](https://github.com/phthalo-dev/typestyles/commit/9793af728fdf402f9fb4156488303afc91f4f9cb), [`f12cf4d`](https://github.com/phthalo-dev/typestyles/commit/f12cf4d347804ce74d29579e8297da3b7e7cd694), [`c2f9194`](https://github.com/phthalo-dev/typestyles/commit/c2f9194261f959843cb12a92a991d4d497a76366), [`58a9482`](https://github.com/phthalo-dev/typestyles/commit/58a94825686de87746a995235b762829dde538a9), [`e303365`](https://github.com/phthalo-dev/typestyles/commit/e3033655f6fa2c4eb86e4d146b8c7c041425d8e2), [`0a8e18c`](https://github.com/phthalo-dev/typestyles/commit/0a8e18ce6a23f864e868239c56e7b051d1de1678)]:
+  - typestyles@0.36.0
+
 ## 0.4.45
 
 ### Patch Changes

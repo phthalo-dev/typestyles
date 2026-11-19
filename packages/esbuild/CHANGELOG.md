@@ -1,5 +1,12 @@
 # @typestyles/esbuild
 
+## 0.6.2
+
+### Patch Changes
+
+- Updated dependencies [[`54535af`](https://github.com/phthalo-dev/typestyles/commit/54535af11c4f573fb1f334b6a73844270f55224d)]:
+  - @typestyles/build-runner@0.9.0
+
 ## 0.6.1
 
 ### Patch Changes
