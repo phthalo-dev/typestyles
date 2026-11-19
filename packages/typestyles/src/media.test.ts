@@ -21,14 +21,14 @@ describe('resolveBreakpointMediaKey', () => {
     expect(resolveBreakpointMediaKey(breakpoints, 'sm')).toBe('@media (min-width: 640px)');
   });
 
-  it('maps min-width breakpoints to max-width when requested', () => {
-    expect(resolveBreakpointMediaKey(breakpoints, 'md', 'max')).toBe('@media (max-width: 768px)');
+  it('maps min-width breakpoints to an exclusive width range when max is requested', () => {
+    expect(resolveBreakpointMediaKey(breakpoints, 'md', 'max')).toBe('@media (width < 768px)');
   });
 
   it('maps min-height breakpoints to max-height when requested', () => {
     const heightBreakpoints = { tall: '(min-height: 600px)' } as const;
     expect(resolveBreakpointMediaKey(heightBreakpoints, 'tall', 'maxHeight')).toBe(
-      '@media (max-height: 600px)',
+      '@media (height < 600px)',
     );
     expect(resolveBreakpointMediaKey(heightBreakpoints, 'tall', 'minHeight')).toBe(
       '@media (min-height: 600px)',
@@ -86,7 +86,7 @@ describe('resolveBreakpointMediaKey', () => {
 
   it('maps bare-length breakpoints to max-width when a feature is passed', () => {
     const bare = { xl: '80rem' } as const;
-    expect(resolveBreakpointMediaKey(bare, 'xl', 'max')).toBe('@media (max-width: 80rem)');
+    expect(resolveBreakpointMediaKey(bare, 'xl', 'max')).toBe('@media (width < 80rem)');
   });
 });
 
@@ -101,14 +101,14 @@ describe('createMediaFn', () => {
   it('accepts feature + block overload', () => {
     const media = createMediaFn(breakpoints);
     expect(media('md', 'max', { display: 'none' })).toEqual({
-      '@media (max-width: 768px)': { display: 'none' },
+      '@media (width < 768px)': { display: 'none' },
     });
   });
 
   it('accepts object feature + block in three-argument form', () => {
     const media = createMediaFn(breakpoints);
     expect(media('md', { max: true }, { display: 'none' })).toEqual({
-      '@media (max-width: 768px)': { display: 'none' },
+      '@media (width < 768px)': { display: 'none' },
     });
   });
 });
