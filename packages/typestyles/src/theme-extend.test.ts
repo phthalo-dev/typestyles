@@ -168,8 +168,8 @@ describe('createTheme({ tokens })', () => {
       name: 'forest',
       extend: { app: { glow: '#0f0' } },
     });
-    expect(child.tokens?.app.glow).toBe('var(--child-ext-app-glow)');
-    expect(child.tokens?.brand.primary).toMatch(/var\(--/);
+    expect(child.tokens.app.glow.var).toBe('var(--child-ext-app-glow)');
+    expect(child.tokens.brand.primary.var).toMatch(/var\(--/);
     expect(child.source.tokens).toEqual({ brand: { primary: '#111' }, app: { glow: '#0f0' } });
     flushSync();
     const css = getRegisteredCss();
