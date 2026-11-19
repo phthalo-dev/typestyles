@@ -113,6 +113,16 @@ function resolveBreakpointCondition(
     return `(${parsed.feature}: ${parsed.value})`;
   }
 
+  // Deriving `max` from a stored `min-*` breakpoint: `(max-width: 48rem)` is inclusive and would
+  // overlap `(min-width: 48rem)` at exactly the breakpoint. Range syntax is exclusive, so
+  // `min` and `max` of the same name partition the viewport.
+  if (featureArg === 'max' && parsed.feature === 'min-width') {
+    return `(width < ${parsed.value})`;
+  }
+  if (featureArg === 'maxHeight' && parsed.feature === 'min-height') {
+    return `(height < ${parsed.value})`;
+  }
+
   return buildMediaCondition(featureArg, parsed.value);
 }
 

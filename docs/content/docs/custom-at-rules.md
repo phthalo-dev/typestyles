@@ -467,7 +467,7 @@ const layout = recipe({
 });
 ```
 
-`breakpoint(name)` uses the configured media condition as-is. Pass a second argument to target a width/height feature (`min`, `max`, `minHeight`, `maxHeight`) — useful when the stored condition is `(min-width: …)` but you need `(max-width: …)` with the same token value:
+`breakpoint(name)` uses the configured media condition as-is. Pass a second argument to target a width/height feature (`min`, `max`, `minHeight`, `maxHeight`) — useful when the stored condition is `(min-width: …)` but you need the matching upper bound with the same token value. `'max'` / `'maxHeight'` derived from a `min-*` condition emit exclusive range syntax (`(width < 48rem)`), so `min` and `max` of one name never both match at the breakpoint itself:
 
 ```ts
 ...atRuleBlock(breakpoint('md', 'max'), {
