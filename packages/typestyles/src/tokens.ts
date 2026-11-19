@@ -60,7 +60,7 @@ import {
   type ThemeComponentsBridge,
 } from './theme-component-overrides';
 import { applyThemeTokensToConfig } from './theme-extend';
-import { createThemeTokenContext } from './theme-token-context';
+import { createOverrideTokenContext, createThemeTokenContext } from './theme-token-context';
 import {
   themeConfigToSource,
   type CreateThemeInput,
@@ -1047,7 +1047,12 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
 
     const components = resolved.components;
     if (components && themeStyles) {
-      applyThemeComponentOverrides(withTokens as Theme, components, tokenContext, themeStyles);
+      applyThemeComponentOverrides(
+        withTokens as Theme,
+        components,
+        createOverrideTokenContext(use),
+        themeStyles,
+      );
     }
 
     return withTokens;

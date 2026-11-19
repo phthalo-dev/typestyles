@@ -1,7 +1,7 @@
 import type { ThemeConfig, ThemeOverrideContext, Theme } from './types';
 import type { ComponentRegistryApi } from './component-registry';
 import type { OverrideFn } from './override';
-import type { ThemeTokenContext } from './theme-token-context';
+import { coerceTokenRefValues, type ThemeTokenContext } from './theme-token-context';
 import type { ThemeComponentPatch } from './theme-types';
 
 export type { ThemeOverrideContext };
@@ -46,11 +46,16 @@ export function applyThemeComponentOverrides(
     const patch = entry as ThemeComponentPatch;
     const styleValue =
       typeof patch.styles === 'function'
-        ? (patch.styles as unknown as (ctx: { vars: object; tokens: ThemeTokenContext }) => object)(
-            {
+        ? coerceTokenRefValues(
+            (
+              patch.styles as unknown as (ctx: {
+                vars: object;
+                tokens: ThemeTokenContext;
+              }) => object
+            )({
               vars: (handle as { vars?: object }).vars ?? {},
               tokens,
-            },
+            }),
           )
         : (patch.styles ?? {});
     styles.override({
