@@ -47,12 +47,17 @@ const color = tokens.create('color', {
 });
 ```
 
-Each value becomes a CSS custom property: `--space-xs`, `--color-primary`. The create function returns an object of the same shape whose values are `var(--prefix-key)` so you can use them in styles:
+Each value becomes a CSS custom property: `--space-xs`, `--color-primary`. The create function returns an object of the same shape whose leaves are **refs**: `{ name, var }` objects that coerce to `var(--prefix-key)`. Use them directly as style values, in template strings, or read `.var` / `.name`:
 
 ```ts
 padding: space.md,        // var(--space-md)
 backgroundColor: color.primary,  // var(--color-primary)
+`${space.md}`;            // 'var(--space-md)'
+space.md.var;             // 'var(--space-md)'
+space.md.name;            // '--space-md'
 ```
+
+`tokens.use()`, `tokens.declare()`, `theme.tokens`, and `ctx.tokens` in override and theme `components` factories return the same ref shape.
 
 When you use **`createTypeStyles({ scopeId: 'app' })`**, the same `tokens` instance emits scoped names (for example `--app-space-md`). Add new namespaces in any module that imports `tokens` from your shared `./typestyles` module:
 

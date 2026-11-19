@@ -314,6 +314,12 @@ export function flattenTokenPaths(
  */
 export type RegisteredPropertyRef = SyntaxRef<string>;
 
+/**
+ * Leaf of a plain (schema-less) `tokens.create()` value: a `{ name, var }` ref with no declared
+ * CSS syntax, so it is accepted by every property (including typed ones like `color`).
+ */
+export type UntypedTokenRef = SyntaxRef<never>;
+
 /** `@property` registration metadata — never includes a runtime value. */
 export type PropertyRegistration = {
   syntax: string;
@@ -342,25 +348,25 @@ export type RegisteredPropertyOptions = PropertyOptions;
 type TokenRefTreeLeaf<V, M extends ColorModeMap = LightDarkColorModes> = V extends TokenDescriptor
   ? RegisteredPropertyRef
   : V extends string | number
-    ? string
+    ? UntypedTokenRef
     : V extends ModeAwareTokenObject<M>
-      ? string
+      ? UntypedTokenRef
       : V extends TokenValues | CreateTokenNode<M>
         ? TokenRefTree<V, M>
-        : string;
+        : UntypedTokenRef;
 
 /**
- * Maps a `tokens.create()` value tree to nested `var(--…)` refs (mode-aware leaves become a single ref).
+ * Maps a `tokens.create()` value tree to nested `{ name, var }` refs (mode-aware leaves become a single ref). Refs coerce to `var(--…)` in templates and style values.
  */
 export type TokenRefTree<T, M extends ColorModeMap = LightDarkColorModes> = T extends
   | string
   | number
-  ? string
+  ? UntypedTokenRef
   : T extends TokenDescriptor
     ? RegisteredPropertyRef
     : T extends Record<string, unknown>
       ? { readonly [K in keyof T]: TokenRefTreeLeaf<T[K], M> }
-      : string;
+      : UntypedTokenRef;
 
 /**
  * A typed token reference object. Property access returns var(--namespace-key) strings

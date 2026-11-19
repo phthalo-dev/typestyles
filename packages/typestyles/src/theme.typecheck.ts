@@ -16,7 +16,7 @@ const brand = tokens.createTheme({
   } as const,
 });
 
-const _ref: string = brand.tokens!.brand.glow.default;
+const _ref: string = brand.tokens!.brand.glow.default.var;
 void _ref;
 
 const bareTheme = bare.createTheme({
@@ -27,7 +27,7 @@ const bareTheme = bare.createTheme({
     },
   },
 });
-const _bareRef: string = bareTheme.tokens!.brand.glow.default;
+const _bareRef: string = bareTheme.tokens!.brand.glow.default.var;
 void _bareRef;
 
 const values = {

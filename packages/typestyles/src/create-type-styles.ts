@@ -10,7 +10,7 @@ import { createTokens } from './tokens';
 import type { TokensApi } from './tokens';
 import type { CascadeLayersObjectInput } from './layers';
 import type { OverrideFn } from './override';
-import { coerceTokenRefValues, createOverrideTokenContext } from './theme-token-context';
+import { createThemeTokenContext } from './theme-token-context';
 import type { ScopeOptions } from './scope';
 import type { StylesPropertyFn } from './types';
 import type { ContainerNameRef } from './container';
@@ -169,17 +169,15 @@ function flattenTypeStylesApi<Recipe = unknown>(
     compose: s.compose,
     override: ((input: { recipe?: { vars?: object }; styles?: unknown }) => {
       if (input && typeof input.styles === 'function') {
-        const tokenContext = createOverrideTokenContext((namespace: string) =>
-          tokens.use(namespace),
-        );
+        const tokenContext = createThemeTokenContext((namespace: string) => tokens.use(namespace));
         return s.override({
           ...input,
-          styles: coerceTokenRefValues(
-            (input.styles as (ctx: { vars: object; tokens: object }) => Record<string, unknown>)({
-              vars: input.recipe?.vars ?? {},
-              tokens: tokenContext,
-            }),
-          ),
+          styles: (
+            input.styles as (ctx: { vars: object; tokens: object }) => Record<string, unknown>
+          )({
+            vars: input.recipe?.vars ?? {},
+            tokens: tokenContext,
+          }),
         } as Parameters<OverrideFn>[0]);
       }
       return s.override(input as Parameters<OverrideFn>[0]);

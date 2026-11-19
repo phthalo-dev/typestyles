@@ -15,7 +15,7 @@ describe('createTokens factory', () => {
   it('prefixes CSS variable namespaces when scopeId is set', () => {
     const t = createTokens({ scopeId: 'my-pkg' });
     const color = t.create('color', { primary: '#0066ff' });
-    expect(color.primary).toBe('var(--my-pkg-color-primary)');
+    expect(String(color.primary)).toBe('var(--my-pkg-color-primary)');
   });
 });
 
@@ -31,8 +31,8 @@ describe('tokens.create', () => {
       secondary: '#6b7280',
     });
 
-    expect(color.primary).toBe('var(--color-primary)');
-    expect(color.secondary).toBe('var(--color-secondary)');
+    expect(String(color.primary)).toBe('var(--color-primary)');
+    expect(String(color.secondary)).toBe('var(--color-secondary)');
   });
 
   it('create(values) omits the namespace segment from custom property names', () => {
@@ -42,8 +42,8 @@ describe('tokens.create', () => {
       background: { app: '#0a0a0a' },
     });
 
-    expect(color.accent.default).toBe('var(--var-ui-accent-default)');
-    expect(color.background.app).toBe('var(--var-ui-background-app)');
+    expect(String(color.accent.default)).toBe('var(--var-ui-accent-default)');
+    expect(String(color.background.app)).toBe('var(--var-ui-background-app)');
 
     flushSync();
     const css = getRegisteredCss();
@@ -103,8 +103,9 @@ describe('tokens.create', () => {
   it('token values are usable as CSS strings', () => {
     const api = createTokens();
     const size = api.create('size', { base: '16px' });
-    expect(typeof size.base).toBe('string');
-    expect(size.base).toContain('var(');
+    expect(typeof size.base).toBe('object');
+    expect(`${size.base}`).toContain('var(');
+    expect(size.base.var).toBe('var(--size-base)');
   });
 
   it('supports nested token objects', () => {
@@ -115,11 +116,11 @@ describe('tokens.create', () => {
       border: { default: '#e5e7eb' },
     });
 
-    expect(color.text.primary).toBe('var(--color-text-primary)');
-    expect(color.text.secondary).toBe('var(--color-text-secondary)');
-    expect(color.background.surface).toBe('var(--color-background-surface)');
-    expect(color.background.subtle).toBe('var(--color-background-subtle)');
-    expect(color.border.default).toBe('var(--color-border-default)');
+    expect(String(color.text.primary)).toBe('var(--color-text-primary)');
+    expect(String(color.text.secondary)).toBe('var(--color-text-secondary)');
+    expect(String(color.background.surface)).toBe('var(--color-background-surface)');
+    expect(String(color.background.subtle)).toBe('var(--color-background-subtle)');
+    expect(String(color.border.default)).toBe('var(--color-border-default)');
 
     flushSync();
 
@@ -138,8 +139,8 @@ describe('tokens.create', () => {
       },
     });
 
-    expect(color.brand.primary.DEFAULT).toBe('var(--color-brand-primary-DEFAULT)');
-    expect(color.brand.primary.hover).toBe('var(--color-brand-primary-hover)');
+    expect(String(color.brand.primary.DEFAULT)).toBe('var(--color-brand-primary-DEFAULT)');
+    expect(String(color.brand.primary.hover)).toBe('var(--color-brand-primary-hover)');
   });
 
   it('supports flat values alongside nested objects', () => {
@@ -149,8 +150,8 @@ describe('tokens.create', () => {
       nested: { key: 'nested-value' },
     });
 
-    expect(tokens.simple).toBe('var(--test-simple)');
-    expect(tokens.nested.key).toBe('var(--test-nested-key)');
+    expect(String(tokens.simple)).toBe('var(--test-simple)');
+    expect(String(tokens.nested.key)).toBe('var(--test-nested-key)');
   });
 
   it('returns RegisteredPropertyRef leaves and registers @property for declared schema tokens', () => {
@@ -165,8 +166,7 @@ describe('tokens.create', () => {
       { decl: motionDecl },
     );
 
-    expect(typeof motion.easing).toBe('string');
-    expect(motion.easing).toBe('var(--motion-easing)');
+    expect(String(motion.easing)).toBe('var(--motion-easing)');
 
     const duration = motion.duration;
     expect(duration).toMatchObject({
@@ -259,7 +259,7 @@ describe('tokens.create', () => {
     it('keeps default output when nameTemplate is omitted', () => {
       const api = createTokens({ scopeId: 'app' });
       const color = api.create('color', { primary: '#0066ff' });
-      expect(color.primary).toBe('var(--app-color-primary)');
+      expect(String(color.primary)).toBe('var(--app-color-primary)');
     });
 
     it('uses custom template for emission and proxy refs', () => {
@@ -272,7 +272,7 @@ describe('tokens.create', () => {
         },
       );
 
-      expect(color.brand[500]).toBe('var(--color-brand-500)');
+      expect(String(color.brand[500])).toBe('var(--color-brand-500)');
 
       flushSync();
       const css = getRegisteredCss();
@@ -290,7 +290,7 @@ describe('tokens.create', () => {
         },
       );
 
-      expect(color.brand.primary).toBe('var(--color-brand_primary)');
+      expect(String(color.brand.primary)).toBe('var(--color-brand_primary)');
     });
 
     it('applies instance default with per-namespace override', () => {
@@ -300,14 +300,14 @@ describe('tokens.create', () => {
       });
 
       const scoped = api.create('space', { md: '16px' });
-      expect(scoped.md).toBe('var(--app-space-md)');
+      expect(String(scoped.md)).toBe('var(--app-space-md)');
 
       const plain = api.create(
         'color',
         { primary: '#0066ff' },
         { nameTemplate: ({ path }) => `--color-${path}` },
       );
-      expect(plain.primary).toBe('var(--color-primary)');
+      expect(String(plain.primary)).toBe('var(--color-primary)');
     });
 
     it('registers @property on templated names for declared schema leaves', () => {
@@ -342,7 +342,7 @@ describe('tokens.create', () => {
       flushSync();
 
       const used = api.use('color');
-      expect(used.primary).toBe('var(--ds-color-primary)');
+      expect(String(used.primary)).toBe('var(--ds-color-primary)');
     });
   });
 });
@@ -366,14 +366,14 @@ describe('tokens.use', () => {
     const rulesAfter = stylesBefore?.sheet?.cssRules.length ?? 0;
     expect(rulesAfter).toBe(ruleCountBefore);
 
-    expect(color.primary).toBe('var(--theme-color-primary)');
+    expect(String(color.primary)).toBe('var(--theme-color-primary)');
   });
 
   it('creates var() references for any property name', () => {
     const api = createTokens();
     const tokens = api.use('anything');
-    expect(tokens.foo).toBe('var(--anything-foo)');
-    expect(tokens.bar).toBe('var(--anything-bar)');
+    expect(String(tokens.foo)).toBe('var(--anything-foo)');
+    expect(String(tokens.bar)).toBe('var(--anything-bar)');
   });
 
   it('supports nested access for useTokens when tokens are created first', () => {
@@ -381,7 +381,7 @@ describe('tokens.use', () => {
     api.create('color', { text: { primary: '#000' } });
     flushSync();
     const tokens = api.use('color');
-    expect(tokens.text.primary).toBe('var(--color-text-primary)');
+    expect(String(tokens.text.primary)).toBe('var(--color-text-primary)');
   });
 
   it('resolves namespace and schema paths from a declare handle via use()', () => {
@@ -437,8 +437,8 @@ describe('tokens.use', () => {
     expectTypeOf(used).toEqualTypeOf(space);
     expectTypeOf(used.sm).toBeString();
     expectTypeOf(used.md).toBeString();
-    expect(used.sm).toBe('var(--space-sm)');
-    expect(used.md).toBe('var(--space-md)');
+    expect(String(used.sm)).toBe('var(--space-sm)');
+    expect(String(used.md)).toBe('var(--space-md)');
   });
 
   it('resolves namespace from a created ref without injecting CSS', () => {
@@ -454,7 +454,7 @@ describe('tokens.use', () => {
 
     const ruleCountAfter = stylesBefore?.sheet?.cssRules.length ?? 0;
     expect(ruleCountAfter).toBe(ruleCountBefore);
-    expect(used.lg).toBe('var(--ref-space-lg)');
+    expect(String(used.lg)).toBe('var(--ref-space-lg)');
   });
 
   it('falls back to broad TokenValues for string-only use', () => {
@@ -462,7 +462,7 @@ describe('tokens.use', () => {
     const used = api.use('anything');
 
     expectTypeOf(used).toEqualTypeOf<TokenRef<TokenValues>>();
-    expect(used.foo).toBe('var(--anything-foo)');
+    expect(String(used.foo)).toBe('var(--anything-foo)');
   });
 
   it('infers from a shared registry generic when namespace is a known key', () => {
@@ -654,7 +654,7 @@ describe('tokens.declare', () => {
     });
     flushSync();
 
-    expect(built.accent.default).toBe('var(--color-accent-default)');
+    expect(String(built.accent.default)).toBe('var(--color-accent-default)');
     const css = getRegisteredCss();
     expect(css).toContain(
       '--color-accent-subtle: color-mix(in oklch, var(--color-accent-default) 24%, white)',
@@ -668,7 +668,7 @@ describe('tokens.declare', () => {
     expect(`${color.accent}`).toBe('var(--ds-color-accent)');
 
     const built = api.create('color', { accent: '#0066ff' });
-    expect(built.accent).toBe('var(--ds-color-accent)');
+    expect(String(built.accent)).toBe('var(--ds-color-accent)');
   });
 
   it('throws in dev mode when create() passes a different nameTemplate than declare() used', () => {
@@ -711,7 +711,7 @@ describe('tokens.declare', () => {
     });
     flushSync();
 
-    expect(built.accent.subtle).toBe('var(--acme-color-accent-subtle)');
+    expect(String(built.accent.subtle)).toBe('var(--acme-color-accent-subtle)');
 
     const css = getRegisteredCss();
     expect(css).toContain(
@@ -737,8 +737,8 @@ describe('tokens.declare', () => {
 
     flushSync();
 
-    expect(colorA.accent).toBe('var(--colorA-accent)');
-    expect(colorB.accent).toBe('var(--colorB-accent)');
+    expect(String(colorA.accent)).toBe('var(--colorA-accent)');
+    expect(String(colorB.accent)).toBe('var(--colorB-accent)');
 
     const css = getRegisteredCss();
     expect(css).toContain('--colorA-accent: color-mix(in oklch, var(--colorB-accent) 50%, black)');
@@ -874,8 +874,8 @@ describe('token ref introspection (#321)', () => {
     const created = api.create('size', { primary: '#0066ff', tinted: '#fff' }, { decl });
     // Created descriptor leaves are `{ name, var }` refs.
     expect(isTokenRef(created.tinted)).toBe(true);
-    // Plain created leaves are `var(--…)` strings — not refs; groups are not either.
-    expect(isTokenRef(created.primary)).toBe(false);
+    // Plain created leaves are refs too; groups are not.
+    expect(isTokenRef(created.primary)).toBe(true);
     expect(isTokenRef(created)).toBe(false);
 
     expect(isTokenRef('var(--color-primary)')).toBe(false);
@@ -1062,8 +1062,8 @@ describe('tokens.create mode-aware leaves', () => {
 
     expectTypeOf(brand.primary).toBeString();
     expectTypeOf(brand.spacing.hero).toBeString();
-    expect(brand.primary).toBe('var(--app-brand-primary)');
-    expect(brand.spacing.hero).toBe('var(--app-brand-spacing-hero)');
+    expect(String(brand.primary)).toBe('var(--app-brand-primary)');
+    expect(String(brand.spacing.hero)).toBe('var(--app-brand-spacing-hero)');
   });
 
   it('treats root-level light and dark keys as separate token paths', () => {
@@ -1075,8 +1075,8 @@ describe('tokens.create mode-aware leaves', () => {
 
     expectTypeOf(modes.light).toBeString();
     expectTypeOf(modes.dark).toBeString();
-    expect(modes.light).toBe('var(--app-modes-light)');
-    expect(modes.dark).toBe('var(--app-modes-dark)');
+    expect(String(modes.light)).toBe('var(--app-modes-light)');
+    expect(String(modes.dark)).toBe('var(--app-modes-dark)');
   });
 
   it('emits light-dark() for color-compatible mode-aware leaves', () => {

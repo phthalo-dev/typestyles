@@ -18,7 +18,7 @@ describe('createTheme({ tokens })', () => {
 
     expect(theme.tokens).toBeDefined();
     expect(theme.tokens?.brand).toBeDefined();
-    expect(theme.tokens?.brand.accent.default).toMatch(/var\(--/);
+    expect(String(theme.tokens?.brand.accent.default)).toMatch(/var\(--/);
     flushSync();
     const css = getRegisteredCss();
     expect(css).toContain('.theme-ext-brand');
@@ -29,7 +29,7 @@ describe('createTheme({ tokens })', () => {
     const { tokens } = createTypeStyles({ scopeId: 'ens' });
     const a = tokens.ensureNamespace('metrics', { radius: { sm: '4px' } });
     const b = tokens.ensureNamespace('metrics', { radius: { sm: '4px' } });
-    expect(a.radius.sm).toBe(b.radius.sm);
+    expect(a.radius.sm.var).toBe(b.radius.sm.var);
     flushSync();
     expect(getRegisteredCss()).toContain('--ens-metrics-radius-sm');
   });
@@ -47,7 +47,7 @@ describe('createTheme({ tokens })', () => {
         },
       },
     });
-    expect(theme.tokens?.brand.glow.default).toBe(ensured.glow.default);
+    expect(theme.tokens?.brand.glow.default.var).toBe(ensured.glow.default.var);
   });
 
   it('override deep-merges tokens onto the root surface source', () => {
@@ -64,8 +64,8 @@ describe('createTheme({ tokens })', () => {
         brand: { accent: { default: '#0066ff' } },
       },
     });
-    expect(theme.tokens?.brand.primary).toMatch(/var\(--/);
-    expect(theme.tokens?.brand.accent.default).toMatch(/var\(--/);
+    expect(String(theme.tokens?.brand.primary)).toMatch(/var\(--/);
+    expect(String(theme.tokens?.brand.accent.default)).toMatch(/var\(--/);
     expect(theme.source.tokens).toEqual({
       brand: { primary: '#111', accent: { default: '#0066ff' } },
     });

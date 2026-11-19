@@ -1,3 +1,4 @@
+import { isRegisteredPropertyRef } from './var-ref-tree';
 import type { CSSProperties, CreatedTokenRef, TokenValues } from './types';
 import { getTokenLeafValues } from './tokens';
 import { looksLikeUnconfiguredModeObject, validateColorModeObject } from './color-modes';
@@ -270,6 +271,11 @@ export function expandResponsiveInProperties(
       } else {
         (result as Record<string, unknown>)[prop] = expandedChild;
       }
+      continue;
+    }
+
+    if (isRegisteredPropertyRef(value)) {
+      (result as Record<string, unknown>)[prop] = String(value);
       continue;
     }
 

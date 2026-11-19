@@ -53,6 +53,7 @@ import { applyLayerToRules, assertOwnLayer, resolveCascadeLayers } from './layer
 import type { ColorModeMap } from './color-modes';
 import { isColorModeObject } from './color-modes';
 import {
+  cloneThemeValues,
   expandModeAwareTokenValues,
   markDeclaredGroupProxy,
   normalizeThemeConfig,
@@ -64,7 +65,7 @@ import {
   type ThemeComponentsBridge,
 } from './theme-component-overrides';
 import { applyThemeTokensToConfig } from './theme-extend';
-import { createOverrideTokenContext, createThemeTokenContext } from './theme-token-context';
+import { createThemeTokenContext } from './theme-token-context';
 import {
   themeConfigToSource,
   type CreateThemeInput,
@@ -326,12 +327,9 @@ function createTokenProxy(
   descriptorLeaves: Set<string>,
 ): object {
   const makeToken = (p: string) => `var(${resolvePathName(p)})`;
-  const makeLeaf = (p: string) => {
-    if (descriptorLeaves.has(p)) {
-      return createRegisteredPropertyRef(resolvePathName(p));
-    }
-    return makeToken(p);
-  };
+  // Every leaf is a `{ name, var, toString, valueOf }` ref, matching `tokens.declare()` and
+  // component vars, so `.var` / `.name` work everywhere and templates still read `var(--…)`.
+  const makeLeaf = (p: string) => createRegisteredPropertyRef(resolvePathName(p));
 
   const handler: ProxyHandler<object> = {
     get(_target, prop: string | symbol): unknown {
@@ -339,11 +337,8 @@ function createTokenProxy(
         return undefined;
       }
 
-      if (prop === 'toString') {
-        return () => makeLeaf(prefix);
-      }
-      if (prop === 'valueOf') {
-        return () => makeLeaf(prefix);
+      if (prop === 'toString' || prop === 'valueOf') {
+        return () => makeToken(prefix);
       }
       if (prop === 'constructor') {
         return Object;
@@ -660,7 +655,10 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
   ): CreatedTokenRef<CreateTokenValues, string> {
     const hasNamespace = typeof namespaceOrValues === 'string';
     const namespace = hasNamespace ? namespaceOrValues : '';
-    const values = (hasNamespace ? valuesOrOptions : namespaceOrValues) as CreateTokenValues;
+    // Token refs as values (`{ gap: base.gap }`) are `var(--…)` strings.
+    const values = cloneThemeValues(
+      (hasNamespace ? valuesOrOptions : namespaceOrValues) as CreateTokenValues,
+    );
     const options = (hasNamespace ? optionsMaybe : valuesOrOptions) as
       | {
           layer?: string;
@@ -1085,12 +1083,7 @@ export function createTokens<R extends TokenRegistry = Record<string, never>>(
 
     const components = resolved.components;
     if (components && themeStyles) {
-      applyThemeComponentOverrides(
-        withTokens as Theme,
-        components,
-        createOverrideTokenContext(use),
-        themeStyles,
-      );
+      applyThemeComponentOverrides(withTokens as Theme, components, tokenContext, themeStyles);
     }
 
     return withTokens;
