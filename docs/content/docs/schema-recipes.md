@@ -158,7 +158,12 @@ which is almost never what you want — reach for `variant.boolean()` instead.
 ## Derived types
 
 ```ts
-import type { RecipeDefaultsOf, RecipeVariants, VariantOptions } from 'typestyles';
+import type {
+  RecipeDefaultsOf,
+  RecipeVariantValues,
+  RecipeVariants,
+  VariantOptions,
+} from 'typestyles';
 
 type AlertProps = RecipeVariants<typeof alert>;
 // {
@@ -166,6 +171,10 @@ type AlertProps = RecipeVariants<typeof alert>;
 //   appearance?: 'subtle' | 'solid' | 'outline';
 //   contentGap?: 'spaced' | 'flush';
 // }
+
+type AlertVariants = RecipeVariantValues<typeof alert>;
+// Same axes, but required and non-null — name one axis without `NonNullable<…>`:
+// AlertVariants['tone'] → 'info' | 'success' | 'warning' | 'danger' | 'tip'
 
 type AlertDefaults = RecipeDefaultsOf<typeof alert>;
 // { tone: 'info'; appearance: 'subtle'; contentGap: 'spaced' }

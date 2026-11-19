@@ -7,7 +7,7 @@
 import { createStyles } from './styles';
 import { createTypeStyles } from './create-type-styles';
 import { variant } from './variant';
-import type { RecipeDefaultsOf, RecipeVariants } from './schema-recipe';
+import type { RecipeDefaultsOf, RecipeVariantValues, RecipeVariants } from './schema-recipe';
 import type { VariantOptions } from './variant';
 
 type Equal<A, B> =
@@ -148,6 +148,17 @@ const _alertPropsBack: AlertVariants = {} as {
   elevated?: boolean;
 };
 void _alertPropsShape;
+
+type AlertVariantValues = RecipeVariantValues<typeof alert>;
+const _valueTone: Expect<
+  Equal<AlertVariantValues['tone'], 'info' | 'success' | 'warning' | 'danger' | 'tip'>
+> = true;
+const _valueBoolean: Expect<Equal<AlertVariantValues['elevated'], boolean>> = true;
+// @ts-expect-error — every axis is required, so an empty object must not satisfy it
+const _valuesRequired: AlertVariantValues = {};
+void _valueTone;
+void _valueBoolean;
+void _valuesRequired;
 void _alertPropsBack;
 // @ts-expect-error — `null` is not a valid axis prop value
 const _noNullTone: AlertVariants = { tone: null };
