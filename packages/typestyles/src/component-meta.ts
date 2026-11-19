@@ -19,12 +19,18 @@ export type RegisteredComponentVar = {
   syntax?: string;
   defaultValue?: string;
   /**
-   * Recipe slots beyond the host that receive this var's default and theme
-   * overrides: the var's explicit `slots` option plus every slot whose styles
-   * read the var (auto-routed, #322). The host slot always receives them,
-   * whether or not it is listed here.
+   * Recipe slots beyond the host that always receive this var's default and theme
+   * overrides: the var's explicit `slots` option. The host slot always receives
+   * them, whether or not it is listed here.
    */
   slots?: readonly string[];
+  /**
+   * Slots whose styles read the var (auto-routed, #322). They receive the default
+   * and theme overrides only where they have no host ancestor (a portaled popup),
+   * through `.slot:where(:not(.host *))`; inside the host they inherit, so a
+   * host-set value (a variant, an inline style) still reaches them.
+   */
+  routedSlots?: readonly string[];
 };
 
 export type ComponentVarRegistry = {

@@ -1028,12 +1028,19 @@ describe('styles.override() + __tsMeta', () => {
 
       const css = getRegisteredCss();
       // The toggle slot can render outside the host (#322), so the override
-      // must reach it directly instead of relying on inheritance.
+      // must reach it there directly; inside the host it inherits instead, so a
+      // host-set value (a variant, an inline style) still wins.
       expect(declarationsFor(css, '.theme-forest .ov-auto-slot-vars')).toContain(
         '--ov-auto-slot-vars-togglecolor: hotpink',
       );
-      expect(declarationsFor(css, '.theme-forest .ov-auto-slot-vars__toggle')).toContain(
-        '--ov-auto-slot-vars-togglecolor: hotpink',
+      expect(
+        declarationsFor(
+          css,
+          '.theme-forest .ov-auto-slot-vars__toggle:where(:not(.ov-auto-slot-vars *))',
+        ),
+      ).toContain('--ov-auto-slot-vars-togglecolor: hotpink');
+      expect(declarationsFor(css, '.theme-forest .ov-auto-slot-vars__toggle')).not.toContain(
+        '--ov-auto-slot-vars-togglecolor:',
       );
     });
 

@@ -61,6 +61,7 @@ import {
   attachVarRegistry,
   buildClassVariantSelectorMap,
   firstClassToken,
+  getComponentMeta,
   stampVarDefinitionsBrand,
   type ComponentVarRegistry,
   type RecipeSchemaAxis,
@@ -68,6 +69,11 @@ import {
   type SlotVariantSelectorMap,
   type VariantSelectorMap,
 } from './component-meta';
+import {
+  resolveVarHostClass,
+  resolveVarSlotClass,
+  routedSlotSelector,
+} from './component-var-overrides';
 import { recipeAxisBrand, type VariantAxis } from './variant';
 import type { RecipeDefinition, RecipeStyles } from './schema-recipe';
 
@@ -195,10 +201,12 @@ function resolveComponentConfig(
   varNames?: Record<string, string>;
   varFallbacks?: Record<string, string>;
   varDefinitions?: ComponentVarDefinitions;
+  routedVarDefaults?: Map<string, Record<string, string>>;
 } {
   const {
     ctx,
     mergeVarDefaultsInto,
+    buildRoutedVarDefaults,
     buildVarRegistry,
     buildVarRefTree,
     buildVarNames,
@@ -216,6 +224,7 @@ function resolveComponentConfig(
     return {
       config: resolved,
       varRegistry: buildVarRegistry(resolved),
+      routedVarDefaults: buildRoutedVarDefaults(),
       varRefTree: buildVarRefTree(),
       varNames: buildVarNames(),
       varFallbacks: buildVarFallbacks(),
@@ -232,6 +241,7 @@ function resolveComponentConfig(
     return {
       config: resolved,
       varRegistry: buildVarRegistry(resolved),
+      routedVarDefaults: buildRoutedVarDefaults(),
       varRefTree: buildVarRefTree(),
       varNames: buildVarNames(),
       varFallbacks: buildVarFallbacks(),
@@ -394,6 +404,7 @@ export function createComponent(
     varNames,
     varFallbacks,
     varDefinitions: configVarDefinitions,
+    routedVarDefaults,
   } = resolveComponentConfig(classNaming, namespace, config);
   const recipeVarDefinitions = configVarDefinitions;
   // Builders that `typestyles/lite` can reproduce describe their calls through `recordPlan`;
@@ -414,7 +425,9 @@ export function createComponent(
       if (varFallbacks) (withVars as Record<string, unknown>).varFallbacks = { ...varFallbacks };
       return withVars;
     });
-    return finishComponentResult(result, varRegistry, recipeVarDefinitions, varRefTree);
+    const finished = finishComponentResult(result, varRegistry, recipeVarDefinitions, varRefTree);
+    emitRoutedVarDefaults(classNaming, namespace, emitLayer, finished, routedVarDefaults);
+    return finished;
   };
   if (isMultiSlotConfig(resolved)) {
     claimComponentNamespace(classNaming, namespace);
@@ -650,6 +663,41 @@ function claimComponentNamespace(classNaming: ClassNamingConfig, namespace: stri
     );
   }
   registeredNamespaces.add(key);
+}
+
+/**
+ * Var defaults for slots that read a var but are not its host (#322). Such a slot
+ * normally inherits the value from the host; it needs its own copy only where it
+ * renders outside the host (a portaled popup). An unconditional declaration on the
+ * slot would beat the inherited value, so the rule matches only a slot with no host
+ * ancestor. `:where()` keeps it at the slot class's specificity.
+ */
+function emitRoutedVarDefaults(
+  classNaming: ClassNamingConfig,
+  namespace: string,
+  layer: string | undefined,
+  component: object,
+  routed: Map<string, Record<string, string>> | undefined,
+): void {
+  if (!routed || routed.size === 0) return;
+  const meta = getComponentMeta(component);
+  const registry = meta?.varRegistry;
+  if (!meta || !registry) return;
+  const hostClass = resolveVarHostClass(meta, registry);
+  if (!hostClass) return;
+  const rules: Array<{ key: string; css: string }> = [];
+  for (const [slot, declarations] of routed) {
+    const slotClass = resolveVarSlotClass(meta, slot);
+    if (!slotClass || slotClass === hostClass) continue;
+    const selector = routedSlotSelector(slotClass, hostClass);
+    for (const rule of serializeStyle(selector, declarations as CSSProperties, {
+      breakpoints: classNaming.breakpoints,
+      colorModes: classNaming.colorModes,
+    })) {
+      rules.push({ key: `${namespace}:routed-vars:${slot}:${rule.key}`, css: rule.css });
+    }
+  }
+  if (rules.length > 0) insertRules(finalizeComponentRules(classNaming, layer, rules));
 }
 
 function finalizeComponentRules(
