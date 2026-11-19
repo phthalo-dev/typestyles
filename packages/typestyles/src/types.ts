@@ -169,7 +169,7 @@ export type InferFromSchema<S> = S extends { syntax: infer Syn extends string }
     ? SyntaxRef<Syn>
     : SyntaxRef<string>
   : S extends true
-    ? string
+    ? UntypedTokenRef
     : S extends Record<string, unknown>
       ? { readonly [K in keyof S]: InferFromSchema<S[K]> }
       : never;

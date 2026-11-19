@@ -222,6 +222,32 @@ internally — including `scopeId` and any `nameTemplate`. If you pass a
 matching `create()` call (or omit it there to reuse the declared one);
 passing a different one throws in development.
 
+### Typed `ctx.tokens` in theme `components` factories
+
+`ctx.tokens` in `createTheme({ components })` factories is typed with the theme's own `tokens`
+namespaces. To also type your built-in namespaces, declare them once and record the refs on the
+instance with `withTokenRefs` (a runtime no-op that returns the same instance):
+
+```ts
+const base = createTypeStyles({ scopeId: 'ui' });
+export const designTokens = base.tokens.declare({ space: { sm: true, md: true } });
+export const typestyles = base.withTokenRefs(designTokens);
+
+typestyles.tokens.createTheme({
+  name: 'compact',
+  tokens: { app: { glow: '#0f0' } },
+  components: {
+    button: {
+      styles: ({ tokens: t }) => ({
+        base: { margin: t.space.md.var, outlineColor: t.app.glow.var }, // t.spacing is an error
+      }),
+    },
+  },
+});
+```
+
+Without `withTokenRefs`, `ctx.tokens` stays a loose bag that accepts any namespace.
+
 ## Syntax-typed tokens
 
 `tokens.declare()` is also the opt-in path for **compile-time syntax safety**. Schema
