@@ -99,6 +99,21 @@ export interface RunTypestylesBuildOptions {
    * `style()` call that registered it. See {@link TypestylesExtractOptions.sourceMap}.
    */
   sourceMap?: boolean;
+  /**
+   * JSX transform for the extraction bundle. Module-level JSX (e.g. a constant holding
+   * `<Icon />`) is evaluated during extraction, so it must compile the way the app does.
+   * Defaults to `'automatic'` unless the project's `tsconfig.json` sets `jsx` itself.
+   */
+  jsx?: 'automatic' | 'transform';
+}
+
+/** True when `<root>/tsconfig.json` declares a `jsx` compiler option (esbuild then honours it). */
+function tsconfigSetsJsx(root: string): boolean {
+  try {
+    return /"jsx"\s*:/.test(readFileSync(resolve(root, 'tsconfig.json'), 'utf8'));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -214,6 +229,7 @@ export async function runTypestylesExtract({
   modules,
   sourceComments = false,
   sourceMap = false,
+  jsx,
 }: RunTypestylesBuildOptions): Promise<TypestylesExtractResult> {
   if (!modules.length) return { css: '', plans: [] };
 
@@ -229,6 +245,7 @@ export async function runTypestylesExtract({
     format: 'cjs',
     target: 'node18',
     external: ['typestyles'],
+    ...(jsx ? { jsx } : tsconfigSetsJsx(root) ? {} : { jsx: 'automatic' as const }),
     // Style registration calls (styles.component/class, createTypeStyles) are
     // side-effect-only: the CSS they register into the global registry is the
     // point, regardless of whether the returned classname function is ever
