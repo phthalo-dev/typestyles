@@ -105,6 +105,17 @@ export interface RunTypestylesBuildOptions {
    * Defaults to `'automatic'` unless the project's `tsconfig.json` sets `jsx` itself.
    */
   jsx?: 'automatic' | 'transform';
+  /**
+   * Extra esbuild `conditions` used when resolving package `exports` while bundling the
+   * extraction entries (e.g. a custom source condition the host bundler also resolves).
+   * Defaults to esbuild's own conditions for `platform: 'node'`.
+   */
+  conditions?: string[];
+  /**
+   * esbuild `alias` map applied while bundling the extraction entries, so extraction resolves
+   * bare specifiers the same way the host bundler does.
+   */
+  alias?: Record<string, string>;
 }
 
 /** True when `<root>/tsconfig.json` declares a `jsx` compiler option (esbuild then honours it). */
@@ -230,6 +241,8 @@ export async function runTypestylesExtract({
   sourceComments = false,
   sourceMap = false,
   jsx,
+  conditions,
+  alias,
 }: RunTypestylesBuildOptions): Promise<TypestylesExtractResult> {
   if (!modules.length) return { css: '', plans: [] };
 
@@ -246,6 +259,8 @@ export async function runTypestylesExtract({
     target: 'node18',
     external: ['typestyles'],
     ...(jsx ? { jsx } : tsconfigSetsJsx(root) ? {} : { jsx: 'automatic' as const }),
+    ...(conditions?.length ? { conditions } : {}),
+    ...(alias && Object.keys(alias).length ? { alias } : {}),
     // Style registration calls (styles.component/class, createTypeStyles) are
     // side-effect-only: the CSS they register into the global registry is the
     // point, regardless of whether the returned classname function is ever
