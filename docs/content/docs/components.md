@@ -560,8 +560,11 @@ A slot rendered outside the host element never inherits a custom property declar
 on the host, so a var's default is routed to every slot whose styles read it.
 TypeStyles records those reads while building the recipe — in `base` blocks,
 variant options, and compound variants — and emits the default on each of those
-slots too. Theme overrides for the var are emitted on those slots as well, so a
-portaled popover picks up the theme value on itself.
+slots too, under `.slot:where(:not(.host *))`: only where the slot has no host
+ancestor. Inside the host the slot keeps inheriting, so a value the host sets (a
+variant, an inline `style`) still reaches it. Theme overrides for the var are
+emitted on those slots the same way, so a portaled popover picks up the theme value
+on itself.
 
 ```ts
 const menu = recipe({
@@ -582,13 +585,14 @@ const menu = recipe({
 });
 ```
 
-`popoverBackground` is declared on `.menu` and on `.menu__popover`, and a theme
-override for it is emitted on both selectors. No explicit `slots` option is needed:
+`popoverBackground` is declared on `.menu` and on
+`.menu__popover:where(:not(.menu *))`, and a theme override for it is emitted on both
+selectors. No explicit `slots` option is needed:
 the slot that reads the var gets it automatically. `anchorX` stays on the host
 because no slot styles read it.
 
-The explicit `slots` option is an override for slots that must carry a var without
-reading it in the recipe styles — for example a portaled slot styled only through
+The explicit `slots` option declares the default on a slot unconditionally. Use it
+for slots that must carry a var without reading it in the recipe styles — for example a portaled slot styled only through
 an override, or by the consumer:
 
 ```ts
@@ -603,9 +607,9 @@ Notes:
 
 - **`vars` target the var host slot** — `base` for dimensioned/flat recipes,
   `root` (or the first slot when there is no `root`) for slotted recipes. Every
-  slot whose styles read a var gets that var's default and theme overrides on
-  itself (so portal-rendered slots keep working), and a var's explicit `slots`
-  list adds further slots. Layout
+  slot whose styles read a var gets that var's default and theme overrides
+  wherever it renders outside the host (so portal-rendered slots keep working),
+  and a var's explicit `slots` list adds further slots unconditionally. Layout
   overrides stay in `base` / slot blocks.
 - **Nested paths** flatten to dashed custom properties (`padding.outer.x` →
   `padding-outer-x`). Dotted keys (`'padding.outer.x'`) are also accepted.

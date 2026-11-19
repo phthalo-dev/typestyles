@@ -181,7 +181,7 @@ const badge = recipe({
 
 A leaf is a string, a number, or `{ value, syntax?, inherits? }`. For an `@property` that should not carry a recipe default, use `property.declare` and reference it from `styles`.
 
-Slot recipe defaults are emitted on the host slot and on every slot whose styles read the var (plus any slot listed in a var's explicit `slots` option), so slots rendered outside the host element — portaled popovers, flyouts — keep their values.
+Slot recipe defaults are emitted on the host slot and on every slot whose styles read the var, so slots rendered outside the host element — portaled popovers, flyouts — keep their values. A reading slot gets the default only where it has no host ancestor (`.slot:where(:not(.host *))`), so inside the host it still inherits what the host sets. Slots listed in a var's explicit `slots` option get it unconditionally.
 
 See [Components — Expose themeable properties as vars](/docs/components#expose-themeable-properties-as-vars).
 
