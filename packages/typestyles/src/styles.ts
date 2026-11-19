@@ -11,7 +11,12 @@ import { serializeStyle } from './serialize-style';
 import { devDiagnosticsEnabled, insertRules, invalidateClassNamespaceForDev } from '#sheet';
 import type { CascadeLayersInput } from './layers';
 import { applyLayerToRules, assertOwnLayer, resolveCascadeLayers } from './layers';
-import { registeredNamespaces, trackEmittedClassName, warnUnscopedCollision } from './registry';
+import {
+  registeredNamespaces,
+  trackEmittedClassName,
+  trackStyleDeclarations,
+  warnUnscopedCollision,
+} from './registry';
 import {
   emittedClassName,
   hashString,
@@ -141,6 +146,7 @@ export function createClass(
   layer?: string,
 ): string {
   claimClassNamespace(classNaming, name);
+  trackStyleDeclarations(classNaming.scopeId ?? '', name, stableSerialize(properties));
 
   const { classNames, rules } = classNamesAndRulesForProperties(
     classNaming,
