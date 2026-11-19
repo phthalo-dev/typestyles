@@ -80,7 +80,7 @@ Token + theme API bound to an optional `scopeId`. Prefer the `tokens` from **`cr
 - `tokens.disposeTheme(name, options?)`: Unregister a theme by name (dedupe keys + live CSSOM). Useful for HMR and live theme editors — most apps define themes once and switch with `className`. HMR prefixes: `theme:{segment}:*` and, with layers, `layer:{tokenLayer}:theme:{segment}:*`.
 - **`components`**: map of component **namespace** → `{ vars?, styles? }`. `styles` is a partial style object or `({ vars, tokens }) => partial`. A bare `(ctx) => config` function is not a patch. Requires `createTypeStyles`. **`tokens`**: namespace map registered for this theme; `Theme.tokens` exposes refs (`theme.tokens.brand`, …). Use `as const` on `tokens` for the sharpest inference on `tokens` inside the style callback.
 - `tokens.ensureNamespace(namespace, values)`: create-if-absent, then return `tokens.use(namespace)`.
-- **`Theme.override(input)`**: typed deep-merge fork of a root theme (`name`, optional `tokens` / `colorMode` / `modes` / `components` / `replace`). Closed against the root token tree.
+- **`Theme.override(input)`**: typed deep-merge fork of a root theme (`name`, optional `tokens` / `colorMode` / `modes` / `components` / `replace`). `tokens` is closed against the root token tree; `extend: { ns: { … } }` adds new namespaces to the child (typed on the returned theme's `tokens`).
 - `tokens.createDarkMode(name, darkOverrides)`: Shorthand theme with a single dark `@media` branch
 - `tokens.when` / `tokens.colorMode`: Condition helpers for themes
 - `tokens.scopeId`: The scope passed to `createTokens` / `createTypeStyles`, if any

@@ -582,6 +582,11 @@ export type ThemeOverrideInput<
   name: string;
   replace?: boolean;
   tokens?: DeepPartialThemeTokens<E>;
+  /**
+   * New token namespaces for this child theme (registered idempotently, emitted on the child's
+   * class, typed on the returned theme's `tokens`). Use `tokens` to patch existing namespaces.
+   */
+  extend?: Record<string, CreateTokenValues>;
   modes?: ReadonlyArray<{
     readonly id: string;
     readonly overrides: DeepPartialThemeTokens<E>;
@@ -613,10 +618,12 @@ export interface Theme<E extends Record<string, CreateTokenValues> = Record<stri
   readonly tokens: ThemeTokenContext<E>;
   /**
    * Create a child theme by deep-merging typed patches onto this theme's {@link source}.
-   * Patches are closed against the root token tree — new namespaces/paths belong on the root
-   * `createTheme` (or `tokens.create`), not in `override`.
+   * `tokens` patches are closed against the root token tree; add brand-new namespaces with
+   * `extend`, which the returned theme's `tokens` exposes with full types.
    */
-  override(input: ThemeOverrideInput<E>): Theme<E>;
+  override<const X extends Record<string, CreateTokenValues> = Record<string, never>>(
+    input: Omit<ThemeOverrideInput<E>, 'extend'> & { extend?: X },
+  ): Theme<E & X>;
   toString(): string;
   [Symbol.toPrimitive](hint: string): string;
 }

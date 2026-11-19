@@ -157,4 +157,25 @@ describe('createTheme({ tokens })', () => {
     expect(updated).not.toMatch(/:root[^.]*\{[^}]*--mix-shadow-sm: 0 2px 4px red/);
     expect(updated).not.toMatch(/:root[^.]*\{[^}]*--mix-shadow-sm: 0 2px 4px blue/);
   });
+
+  it('override({ extend }) adds a new namespace to a child theme', () => {
+    const { tokens } = createTypeStyles({ scopeId: 'child-ext' });
+    const root = tokens.createTheme({
+      name: 'root',
+      tokens: { brand: { primary: '#111' } },
+    });
+    const child = root.override({
+      name: 'forest',
+      extend: { app: { glow: '#0f0' } },
+    });
+    expect(child.tokens.app.glow.var).toBe('var(--child-ext-app-glow)');
+    expect(child.tokens.brand.primary.var).toMatch(/var\(--/);
+    expect(child.source.tokens).toEqual({ brand: { primary: '#111' }, app: { glow: '#0f0' } });
+    flushSync();
+    const css = getRegisteredCss();
+    expect(css).toContain('.theme-child-ext-forest');
+    expect(css).toContain('--child-ext-app-glow: #0f0');
+    // The root theme source is untouched.
+    expect(root.source.tokens).toEqual({ brand: { primary: '#111' } });
+  });
 });
