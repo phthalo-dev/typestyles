@@ -614,7 +614,7 @@ describe('tokens.declare', () => {
       },
     });
 
-    api.create('color', { accent: { default: '#0066ff' }, decl: color });
+    api.create('color', { accent: { default: '#0066ff' } }, { decl: color });
     api.create('color', { accent: { subtle: '#aabbcc' } }, { decl: color });
     flushSync();
 
@@ -1211,5 +1211,26 @@ describe('tokens.createTheme mode-aware leaves', () => {
     const css = getRegisteredCss();
     expect(css).toContain(':root[data-scheme="dark"]');
     expect(css).toContain(':root [data-scheme="dark"]');
+  });
+});
+
+describe('tokens.declare() proxy enumeration', () => {
+  it('enumerates schema keys and answers undefined for unknown paths', async () => {
+    const { createTypeStyles } = await import('./create-type-styles');
+    const ts = createTypeStyles({ scopeId: 'declare-enum' });
+    const d = ts.tokens.declare('ui', {
+      space: { sm: true, md: true },
+      color: { accent: { default: true } },
+    });
+    expect(Object.keys(d)).toEqual(['space', 'color']);
+    expect(Object.keys(d.space)).toEqual(['sm', 'md']);
+    expect(Object.entries(d.space).map(([k, v]) => [k, v.var])).toEqual([
+      ['sm', expect.stringContaining('var(')],
+      ['md', expect.stringContaining('var(')],
+    ]);
+    expect({ ...d.space }).toHaveProperty('sm');
+    expect((d.space as Record<string, unknown>).typo).toBeUndefined();
+    expect('typo' in d.space).toBe(false);
+    expect(d.color.accent.default.var).toContain('var(');
   });
 });

@@ -182,9 +182,25 @@ function isRefLeaf(value: unknown): value is RegisteredPropertyRef {
 }
 
 /** Deep-clone theme values; token refs stringify to `var(--…)` instead of `structuredClone`. */
+/**
+ * `tokens.declare()` group proxies. They enumerate their schema keys, but a group is a
+ * reference, not a value: using one as an override must stay a no-op (never `var()` of itself).
+ */
+const declaredGroupProxies = new WeakSet<object>();
+export function markDeclaredGroupProxy(proxy: object): void {
+  declaredGroupProxies.add(proxy);
+}
+
+function unwrapGroupProxy<T>(value: T): T {
+  return value != null && typeof value === 'object' && declaredGroupProxies.has(value)
+    ? ({} as T)
+    : value;
+}
+
 export function cloneThemeValues<T>(values: T): T {
   if (values == null || typeof values !== 'object') return values;
   if (isRefLeaf(values)) return String(values) as T;
+  if (declaredGroupProxies.has(values)) return {} as T;
   if (Array.isArray(values)) return values.map(cloneThemeValues) as T;
   if (!isPlainObject(values)) return String(values) as T;
 
@@ -199,7 +215,8 @@ export function mergeTokenValues(base: TokenValues, patch: TokenValues): TokenVa
   if (!isPlainObject(base) || !isPlainObject(patch)) return cloneThemeValues(patch);
 
   const out = cloneThemeValues(base) as Record<string, TokenValues>;
-  for (const [key, patchValue] of Object.entries(patch)) {
+  for (const [key, rawPatch] of Object.entries(unwrapGroupProxy(patch))) {
+    const patchValue = unwrapGroupProxy(rawPatch);
     const baseValue = out[key];
     out[key] =
       baseValue != null && isPlainObject(baseValue) && isPlainObject(patchValue)
@@ -213,7 +230,8 @@ export function mergeTokenValues(base: TokenValues, patch: TokenValues): TokenVa
 export function mergeThemeOverrides(base: ThemeOverrides, patch?: ThemeOverrides): ThemeOverrides {
   if (!patch) return cloneThemeValues(base);
   const out = cloneThemeValues(base) as Record<string, unknown>;
-  for (const [key, patchValue] of Object.entries(patch)) {
+  for (const [key, rawPatch] of Object.entries(unwrapGroupProxy(patch))) {
+    const patchValue = unwrapGroupProxy(rawPatch);
     const baseValue = out[key];
     out[key] =
       isPlainObject(baseValue) && isPlainObject(patchValue)
