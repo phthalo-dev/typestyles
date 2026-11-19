@@ -188,7 +188,10 @@ export type CreateTokensOptions = {
 /**
  * Design token and theme API bound to an optional `scopeId`.
  */
-export type TokensApi<R extends TokenRegistry = Record<string, never>> = {
+export type TokensApi<
+  R extends TokenRegistry = Record<string, never>,
+  B extends object = Record<never, never>,
+> = {
   /** Same `scopeId` passed to `createTokens`, if any. */
   readonly scopeId: string | undefined;
   create: {
@@ -256,9 +259,18 @@ export type TokensApi<R extends TokenRegistry = Record<string, never>> = {
    */
   walk: (refs: object, visit: (path: string, ref: TokenLeafRef) => void) => void;
   createTheme: {
-    <const C extends Omit<ThemeConfig, 'components'>>(
-      input: { name: string; replace?: boolean } & C & ThemeComponentsFor<C>,
-    ): Theme<InferThemeTokensFromConfig<C>>;
+    // `tokens` is its own type parameter so `ctx.tokens` in `components` factories can see the
+    // theme's namespaces (inferring them from one combined config type falls back to its constraint).
+    <
+      const T extends Record<string, CreateTokenValues> = Record<never, CreateTokenValues>,
+      const C extends Omit<ThemeConfig, 'components' | 'tokens'> = Omit<
+        ThemeConfig,
+        'components' | 'tokens'
+      >,
+    >(
+      input: { name: string; replace?: boolean; tokens?: T } & C &
+        ThemeComponentsFor<{ tokens: T }, B>,
+    ): Theme<InferThemeTokensFromConfig<{ tokens: T }>>;
   };
   disposeTheme: (name: string, options?: { removeLiveCss?: boolean }) => void;
   /**

@@ -56,6 +56,7 @@ export type HashFn<L extends string | undefined = undefined> = [L] extends [unde
 export type TypeStylesApi<
   Recipe = RecipeFn,
   L extends string | undefined = undefined,
+  B extends object = Record<never, never>,
 > = ComponentRegistryApi & {
   readonly classNaming: Readonly<ClassNamingConfig>;
   /** Create a single named class (was `styles.class`). */
@@ -68,7 +69,20 @@ export type TypeStylesApi<
    * accept a `{ layer }` override on top of the `layers.style` default.
    */
   recipe: Recipe;
-  tokens: TokensApi;
+  tokens: TokensApi<Record<string, never>, B>;
+  /**
+   * Tell this instance which token refs are built in (typically the root `tokens.declare()`
+   * result), so `ctx.tokens` in `createTheme({ components })` factories is fully typed. Runtime
+   * no-op returning the same instance: declare first (the refs need the instance), then call this.
+   *
+   * @example
+   * ```ts
+   * const base = createTypeStyles({ scopeId: 'ui' });
+   * export const designTokens = base.tokens.declare(schema);
+   * export const typestyles = base.withTokenRefs(designTokens);
+   * ```
+   */
+  withTokenRefs: <Refs extends object>(refs: Refs) => TypeStylesApi<Recipe, L, Refs>;
   global: GlobalApiUnlayered | GlobalApiLayered;
   compose: StylesApi['compose'];
   override: [L] extends [undefined] ? OverrideFn : OverrideFn<L & string>;
@@ -159,7 +173,7 @@ function flattenTypeStylesApi<Recipe = unknown>(
     is: TypeStylesApi['is'];
     where: TypeStylesApi['where'];
   };
-  return {
+  const api: TypeStylesApi<Recipe> = {
     classNaming: s.classNaming,
     style: buildStyleFn(s as StylesApi),
     hash: buildHashFn(s as StylesApi),
@@ -197,7 +211,10 @@ function flattenTypeStylesApi<Recipe = unknown>(
     getComponent: s.getComponent.bind(s),
     getThemeableComponents: s.getThemeableComponents.bind(s),
     listComponentNamespaces: s.listComponentNamespaces.bind(s),
+    // Type-level only: returns this same instance with its built-in token refs recorded.
+    withTokenRefs: (() => api) as unknown as TypeStylesApi<Recipe>['withTokenRefs'],
   };
+  return api;
 }
 
 /** Unified factory: one `scopeId`, shared cascade layer stack, flat public surface. */

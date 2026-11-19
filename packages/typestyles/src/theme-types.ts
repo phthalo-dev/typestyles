@@ -1,4 +1,5 @@
 import type { OverrideTokenNode } from './override';
+import type { ThemeTokenContext } from './theme-token-context';
 import type {
   CreateTokenValues,
   ThemeCondition,
@@ -47,6 +48,31 @@ export type ThemeComponentPatch = {
 };
 
 /**
+ * `ctx.tokens` for a theme `components` factory. When the instance declared its built-in token
+ * refs (`typestyles.withTokenRefs(designTokens)`), it is those refs plus the theme's own `tokens`
+ * namespaces, fully typed; otherwise the loose {@link OverrideTokenNode} bag.
+ */
+export type ThemeFactoryTokens<
+  C extends Pick<ThemeConfig, 'tokens'>,
+  B extends object = Record<never, never>,
+> = [keyof B] extends [never]
+  ? OverrideTokenNode
+  : ThemeTokenContext<InferThemeTokensFromConfig<C>> & B;
+
+/** {@link ThemeComponentPatch} with a `ctx.tokens` typed by {@link ThemeFactoryTokens}. */
+export type ThemeComponentPatchFor<
+  C extends Pick<ThemeConfig, 'tokens'>,
+  B extends object = Record<never, never>,
+> = Omit<ThemeComponentPatch, 'styles'> & {
+  styles?:
+    | ThemeComponentStylePatch
+    | ((ctx: {
+        readonly vars: { readonly [key: string]: { readonly name: string; readonly var: string } };
+        readonly tokens: ThemeFactoryTokens<C, B>;
+      }) => ThemeComponentStylePatch);
+};
+
+/**
  * `components` on `createTheme` / `Theme.override`.
  *
  * The token map does not carry recipe handles, so this stays a namespace → patch
@@ -55,8 +81,9 @@ export type ThemeComponentPatch = {
  */
 export type ThemeComponentsFor<
   _T extends Pick<ThemeConfig, 'tokens'> = Pick<ThemeConfig, 'tokens'>,
+  B extends object = Record<never, never>,
 > = {
-  components?: Record<string, ThemeComponentPatch>;
+  components?: Record<string, ThemeComponentPatchFor<_T, B>>;
 };
 
 type CreateThemeConfigFields = Omit<ThemeConfig, 'components'>;
