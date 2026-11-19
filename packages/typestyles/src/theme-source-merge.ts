@@ -129,10 +129,10 @@ export function applyThemeOverride(
   input: ThemeOverrideInput,
   colorModes?: ColorModeMap,
 ): ThemeConfig {
-  const { components, modes } = input;
+  const { components, modes, extend } = input;
   const tokens = fillPartialModeLeaves(source.tokens, input.tokens, colorModes);
   return mergeThemeSource(source, {
-    tokens: tokens as ThemeConfig['tokens'],
+    tokens: mergeTokensMaps(tokens as ThemeConfig['tokens'], extend as ThemeConfig['tokens']),
     modes: modes as ThemeConfig['modes'],
     ...(components !== undefined ? { components } : {}),
   });

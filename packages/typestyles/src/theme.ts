@@ -433,7 +433,7 @@ function createThemeObject(
     name,
     source,
     tokens: unavailableThemeTokens(name),
-    override: overrideFn,
+    override: overrideFn as Theme['override'],
     toString() {
       return className;
     },
