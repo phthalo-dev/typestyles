@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       unstable:
-        description: Publish every package to npm with the `unstable` tag, versioned from this commit
+        description: Publish every package to npm with the `unstable` tag, versioned from this commit (pushes to main always do this)
         type: boolean
         default: false
 
@@ -174,7 +174,11 @@ jobs:
   publish-unstable:
     name: Publish unstable packages
     needs: verify
-    if: github.event_name == 'workflow_dispatch' && inputs.unstable
+    # Every push to main publishes, alongside Release, so main can be tested as
+    # `unstable` before a release goes out. Manual runs can still opt in.
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.unstable)
     concurrency:
       group: typestyles-npm-unstable
       cancel-in-progress: false
