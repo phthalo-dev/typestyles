@@ -97,3 +97,43 @@ defaultTheme.override({
     button: () => ({ base: { color: 'red' } }),
   },
 });
+
+// --- theme boundary: refs as values, partial mode leaves, non-optional tokens ---
+
+const palette = tokens.create('palette', { red: '#f00', blue: '#00f' });
+
+const refTheme = tokens.createTheme({
+  name: 'ref-leaves',
+  tokens: {
+    brand: {
+      plain: palette.red,
+      modal: { light: palette.red, dark: palette.blue },
+    },
+  },
+});
+
+// `Theme.tokens` is required: no `!` / `?.` needed.
+const _refVar: string = refTheme.tokens.brand.plain.var;
+void _refVar;
+
+refTheme.override({
+  name: 'ref-leaves-child',
+  tokens: {
+    brand: {
+      // ref leaf in a patch
+      plain: palette.blue,
+      // partial mode leaf: only `dark`
+      modal: { dark: palette.red },
+    },
+  },
+});
+
+refTheme.override({
+  name: 'ref-leaves-bad',
+  tokens: {
+    brand: {
+      // @ts-expect-error — `sepia` is not a color mode
+      modal: { sepia: '#aaa' },
+    },
+  },
+});

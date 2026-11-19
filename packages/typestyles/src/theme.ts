@@ -28,6 +28,7 @@ import {
 } from './condition-compile';
 import type { ColorModeMap } from './color-modes';
 import { expandThemeOverrides, normalizeThemeConfig } from './token-color-modes';
+import type { ThemeTokenContext } from './theme-token-context';
 import { bindThemeOverride } from './theme-source-merge';
 import { themeTokensToCompileConfig } from './theme-extend';
 import { themeConfigToSource } from './theme-types';
@@ -403,6 +404,24 @@ export const colorMode = {
 // Theme factory
 // ---------------------------------------------------------------------------
 
+/**
+ * `theme.tokens` for themes built by the low-level `createTheme` (no token registry attached).
+ * Reading a namespace fails loudly instead of returning `undefined`: use `tokens.createTheme()`
+ * from `createTypeStyles` / `createTokens` to get `theme.tokens`.
+ */
+function unavailableThemeTokens(themeName: string): ThemeTokenContext {
+  return new Proxy({} as ThemeTokenContext, {
+    get(_target, prop) {
+      if (typeof prop === 'symbol' || prop === 'then' || prop === 'toJSON') return undefined;
+      throw new Error(
+        `[typestyles] theme "${themeName}".tokens.${prop} is not available: this theme was created ` +
+          `with the low-level createTheme(). Use tokens.createTheme() from createTypeStyles() / ` +
+          `createTokens() to get typed token refs on the theme.`,
+      );
+    },
+  });
+}
+
 function createThemeObject(
   name: string,
   className: string,
@@ -413,6 +432,7 @@ function createThemeObject(
     className,
     name,
     source,
+    tokens: unavailableThemeTokens(name),
     override: overrideFn,
     toString() {
       return className;
@@ -578,7 +598,12 @@ export function createTheme(
         replace: callOptions?.replace ?? options?.replace,
       }));
 
-  return createThemeObject(name, className, source, bindThemeOverride(source, createChildTheme));
+  return createThemeObject(
+    name,
+    className,
+    source,
+    bindThemeOverride(source, createChildTheme, colorModes),
+  );
 }
 
 // ---------------------------------------------------------------------------

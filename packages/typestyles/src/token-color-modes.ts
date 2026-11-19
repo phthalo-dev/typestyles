@@ -597,7 +597,20 @@ export function normalizeThemeConfig(
   colorModes: ColorModeMap | undefined,
 ): ThemeConfig {
   void colorModes;
-  return config;
+  // Token refs used as values (`{ accent: base.red }`) become `var(--…)` strings once, here, so
+  // every later walker (merge, expand, emit) only ever sees strings and mode objects.
+  return {
+    ...config,
+    ...(config.tokens !== undefined ? { tokens: cloneThemeValues(config.tokens) } : {}),
+    ...(config.modes !== undefined
+      ? {
+          modes: config.modes.map((mode) => ({
+            ...mode,
+            overrides: cloneThemeValues(mode.overrides),
+          })),
+        }
+      : {}),
+  };
 }
 
 /** Expand mode-aware values inside each namespace of theme overrides. */

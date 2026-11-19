@@ -387,6 +387,27 @@ tokens.createTheme({
 Combine with manual `modes` layers when you need conditional rules that are not `light-dark()`
 (for example a shadow-only layer under `tokens.when.prefersDark`).
 
+### Refs as values, partial mode patches
+
+Token refs are valid anywhere a value is: in `tokens.create`, `createTheme({ tokens })`, mode
+leaves, and `Theme.override` patches. They serialize to `var(--…)`.
+
+```ts
+const palette = tokens.create('palette', { red: '#f00', blue: '#00f' });
+
+const forest = tokens.createTheme({
+  name: 'forest',
+  tokens: { brand: { accent: { light: palette.red, dark: palette.blue } } },
+});
+
+// Patch one mode: the other keeps the parent's value (a scalar parent fills both).
+forest.override({ name: 'forest-night', tokens: { brand: { accent: { dark: '#fff' } } } });
+```
+
+`theme.tokens` is always present on themes from `tokens.createTheme()`. Themes from the low-level
+`createTheme()` have no token registry, so reading `theme.tokens.x` throws with a pointer to
+`tokens.createTheme()`.
+
 ### Preset mode layers (`tokens.colorMode.*`)
 
 Preset helpers (`mediaOnly`, `attributeOnly`, `mediaOrAttribute`,

@@ -134,8 +134,11 @@ export type TokenSchema = TokenSchemaLeaf | { [key: string]: TokenSchema };
  * Compiles to `light-dark()` on `:root` when `colorModes` is configured on `createTokens()`.
  */
 export type ModeAwareTokenObject<M extends ColorModeMap = LightDarkColorModes> = {
-  readonly [K in M[number]]: string | number;
+  readonly [K in M[number]]: string | number | SyntaxRef<string>;
 };
+
+/** A token ref (`tokens.declare()` / `tokens.create()` leaf) used as a value; serializes to `var(--…)`. */
+export type TokenValueRef = SyntaxRef<string>;
 
 /**
  * Scalar or mode-aware leaf nested under a token path (not a root namespace key).
@@ -144,6 +147,7 @@ export type ModeAwareTokenObject<M extends ColorModeMap = LightDarkColorModes> =
 export type ModeAwareTokenLeaf<M extends ColorModeMap = LightDarkColorModes> =
   | string
   | number
+  | TokenValueRef
   | ModeAwareTokenObject<M>;
 
 /** A single node in a `tokens.create()` value tree — scalar, mode-aware leaf, or nested group. */
@@ -347,13 +351,15 @@ export type RegisteredPropertyOptions = PropertyOptions;
 
 type TokenRefTreeLeaf<V, M extends ColorModeMap = LightDarkColorModes> = V extends TokenDescriptor
   ? RegisteredPropertyRef
-  : V extends string | number
+  : V extends TokenValueRef
     ? UntypedTokenRef
-    : V extends ModeAwareTokenObject<M>
+    : V extends string | number
       ? UntypedTokenRef
-      : V extends TokenValues | CreateTokenNode<M>
-        ? TokenRefTree<V, M>
-        : UntypedTokenRef;
+      : V extends ModeAwareTokenObject<M>
+        ? UntypedTokenRef
+        : V extends TokenValues | CreateTokenNode<M>
+          ? TokenRefTree<V, M>
+          : UntypedTokenRef;
 
 /**
  * Maps a `tokens.create()` value tree to nested `{ name, var }` refs (mode-aware leaves become a single ref). Refs coerce to `var(--…)` in templates and style values.
@@ -361,6 +367,7 @@ type TokenRefTreeLeaf<V, M extends ColorModeMap = LightDarkColorModes> = V exten
 export type TokenRefTree<T, M extends ColorModeMap = LightDarkColorModes> = T extends
   | string
   | number
+  | TokenValueRef
   ? UntypedTokenRef
   : T extends TokenDescriptor
     ? RegisteredPropertyRef
@@ -560,7 +567,7 @@ export type DeepPartialThemeTokens<T, M extends ColorModeMap = LightDarkColorMod
   ? { [key: string]: DeepPartialTokenValues<M> | undefined }
   : {
       [K in keyof T]?: T[K] extends ModeAwareTokenLeaf<M>
-        ? ModeAwareTokenLeaf<M>
+        ? ModeAwareTokenLeaf<M> | Partial<ModeAwareTokenObject<M>>
         : T[K] extends Record<string, unknown>
           ? DeepPartialThemeTokens<T[K], M>
           : ModeAwareTokenLeaf<M>;
@@ -601,9 +608,9 @@ export interface Theme<E extends Record<string, CreateTokenValues> = Record<stri
   readonly source: ThemeSource;
   /**
    * Token refs for override factories — `tokens.use` plus namespace shortcuts (`tokens.color`, …).
-   * Present on themes from `tokens.createTheme()` / `createTypeStyles`.
+   * Reading it on a theme from the low-level `createTheme()` throws; use `tokens.createTheme()`.
    */
-  readonly tokens?: ThemeTokenContext<E>;
+  readonly tokens: ThemeTokenContext<E>;
   /**
    * Create a child theme by deep-merging typed patches onto this theme's {@link source}.
    * Patches are closed against the root token tree — new namespaces/paths belong on the root

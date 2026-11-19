@@ -1,5 +1,6 @@
 import type {
   CreateTokenValues,
+  TokenValues,
   ThemeConfig,
   ThemeModeDefinition,
   ThemeSource,
@@ -7,6 +8,8 @@ import type {
   ThemeOverrideInput,
 } from './types';
 import { mergeThemeOverrides, mergeTokenValues } from './token-color-modes';
+import { isColorModeObject } from './color-modes';
+import type { ColorModeMap } from './color-modes';
 
 export type { ThemeSource };
 
@@ -21,7 +24,7 @@ function mergeTokensMaps(
     const a = from?.[key];
     const b = onto?.[key];
     if (a !== undefined && b !== undefined) {
-      out[key] = mergeTokenValues(a, b) as CreateTokenValues;
+      out[key] = mergeTokenValues(a as TokenValues, b as TokenValues) as CreateTokenValues;
     } else {
       out[key] = (b ?? a)!;
     }
@@ -89,9 +92,45 @@ export function mergeThemeSource(
   };
 }
 
+/**
+ * A partial mode leaf (`{ dark: '#fff' }`) patching a scalar parent (`'#111'`) has no sibling to
+ * merge with: fill the modes it omits from the parent value so the result is a complete leaf.
+ */
+function fillPartialModeLeaves(
+  base: unknown,
+  patch: unknown,
+  colorModes: ColorModeMap | undefined,
+): unknown {
+  if (!colorModes || patch === null || typeof patch !== 'object' || Array.isArray(patch)) {
+    return patch;
+  }
+  if (isColorModeObject(patch, colorModes)) {
+    if (typeof base === 'string' || typeof base === 'number') {
+      const filled: Record<string, unknown> = {};
+      for (const mode of colorModes) {
+        filled[mode] = (patch as Record<string, unknown>)[mode] ?? base;
+      }
+      return filled;
+    }
+    return patch;
+  }
+  const baseObj =
+    base !== null && typeof base === 'object' ? (base as Record<string, unknown>) : {};
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    out[key] = fillPartialModeLeaves(baseObj[key], value, colorModes);
+  }
+  return out;
+}
+
 /** Merge a {@link Theme.override} input onto a parent {@link ThemeSource} snapshot. */
-export function applyThemeOverride(source: ThemeSource, input: ThemeOverrideInput): ThemeConfig {
-  const { components, tokens, modes } = input;
+export function applyThemeOverride(
+  source: ThemeSource,
+  input: ThemeOverrideInput,
+  colorModes?: ColorModeMap,
+): ThemeConfig {
+  const { components, modes } = input;
+  const tokens = fillPartialModeLeaves(source.tokens, input.tokens, colorModes);
   return mergeThemeSource(source, {
     tokens: tokens as ThemeConfig['tokens'],
     modes: modes as ThemeConfig['modes'],
@@ -105,7 +144,8 @@ export function applyThemeOverride(source: ThemeSource, input: ThemeOverrideInpu
 export function bindThemeOverride(
   source: ThemeSource,
   apply: (name: string, config: ThemeConfig, callOptions?: { replace?: boolean }) => Theme,
+  colorModes?: ColorModeMap,
 ): (input: ThemeOverrideInput) => Theme {
   return (input) =>
-    apply(input.name, applyThemeOverride(source, input), { replace: input.replace });
+    apply(input.name, applyThemeOverride(source, input, colorModes), { replace: input.replace });
 }
