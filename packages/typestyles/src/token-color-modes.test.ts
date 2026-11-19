@@ -14,6 +14,30 @@ describe('token-color-modes', () => {
     expect(canUseLightDarkForTokenValue('0 0 0 3px oklch(90% 0.08 290)')).toBe(false);
   });
 
+  it('only treats color keywords as colors (var-ui#248)', () => {
+    for (const color of ['red', 'RebeccaPurple', 'transparent', 'currentColor', 'Canvas', '#fff']) {
+      expect(canUseLightDarkForTokenValue(color)).toBe(true);
+    }
+    for (const fn of ['lab(50% 40 59)', 'color(display-p3 1 0 0)', 'conic-gradient(red, blue)']) {
+      expect(canUseLightDarkForTokenValue(fn)).toBe(true);
+    }
+    for (const other of ['normal', 'screen', 'none', 'grayscale(1)', 'blur(4px)', '0.5', '2px']) {
+      expect(canUseLightDarkForTokenValue(other)).toBe(false);
+    }
+  });
+
+  it('emits a keyword mode leaf as a dark-mode override, silently (var-ui#248)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { expanded, darkOnly } = expandModeAwareTokenValues(
+      { artBlend: { light: 'normal', dark: 'screen' } },
+      colorModes,
+    );
+    expect(expanded).toEqual({ artBlend: 'normal' });
+    expect(darkOnly).toEqual({ artBlend: 'screen' });
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('expands mode-aware leaves to light-dark()', () => {
     const { expanded } = expandModeAwareTokenValues(
       { accent: { light: '#111', dark: '#eee' } },

@@ -14,19 +14,193 @@ function isModeLeaf(value: unknown): boolean {
   return looksLikeUnconfiguredModeObject(value);
 }
 
-/** Whether a scalar token value can be wrapped in CSS `light-dark()` (color or image). */
+/** CSS named colors, `transparent`, `currentcolor` and system colors (CSS Color 4), lowercased. */
+const COLOR_KEYWORDS = new Set([
+  'aliceblue',
+  'antiquewhite',
+  'aqua',
+  'aquamarine',
+  'azure',
+  'beige',
+  'bisque',
+  'black',
+  'blanchedalmond',
+  'blue',
+  'blueviolet',
+  'brown',
+  'burlywood',
+  'cadetblue',
+  'chartreuse',
+  'chocolate',
+  'coral',
+  'cornflowerblue',
+  'cornsilk',
+  'crimson',
+  'cyan',
+  'darkblue',
+  'darkcyan',
+  'darkgoldenrod',
+  'darkgray',
+  'darkgreen',
+  'darkgrey',
+  'darkkhaki',
+  'darkmagenta',
+  'darkolivegreen',
+  'darkorange',
+  'darkorchid',
+  'darkred',
+  'darksalmon',
+  'darkseagreen',
+  'darkslateblue',
+  'darkslategray',
+  'darkslategrey',
+  'darkturquoise',
+  'darkviolet',
+  'deeppink',
+  'deepskyblue',
+  'dimgray',
+  'dimgrey',
+  'dodgerblue',
+  'firebrick',
+  'floralwhite',
+  'forestgreen',
+  'fuchsia',
+  'gainsboro',
+  'ghostwhite',
+  'gold',
+  'goldenrod',
+  'gray',
+  'green',
+  'greenyellow',
+  'grey',
+  'honeydew',
+  'hotpink',
+  'indianred',
+  'indigo',
+  'ivory',
+  'khaki',
+  'lavender',
+  'lavenderblush',
+  'lawngreen',
+  'lemonchiffon',
+  'lightblue',
+  'lightcoral',
+  'lightcyan',
+  'lightgoldenrodyellow',
+  'lightgray',
+  'lightgreen',
+  'lightgrey',
+  'lightpink',
+  'lightsalmon',
+  'lightseagreen',
+  'lightskyblue',
+  'lightslategray',
+  'lightslategrey',
+  'lightsteelblue',
+  'lightyellow',
+  'lime',
+  'limegreen',
+  'linen',
+  'magenta',
+  'maroon',
+  'mediumaquamarine',
+  'mediumblue',
+  'mediumorchid',
+  'mediumpurple',
+  'mediumseagreen',
+  'mediumslateblue',
+  'mediumspringgreen',
+  'mediumturquoise',
+  'mediumvioletred',
+  'midnightblue',
+  'mintcream',
+  'mistyrose',
+  'moccasin',
+  'navajowhite',
+  'navy',
+  'oldlace',
+  'olive',
+  'olivedrab',
+  'orange',
+  'orangered',
+  'orchid',
+  'palegoldenrod',
+  'palegreen',
+  'paleturquoise',
+  'palevioletred',
+  'papayawhip',
+  'peachpuff',
+  'peru',
+  'pink',
+  'plum',
+  'powderblue',
+  'purple',
+  'rebeccapurple',
+  'red',
+  'rosybrown',
+  'royalblue',
+  'saddlebrown',
+  'salmon',
+  'sandybrown',
+  'seagreen',
+  'seashell',
+  'sienna',
+  'silver',
+  'skyblue',
+  'slateblue',
+  'slategray',
+  'slategrey',
+  'snow',
+  'springgreen',
+  'steelblue',
+  'tan',
+  'teal',
+  'thistle',
+  'tomato',
+  'turquoise',
+  'violet',
+  'wheat',
+  'white',
+  'whitesmoke',
+  'yellow',
+  'yellowgreen',
+  'transparent',
+  'currentcolor',
+  'accentcolor',
+  'accentcolortext',
+  'activetext',
+  'buttonborder',
+  'buttonface',
+  'buttontext',
+  'canvas',
+  'canvastext',
+  'field',
+  'fieldtext',
+  'graytext',
+  'highlight',
+  'highlighttext',
+  'linktext',
+  'mark',
+  'marktext',
+  'selecteditem',
+  'selecteditemtext',
+  'visitedtext',
+]);
+
+const COLOR_OR_IMAGE_FUNCTION =
+  /^(?:light-dark|rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|contrast-color|device-cmyk|(?:repeating-)?(?:linear|radial|conic)-gradient|url|image|image-set|cross-fade|var)\(/i;
+
+/**
+ * Whether a scalar token value can be wrapped in CSS `light-dark()`, which only accepts colors (and
+ * images). Hex colors, color/image functions and color keywords qualify. Any other keyword
+ * (`normal`, `screen`, `none`), number or length does not: those modes get a dark-mode override
+ * declaration instead. `var()` is assumed to be a color, since its value is unknown here.
+ */
 export function canUseLightDarkForTokenValue(value: string): boolean {
   const trimmed = value.trim();
-  if (trimmed.startsWith('light-dark(')) return true;
-  if (
-    /^(#|oklch|oklab|hsl|hwb|rgb|var\(|color-mix|linear-gradient|radial-gradient|url\()/i.test(
-      trimmed,
-    )
-  ) {
-    return true;
-  }
-  if (/^-?\d/.test(trimmed)) return false;
-  return true;
+  if (trimmed.startsWith('#')) return true;
+  if (COLOR_OR_IMAGE_FUNCTION.test(trimmed)) return true;
+  return COLOR_KEYWORDS.has(trimmed.toLowerCase());
 }
 
 function scalar(value: string | number): string {
@@ -40,17 +214,13 @@ function isNestedTokenObject(value: unknown): value is Record<string, TokenValue
 function expandScalarPair(
   lightVal: string,
   darkVal: string,
-  path: string,
 ): { merged: string; darkOnly?: string } {
   if (lightVal === darkVal) return { merged: lightVal };
   if (canUseLightDarkForTokenValue(lightVal) && canUseLightDarkForTokenValue(darkVal)) {
     return { merged: lightDark(lightVal, darkVal) };
   }
-  if (process.env.NODE_ENV !== 'production') {
-    console.warn(
-      `[typestyles] Token "${path}" cannot use \`light-dark()\` — emitting a dark-mode override rule instead.`,
-    );
-  }
+  // Not a color: the light value is the default and a dark-mode rule overrides it. That is the
+  // supported output for shadows, blend modes, filters and opacity, so it does not warn (#360).
   return { merged: lightVal, darkOnly: darkVal };
 }
 
@@ -68,7 +238,7 @@ function expandModeAwareLeaf(
   if (lightVal === undefined || darkVal === undefined) {
     return { merged: lightVal ?? darkVal! };
   }
-  return expandScalarPair(lightVal, darkVal, path);
+  return expandScalarPair(lightVal, darkVal);
 }
 
 /**
@@ -104,7 +274,7 @@ export function mergeTokenTreesWithColorModes(
     }
 
     if (typeof lightValue === 'string' && typeof darkValue === 'string') {
-      const result = expandScalarPair(lightValue, darkValue, key);
+      const result = expandScalarPair(lightValue, darkValue);
       merged[key] = result.merged;
       if (result.darkOnly) {
         darkOnly[key] = result.darkOnly;
@@ -114,7 +284,7 @@ export function mergeTokenTreesWithColorModes(
     }
 
     if (typeof lightValue === 'number' && typeof darkValue === 'number') {
-      const result = expandScalarPair(scalar(lightValue), scalar(darkValue), key);
+      const result = expandScalarPair(scalar(lightValue), scalar(darkValue));
       merged[key] = result.merged;
       if (result.darkOnly) {
         darkOnly[key] = result.darkOnly;
@@ -126,7 +296,7 @@ export function mergeTokenTreesWithColorModes(
     if (isModeLeaf(lightValue) && typeof darkValue === 'string') {
       const modeLeaf = lightValue as Record<string, string | number>;
       const lightVal = scalar(modeLeaf.light ?? modeLeaf.dark!);
-      const result = expandScalarPair(lightVal, darkValue, key);
+      const result = expandScalarPair(lightVal, darkValue);
       merged[key] = result.merged;
       if (result.darkOnly) {
         darkOnly[key] = result.darkOnly;
@@ -138,7 +308,7 @@ export function mergeTokenTreesWithColorModes(
     if (typeof lightValue === 'string' && isModeLeaf(darkValue)) {
       const modeLeaf = darkValue as Record<string, string | number>;
       const darkVal = scalar(modeLeaf.dark ?? modeLeaf.light!);
-      const result = expandScalarPair(lightValue, darkVal, key);
+      const result = expandScalarPair(lightValue, darkVal);
       merged[key] = result.merged;
       if (result.darkOnly) {
         darkOnly[key] = result.darkOnly;
@@ -152,7 +322,7 @@ export function mergeTokenTreesWithColorModes(
       const darkLeaf = darkValue as Record<string, string | number>;
       const lightVal = scalar(lightLeaf.light ?? darkLeaf.light!);
       const darkVal = scalar(darkLeaf.dark ?? lightLeaf.dark!);
-      const result = expandScalarPair(lightVal, darkVal, key);
+      const result = expandScalarPair(lightVal, darkVal);
       merged[key] = result.merged;
       if (result.darkOnly) {
         darkOnly[key] = result.darkOnly;
