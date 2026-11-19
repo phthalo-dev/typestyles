@@ -180,3 +180,10 @@ describe('createBreakpointMediaFn typing', () => {
     expect(key).toBe('@media (min-width: 768px)');
   });
 });
+
+describe('exclusive max derived across axes', () => {
+  it('maxHeight derived from a min-width breakpoint is exclusive too', () => {
+    const bps = { md: '(min-width: 768px)' };
+    expect(resolveBreakpointMediaKey(bps, 'md', 'maxHeight')).toBe('@media (height < 768px)');
+  });
+});
