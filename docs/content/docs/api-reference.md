@@ -20,7 +20,7 @@ export const { style, recipe, tokens, global } = createTypeStyles({ scopeId: 'ap
 **Style surface:**
 
 - `style(name, properties, options?)`: Create a single named class (was `styles.class`)
-- `hash(properties, options?)`: Deterministic hashed class (was `styles.hashClass`); `options` may include `label` and `layer`
+- `hash(properties, options?)`: Deterministic hashed class (was `styles.hashClass`); `options` may include `label` and `layer`. Rules register when called, so a `hash()` that runs per render is not part of the extracted stylesheet (see [SSR](/docs/ssr#hash-at-render-time-is-not-extracted))
 - `recipe({ name, styles, slots?, variants?, vars?, layer?, themeable? })`: Multi-variant / slot recipe (was `styles.component`). Declare slots, axes (`variant.enum` / `variant.boolean`), and vars on the object. `styles` is an object or `({ vars }) => object`, checked against those fields. The call returns `{ className, attrs, props }` (one per slot when `slots` is set). See [`variant`](#variant-schema-axes) and [Schema-first recipes](/docs/schema-recipes)
 - `compose(...fns)`: Compose multiple style functions
 - `override({ recipe, styles, vars?, layer?, selectorPrefix? })`: partial styles for a recipe, including typed **`vars`** ([schema-first recipes](/docs/schema-recipes), [Theming patterns](/docs/theming-patterns#override-component-internal-vars))
