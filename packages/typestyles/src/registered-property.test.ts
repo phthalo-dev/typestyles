@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vite-plus/test';
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test';
 import {
   registerAtPropertyRule,
   registerAtPropertySchema,
@@ -166,5 +166,25 @@ describe('registerAtPropertySchema conflict detection', () => {
     expect(() =>
       registerAtPropertySchema('--ts-conflict', { syntax: '<length>', inherits: false }),
     ).toThrow(/conflicting/i);
+  });
+});
+
+describe('syntax "*" with a var()-dependent value', () => {
+  it('skips @property silently instead of warning', () => {
+    reset();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    registerAtPropertyRule('--star-dep', { value: 'var(--other)', syntax: '*' });
+    flushSync();
+    expect(getRegisteredCss()).not.toContain('@property --star-dep');
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('still warns for typed syntaxes with no placeholder', () => {
+    reset();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    registerAtPropertyRule('--typed-dep', { value: 'var(--other)', syntax: '<custom-ident>' });
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 });

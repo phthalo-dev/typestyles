@@ -94,6 +94,9 @@ export function registerAtPropertyRule(
   }
 
   if (placeholder === undefined) {
+    // `*` registers nothing useful (no type, no interpolation) and has no placeholder to
+    // register with: skipping it is the correct outcome, not a problem worth a warning.
+    if (options.syntax.trim() === '*') return;
     if (process.env.NODE_ENV !== 'production') {
       console.warn(
         `[typestyles] Skipping @property for "${name}": its value depends on var()/env() and ` +
@@ -146,6 +149,9 @@ export function registerAtPropertySchema(
   }
 
   if (placeholder === undefined) {
+    // `*` registers nothing useful (no type, no interpolation) and has no placeholder to
+    // register with: skipping it is the correct outcome, not a problem worth a warning.
+    if (options.syntax.trim() === '*') return;
     if (process.env.NODE_ENV !== 'production') {
       console.warn(
         `[typestyles] Skipping @property for "${name}": syntax "${options.syntax}" has no ` +
