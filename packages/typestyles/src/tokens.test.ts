@@ -1221,15 +1221,15 @@ describe('tokens.declare() proxy enumeration', () => {
     const d = ts.tokens.declare('ui', {
       space: { sm: true, md: true },
       color: { accent: { default: true } },
-    } as never) as any;
+    });
     expect(Object.keys(d)).toEqual(['space', 'color']);
     expect(Object.keys(d.space)).toEqual(['sm', 'md']);
-    expect(Object.entries(d.space).map(([k, v]: any) => [k, v.var])).toEqual([
+    expect(Object.entries(d.space).map(([k, v]) => [k, v.var])).toEqual([
       ['sm', expect.stringContaining('var(')],
       ['md', expect.stringContaining('var(')],
     ]);
     expect({ ...d.space }).toHaveProperty('sm');
-    expect(d.space.typo).toBeUndefined();
+    expect((d.space as Record<string, unknown>).typo).toBeUndefined();
     expect('typo' in d.space).toBe(false);
     expect(d.color.accent.default.var).toContain('var(');
   });
