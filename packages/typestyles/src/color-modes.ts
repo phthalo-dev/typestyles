@@ -1,3 +1,4 @@
+import { isRegisteredPropertyRef } from './var-ref-tree';
 import type { CSSProperties } from './types';
 import { lightDark } from './color';
 import { isPlainObject, looksLikeResponsiveObject } from './breakpoints';
@@ -290,6 +291,12 @@ export function expandColorModesInProperties(
       } else {
         (result as Record<string, unknown>)[prop] = expandedChild;
       }
+      continue;
+    }
+
+    // Token refs used directly as values (`{ color: tokens.text.primary }`) are `var(--…)`.
+    if (isRegisteredPropertyRef(value)) {
+      (result as Record<string, unknown>)[prop] = String(value);
       continue;
     }
 

@@ -213,6 +213,7 @@ export type {
   ComponentConfigInput,
   ComponentInternalVarRef,
   RegisteredPropertyRef,
+  UntypedTokenRef,
   PropertyRegistration,
   PropertyRef,
   PropertyOptions,
