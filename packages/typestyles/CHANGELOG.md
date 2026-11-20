@@ -1,5 +1,31 @@
 # typestyles
 
+## 0.37.0
+
+### Minor Changes
+
+- [#353](https://github.com/phthalo-dev/typestyles/pull/353) [`e72531e`](https://github.com/phthalo-dev/typestyles/commit/e72531e4b8599475b504abd63ebee9572ab0885b) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - `breakpoint(name, 'max')` (and `'maxHeight'`) derived from a stored `min-width` / `min-height` condition now emits an exclusive range query (`@media (width < 48rem)`) instead of the inclusive `(max-width: 48rem)`. `min` and `max` for the same breakpoint now partition the viewport instead of both matching at exactly the breakpoint width. Breakpoints stored as `(max-width: …)` are unchanged.
+
+- [#352](https://github.com/phthalo-dev/typestyles/pull/352) [`c3640c6`](https://github.com/phthalo-dev/typestyles/commit/c3640c6adc006f3a95245634427a9bb6d7629b3a) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - `tokens.declare()` refs are now enumerable and strict: `Object.keys` / `Object.entries` / spread list a group's schema keys, and a path that isn't in the schema returns `undefined` instead of a phantom `var(--…)` proxy. Group proxies still contribute nothing when used as theme overrides. `tokens.entries()` / `tokens.walk()` remain the way to enumerate every leaf.
+
+- [#369](https://github.com/phthalo-dev/typestyles/pull/369) [`2f20a5b`](https://github.com/phthalo-dev/typestyles/commit/2f20a5b5dedce9ac0e6aaf6ebebaae1ed2347aea) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - `theme.override({ name, extend })` adds new token namespaces to a child theme. They are registered once, emitted on the child's class, and typed on the returned theme's `tokens` (`Theme<E & X>`). `tokens` still patches existing namespaces only. `createTheme({ tokens })` and `tokens.ensureNamespace()` already cover the root-theme side.
+
+- [#370](https://github.com/phthalo-dev/typestyles/pull/370) [`e997f7d`](https://github.com/phthalo-dev/typestyles/commit/e997f7da082e943ff5b6bce1beeca40c2c71dd9b) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - **Breaking:** every token leaf is now a `{ name, var }` ref instead of a bare `var(--…)` string. This covers `tokens.create()`, `tokens.use()`, `theme.tokens`, and `ctx.tokens` in override and theme `components` factories, so they match `tokens.declare()` refs and component vars. Refs coerce to `var(--…)` in template strings and when used directly as style values or as values of other tokens, so most code keeps working; code that relied on a leaf being a `string` (`typeof`, `.startsWith`, `===` against a string) should use `.var`. `TokenRefTree` leaves are typed as the new `UntypedTokenRef`, which is accepted by every CSS property. `isTokenRef` is now true for plain created leaves.
+
+- [#371](https://github.com/phthalo-dev/typestyles/pull/371) [`32d4349`](https://github.com/phthalo-dev/typestyles/commit/32d4349426a8128ac35f45fe62074c7afffabdba) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Theme boundary cleanup. Token refs are accepted as values in `CreateTokenValues` (`tokens.create`, `createTheme({ tokens })`, mode leaves, `Theme.override` patches) and serialize to `var(--…)`. `Theme.override` patches accept partial mode leaves (`{ dark: '#fff' }`); a scalar parent fills the omitted modes. **Breaking:** `Theme.tokens` is required, so no `!`/`?.` is needed; reading it on a theme from the low-level `createTheme()` now throws a pointer to `tokens.createTheme()` instead of returning `undefined`.
+
+- [#372](https://github.com/phthalo-dev/typestyles/pull/372) [`97d0634`](https://github.com/phthalo-dev/typestyles/commit/97d0634ee4c768c82951055c6489ff0371c083ab) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - `createTypeStyles(...).withTokenRefs(designTokens)` records the instance's built-in token refs at the type level (runtime no-op, same instance), so `ctx.tokens` in `tokens.createTheme({ components })` factories is typed with those refs plus the theme's own `tokens` namespaces, instead of a loose any-namespace bag. `createTheme` now infers `tokens` as its own type parameter so factories can see them. Declared `true` schema leaves are typed as refs (`UntypedTokenRef`), matching their runtime shape.
+
+### Patch Changes
+
+- [#374](https://github.com/phthalo-dev/typestyles/pull/374) [`55791d9`](https://github.com/phthalo-dev/typestyles/commit/55791d918743b80d15ba76da4030c91fa6dfa616) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - `breakpoint(name, 'maxHeight')` derived from a min-width breakpoint is now exclusive (`(height < …)`), like `'max'`. Previously only same-axis conversions (min-height → maxHeight) were exclusive, so `maxHeight` still emitted an inclusive `(max-height: …)` for width-based breakpoints.
+
+- [#364](https://github.com/phthalo-dev/typestyles/pull/364) [`05b7e90`](https://github.com/phthalo-dev/typestyles/commit/05b7e9037af1e7c18b36d399cd6494982408bccc) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Mode-aware `{ light, dark }` values only compile to `light-dark()` when both sides are colors or images. Keywords such as `normal`/`screen`, `none` and filter functions used to be treated as colors, producing `light-dark(normal, screen)`, which is invalid and silently fell back. They now emit the light value plus a dark-mode override rule, like shadows already did. Color detection recognizes CSS named colors, `transparent`, `currentcolor`, system colors, hex and color/image functions.
+  
+  The "cannot use `light-dark()` — emitting a dark-mode override rule instead" warning is gone (tokens and component vars): the override rule is the supported output, not something to fix.
+
+- [#370](https://github.com/phthalo-dev/typestyles/pull/370) [`e997f7d`](https://github.com/phthalo-dev/typestyles/commit/e997f7da082e943ff5b6bce1beeca40c2c71dd9b) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - `ctx.tokens` in `override({ styles: (ctx) => … })` and `createTheme({ components })` factories now returns real `{ name, var }` refs for every leaf, as `OverrideTokenNode` promises. Before, `tokens.space.md.var` was `undefined` at runtime, so declarations written against the types were silently dropped. `${tokens.space.md}` still interpolates to `var(--…)`. `tokens.use()` and `theme.tokens` are unchanged (they are typed as `var()` strings).
+
 ## 0.36.1
 
 ### Patch Changes
