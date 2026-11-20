@@ -1,5 +1,12 @@
 # @typestyles/rollup
 
+## 0.6.3
+
+### Patch Changes
+
+- Updated dependencies [[`01d04a4`](https://github.com/phthalo-dev/typestyles/commit/01d04a4fa6080cb301315a8a8a01e49248b81b69), [`3b624ad`](https://github.com/phthalo-dev/typestyles/commit/3b624adca1939ae578e93a3b88168de33c6fd60e)]:
+  - @typestyles/build-runner@0.10.0
+
 ## 0.6.2
 
 ### Patch Changes

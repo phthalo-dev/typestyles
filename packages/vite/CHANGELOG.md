@@ -1,5 +1,16 @@
 # @typestyles/vite
 
+## 0.9.0
+
+### Minor Changes
+
+- [#350](https://github.com/phthalo-dev/typestyles/pull/350) [`3b624ad`](https://github.com/phthalo-dev/typestyles/commit/3b624adca1939ae578e93a3b88168de33c6fd60e) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Extraction now resolves like the host bundler. `runTypestylesExtract` / `runTypestylesBuild` accept `conditions` and `alias` (passed to esbuild), and `@typestyles/vite` forwards the resolved config's custom `resolve.conditions` (SSR ones first) and string aliases. Hosts without custom resolution behave as before.
+
+### Patch Changes
+
+- Updated dependencies [[`01d04a4`](https://github.com/phthalo-dev/typestyles/commit/01d04a4fa6080cb301315a8a8a01e49248b81b69), [`3b624ad`](https://github.com/phthalo-dev/typestyles/commit/3b624adca1939ae578e93a3b88168de33c6fd60e)]:
+  - @typestyles/build-runner@0.10.0
+
 ## 0.8.0
 
 ### Minor Changes
