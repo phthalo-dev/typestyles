@@ -500,4 +500,39 @@ describe('invalidateKeys', () => {
       styles.component({ name: 'docs-sidebar', styles: { base: { color: 'blue' } } }),
     ).not.toThrow();
   });
+  // #361: the Vite plugin only knows the recipe `name`, not the instance's `scopeId`, so its
+  // prefix (`.libraryWave-`) does not match scoped rules (`.var-ui-libraryWave__…`).
+  it('replaces CSS when a scoped recipe is re-registered after plugin dispose (#361)', () => {
+    const styles = createStyles({ scopeId: 'var-ui' });
+    const make = (background: string) =>
+      styles.component({
+        name: 'libraryWave',
+        slots: ['root', 'upcoming'],
+        styles: { base: { root: { color: 'red' }, upcoming: { background } } },
+      } as never);
+
+    make('green');
+    expect(getRegisteredCss()).toContain('background: green');
+
+    // What the plugin injects into the module's `import.meta.hot.dispose`.
+    invalidateKeys([], ['.libraryWave-']);
+
+    make('purple');
+    const css = getRegisteredCss();
+    expect(css).toContain('background: purple');
+    expect(css).not.toContain('background: green');
+  });
+
+  it('replaces CSS when a scoped style() is re-registered after plugin dispose (#361)', () => {
+    const styles = createStyles({ scopeId: 'var-ui' });
+    styles.class('chip', { color: 'green' });
+    expect(getRegisteredCss()).toContain('color: green');
+
+    invalidateKeys([], ['.chip-']);
+
+    styles.class('chip', { color: 'purple' });
+    const css = getRegisteredCss();
+    expect(css).toContain('color: purple');
+    expect(css).not.toContain('color: green');
+  });
 });

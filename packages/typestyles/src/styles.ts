@@ -12,6 +12,7 @@ import { devDiagnosticsEnabled, insertRules, invalidateClassNamespaceForDev } fr
 import type { CascadeLayersInput } from './layers';
 import { applyLayerToRules, assertOwnLayer, resolveCascadeLayers } from './layers';
 import {
+  consumeReleasedNamespace,
   registeredNamespaces,
   trackEmittedClassName,
   trackStyleDeclarations,
@@ -116,6 +117,9 @@ function claimClassNamespace(classNaming: ClassNamingConfig, name: string): void
     if (!classNaming.scopeId) {
       warnUnscopedCollision(name, 'style');
     }
+    invalidateClassNamespaceForDev(emittedClassName(classNaming, name) ?? undefined);
+  } else if (consumeReleasedNamespace(regKey)) {
+    // Released by name during HMR dispose; a scoped instance's rules survived it (#361).
     invalidateClassNamespaceForDev(emittedClassName(classNaming, name) ?? undefined);
   }
   registeredNamespaces.add(regKey);

@@ -28,7 +28,7 @@ import {
 } from '#sheet';
 import { applyLayerToRules, assertOwnLayer } from './layers';
 import { joinSelectorAlternatives } from './compound-selector';
-import { registeredNamespaces, warnUnscopedCollision } from './registry';
+import { consumeReleasedNamespace, registeredNamespaces, warnUnscopedCollision } from './registry';
 import {
   emittedComponentClassPrefix,
   buildSemanticTemplateClassName,
@@ -657,6 +657,13 @@ function claimComponentNamespace(classNaming: ClassNamingConfig, namespace: stri
     if (!classNaming.scopeId) {
       warnUnscopedCollision(namespace, 'recipe');
     }
+    invalidateComponentNamespaceForDev(
+      namespace,
+      emittedComponentClassPrefix(classNaming, namespace) ?? undefined,
+    );
+  } else if (consumeReleasedNamespace(key)) {
+    // HMR dispose released this reservation by name, but its prefix cannot match a scoped
+    // instance's classes, so the old rules are still in the sheet (#361).
     invalidateComponentNamespaceForDev(
       namespace,
       emittedComponentClassPrefix(classNaming, namespace) ?? undefined,

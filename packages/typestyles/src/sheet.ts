@@ -2,6 +2,7 @@ import { resetCustomProperties } from './custom-properties';
 import {
   namespacesFromTypestylesHmrPrefixes,
   registeredNamespaces,
+  releasedNamespaces,
   releaseReservedNamespacesForComponentOrClassNames,
   resetEmittedClassNameTracking,
 } from './registry';
@@ -788,6 +789,7 @@ export function reset(): void {
     resetSheetState(active);
   }
   registeredNamespaces.clear();
+  releasedNamespaces.clear();
   clientPlans.length = 0;
   resetEmittedClassNameTracking();
   resetPropertyRegistrations();
