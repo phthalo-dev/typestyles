@@ -6,6 +6,18 @@ import { devDiagnosticsEnabled } from '#sheet';
 export const registeredNamespaces = new Set<string>();
 
 /**
+ * Reservations dropped by name during HMR (the Vite plugin only knows a recipe's `name`, not the
+ * `scopeId` of the instance it was registered on). The rules they own may still be in the sheet,
+ * so the next registration of the same scope + name must clear them (#361).
+ */
+export const releasedNamespaces = new Set<string>();
+
+/** True once when `key` was released by name and not yet re-registered. */
+export function consumeReleasedNamespace(key: string): boolean {
+  return releasedNamespaces.delete(key);
+}
+
+/**
  * Development-only map of emitted class name → owner key. Two different owners
  * producing the same class string means rules will overwrite each other —
  * either a cross-scope semantic collision or a hash collision in
@@ -147,6 +159,7 @@ export function releaseReservedNamespacesForComponentOrClassNames(
   }
   for (const key of toRemove) {
     registeredNamespaces.delete(key);
+    releasedNamespaces.add(key);
   }
 }
 
