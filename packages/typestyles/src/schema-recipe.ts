@@ -264,5 +264,20 @@ export type RecipeVariants<Handle> = Handle extends (selections?: infer S) => un
   ? StripNullProps<NonNullable<S>>
   : never;
 
+/**
+ * The value type of every axis of a recipe handle: like {@link RecipeVariants}, but each axis
+ * is required and non-null. Use it to name one axis (`AlertVariants['tone']`) for a required
+ * prop, a context value, or a lookup-table key — no `NonNullable<…>` wrapper needed.
+ *
+ * Boolean axes resolve to `boolean`, as in {@link RecipeVariants}.
+ *
+ * @example
+ * ```ts
+ * type AlertVariants = RecipeVariantValues<typeof alert>;
+ * const GAP_PX: Record<AlertVariants['contentGap'], number> = { spaced: 16, flush: 0 };
+ * ```
+ */
+export type RecipeVariantValues<Handle> = Required<RecipeVariants<Handle>>;
+
 /** Extract the `.defaults` object from a schema recipe handle. */
 export type RecipeDefaultsOf<Handle> = Handle extends { readonly defaults: infer D } ? D : never;

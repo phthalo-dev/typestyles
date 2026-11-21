@@ -135,6 +135,7 @@ export type {
   RecipeStyles,
   RecipeVariantKeys,
   RecipeVariantSelections,
+  RecipeVariantValues,
   RecipeVariants,
   RecipeVarsOf,
 } from './schema-recipe';
