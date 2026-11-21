@@ -477,7 +477,7 @@ const layout = recipe({
 
 Feature overrides apply to **single-feature** conditions like `(min-width: 768px)`. Compound queries such as `(min-width: 768px) and (orientation: landscape)` are left unchanged (a dev warning is logged if you pass a feature).
 
-Bare length values (`md: '48rem'`) are treated as mobile-first minimums: `breakpoint('md')` resolves to `@media (min-width: 48rem)` (a dev warning is logged at registration). Pass the feature explicitly (`breakpoint('md', 'min')`) to skip the warning.
+Bare length values (`md: '48rem'`) are mobile-first minimums: `breakpoint('md')` resolves to `@media (min-width: 48rem)`, and `breakpoint('md', 'max')` to `@media (max-width: 48rem)`. Register a full condition (`'(min-width: 48rem)'`) only when you need a different feature.
 
 For `media()`, use the **three-argument** form when the feature is an object — the two-argument form treats the second value as nested styles:
 

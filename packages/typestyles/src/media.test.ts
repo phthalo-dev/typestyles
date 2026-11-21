@@ -154,7 +154,7 @@ describe('createStyles breakpoint helpers', () => {
     expect(css).toContain('@media (min-width: 80rem)');
     expect(css).not.toContain('@media (80rem)');
     expect(css).toContain('display: block');
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('bare value'));
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('bare value'));
 
     warn.mockRestore();
   });
