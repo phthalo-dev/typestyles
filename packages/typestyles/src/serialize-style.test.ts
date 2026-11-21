@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vite-plus/test';
-import { toKebabCase, serializeStyle } from './serialize-style';
+import { toKebabCase, serializeStyle, resolveNestedSelector } from './serialize-style';
 
 describe('toKebabCase', () => {
   it('converts camelCase to kebab-case', () => {
@@ -204,5 +204,29 @@ describe('serializeStyle', () => {
     expect(rules[0].css).toBe(
       '.item[data-state="open"], .item[aria-expanded="true"] { opacity: 1; }',
     );
+  });
+});
+
+describe('nested & under a selector-list parent', () => {
+  it('substitutes & into every parent item', () => {
+    const rules = serializeStyle('.x', {
+      '[data-color-mode="dark"] &, &[data-color-mode="dark"]': {
+        '& [data-codeblock] .hljs-emphasis': { fontStyle: 'italic' },
+      },
+    } as never);
+    const css = rules.map((r) => r.css).join('\n');
+    expect(css).toContain(
+      '[data-color-mode="dark"] .x [data-codeblock] .hljs-emphasis, .x[data-color-mode="dark"] [data-codeblock] .hljs-emphasis {',
+    );
+  });
+
+  it('takes the cross product when the nested key is itself a list', () => {
+    expect(resolveNestedSelector('.a, .b', '&:hover, & .c')).toBe(
+      '.a:hover, .a .c, .b:hover, .b .c',
+    );
+  });
+
+  it('leaves single-selector parents unchanged', () => {
+    expect(resolveNestedSelector('.a:is(.b, .c)', '& > p')).toBe('.a:is(.b, .c) > p');
   });
 });
