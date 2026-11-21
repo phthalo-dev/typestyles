@@ -322,6 +322,12 @@ If your shell opens wrappers around `<App />`, add the matching closing tags in 
 
 TypeStyles automatically deduplicates CSS during collection. If multiple components use the same style variant, it's only included once in the output.
 
+### `hash()` at render time is not extracted
+
+`hash(properties)` registers its rule when it is called. Build-time extraction only sees rules registered while your extract entry **imports** (module scope), so a `hash()` call that runs per render — for example turning a responsive prop into a class inside a component — produces a class whose CSS exists only at runtime (or in `collectStyles()` output). A static site that ships just the extracted stylesheet will have no CSS for it.
+
+For values that vary per render, use `recipe()` variants (extracted ahead of time), or call `hash()` at module scope with a fixed set of values. If you must hash at render time in a static build, collect the CSS with `collectStyles()` / `getRegisteredCss()` and inline it with the page.
+
 ### Critical CSS
 
 By default, `getRegisteredCss()` returns every rule registered in the process. For large apps, prefer **build-time per-route CSS** on Next.js: `buildTypestylesForNext` writes route-scoped stylesheets and a v2 manifest (see [zero-runtime — Next.js](/docs/zero-runtime#nextjs) and [per-route critical CSS](#per-route-critical-css-nextjs) below).
