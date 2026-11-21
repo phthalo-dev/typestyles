@@ -246,6 +246,28 @@ typestyles.tokens.createTheme({
 });
 ```
 
+The same typing applies to child themes and to instance-level overrides:
+
+```ts
+const compact = typestyles.tokens.createTheme({
+  name: 'compact',
+  tokens: { app: { glow: '#0f0' } },
+});
+
+compact.override({
+  name: 'compact-brand',
+  extend: { brand: { accent: '#f0f' } }, // visible to this child's factories
+  components: {
+    button: { styles: ({ tokens: t }) => ({ base: { color: t.brand.accent.var } }) },
+  },
+});
+
+typestyles.override({
+  recipe: button,
+  styles: ({ tokens: t }) => ({ base: { margin: t.space.md.var } }), // t.spacing is an error
+});
+```
+
 Without `withTokenRefs`, `ctx.tokens` stays a loose bag that accepts any namespace.
 
 ## Syntax-typed tokens

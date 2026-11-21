@@ -270,7 +270,7 @@ export type TokensApi<
     >(
       input: { name: string; replace?: boolean; tokens?: T } & C &
         ThemeComponentsFor<{ tokens: T }, B>,
-    ): Theme<InferThemeTokensFromConfig<{ tokens: T }>>;
+    ): Theme<InferThemeTokensFromConfig<{ tokens: T }>, B>;
   };
   disposeTheme: (name: string, options?: { removeLiveCss?: boolean }) => void;
   /**
