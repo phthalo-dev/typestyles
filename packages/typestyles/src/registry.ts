@@ -43,9 +43,43 @@ export function trackEmittedClassName(className: string, ownerKey: string): void
   emittedClassNameOwners.set(className, ownerKey);
 }
 
+/** `scopeId\0serialized declarations` → the first style name that declared them. */
+const styleDeclarationOwners = new Map<string, string>();
+const warnedDuplicateStylePairs = new Set<string>();
+
+/**
+ * Dev-mode warning for the inverse of a class-name collision: two `style()` calls in the same
+ * scope with different names but byte-identical declarations — drift waiting to happen.
+ * Re-registering the same name (HMR) is not a duplicate. Warns once per pair.
+ */
+export function trackStyleDeclarations(
+  scopeId: string,
+  name: string,
+  serializedProperties: string,
+): void {
+  if (!isDev()) return;
+  if (serializedProperties === '{}' || serializedProperties === '') return;
+  const key = `${scopeId}\0${serializedProperties}`;
+  const existing = styleDeclarationOwners.get(key);
+  if (existing === undefined) {
+    styleDeclarationOwners.set(key, name);
+    return;
+  }
+  if (existing === name) return;
+  const pair = `${key}\0${name}`;
+  if (warnedDuplicateStylePairs.has(pair)) return;
+  warnedDuplicateStylePairs.add(pair);
+  console.warn(
+    `[typestyles] Duplicate style definition: "${existing}" and "${name}" declare identical ` +
+      `rules. Consider extracting a shared style or consolidating these declarations.`,
+  );
+}
+
 /** Clear collision tracking. Used by `reset()` in tests. */
 export function resetEmittedClassNameTracking(): void {
   emittedClassNameOwners.clear();
+  styleDeclarationOwners.clear();
+  warnedDuplicateStylePairs.clear();
   warnedUnscopedNamespaces.clear();
 }
 
