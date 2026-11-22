@@ -101,3 +101,38 @@ describe('createTheme({ components })', () => {
     ).toThrow(/unknown component namespace "ghost"/);
   });
 });
+
+describe('Theme.override({ components }) token context', () => {
+  beforeEach(() => {
+    reset();
+  });
+
+  it("a child theme's factory reads built-in and parent refs as var() strings", () => {
+    const { recipe, tokens } = createTypeStyles({ scopeId: 'tco' });
+    tokens.create('space', { md: '1rem' });
+    recipe({ name: 'button', styles: { base: { color: 'black' } } });
+
+    const parent = tokens.createTheme({ name: 'parent', tokens: { app: { glow: '#0f0' } } });
+    parent.override({
+      name: 'child',
+      extend: { brand: { accent: '#f0f' } },
+      components: {
+        button: {
+          styles: ({ tokens: t }) => ({
+            base: {
+              margin: t.space.md.var,
+              outlineColor: t.app.glow.var,
+              color: t.brand.accent.var,
+            },
+          }),
+        },
+      },
+    });
+    flushSync();
+
+    const css = getRegisteredCss();
+    expect(css).toMatch(/margin:\s*var\(--[\w-]*space-md\)/);
+    expect(css).toMatch(/outline-color:\s*var\(--[\w-]*app-glow\)/);
+    expect(css).toMatch(/color:\s*var\(--[\w-]*brand-accent\)/);
+  });
+});

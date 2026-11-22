@@ -119,3 +119,7 @@ base.override({
   recipe: looseWidget,
   styles: ({ tokens: t }) => ({ base: { margin: t.anything.goes.var } }),
 });
+
+// A theme carrying built-in refs stays assignable to the plain `Theme<E>`.
+const _plain: import('./types').Theme<{ app: { glow: string } }> = parent;
+void _plain;
