@@ -3,7 +3,7 @@
  */
 import { createTypeStyles } from './create-type-styles';
 import { variant } from './variant';
-import type { Theme } from './types';
+import type { CreateTokenValues, Theme } from './types';
 
 const base = createTypeStyles({ scopeId: 'reg', colorModes: ['light', 'dark'] });
 const designTokens = base.tokens.declare({
@@ -121,6 +121,38 @@ base.override({
   styles: ({ tokens: t }) => ({ base: { margin: t.anything.goes.var } }),
 });
 
-// A theme carrying built-in refs stays assignable to the plain `Theme<E>`.
-const _plain: Theme<{ app: { glow: string } }> = parent;
-void _plain;
+// A theme carrying built-in refs stays assignable to `Theme<any>` (what generic code accepts).
+const _anyTheme: Theme<any> = parent; // oxlint-disable-line @typescript-eslint/no-explicit-any
+void _anyTheme;
+
+// --- extend overlapping an existing namespace (deep merge, extend wins) ---
+
+const spaced = ts.tokens.createTheme({
+  name: 'spaced',
+  tokens: { space: { md: '1rem', lg: '2rem' } },
+});
+
+const widened = spaced.override({
+  name: 'spaced-wide',
+  // same leaf with a different literal, plus a new leaf in the same namespace
+  extend: { space: { lg: '3rem', xl: '4rem' } },
+  components: {
+    button: {
+      styles: ({ tokens: t }) => ({
+        base: { gap: t.space.md.var, margin: t.space.lg.var, padding: t.space.xl.var },
+      }),
+    },
+  },
+});
+
+// The merged theme keeps every leaf, including the one both sides defined.
+const _lg: string = widened.tokens.space.lg.var;
+const _md: string = widened.tokens.space.md.var;
+const _xl: string = widened.tokens.space.xl.var;
+void [_lg, _md, _xl];
+
+// A wide (non-literal) `extend` has no keys to merge, so the parent's known tokens stay readable.
+declare const wideExtend: Record<string, CreateTokenValues>;
+const wideChild = spaced.override({ name: 'spaced-wide-index', extend: wideExtend });
+const _wideMd = wideChild.tokens.space.md; // reachable (not `never`), whatever its leaf type
+void _wideMd;

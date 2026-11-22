@@ -263,6 +263,7 @@ export type {
   Theme,
   ThemeOverrideInput,
   DeepPartialThemeTokens,
+  MergeThemeTokens,
   DeepPartialTokenValues,
   TokenSchema,
   TokenSchemaLeaf,
