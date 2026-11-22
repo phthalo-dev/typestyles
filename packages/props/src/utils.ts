@@ -12,6 +12,8 @@ export function sanitizeValue(value: string | number): string {
  * Convert camelCase to kebab-case for CSS property names.
  */
 export function toKebabCase(str: string): string {
+  // Custom properties are case-sensitive; keep them verbatim.
+  if (str.startsWith('--')) return str;
   // Handle vendor prefixes (ms, webkit, moz)
   if (str.startsWith('ms')) {
     return '-' + str.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());

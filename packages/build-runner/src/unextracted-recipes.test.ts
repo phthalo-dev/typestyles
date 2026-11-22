@@ -101,4 +101,62 @@ describe('findUnextractedRecipes', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('accepts a recipe registered from a different path than the app reached (src vs dist)', async () => {
+    const recipe = `export const clock = recipe({ name: 'clock' });\n`;
+    const root = writeProject({
+      'src/typestyles-entry.ts': `import './dist/styles';\n`,
+      'src/dist/styles.ts': recipe,
+      'src/widgets/ClockWidget.styles.ts': recipe,
+    });
+    try {
+      const missing = await findUnextractedRecipes({
+        root,
+        extractEntries: ['src/typestyles-entry.ts'],
+        recipeModules: [{ id: join(root, 'src/widgets/ClockWidget.styles.ts'), names: ['clock'] }],
+      });
+      expect(missing).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('still reports recipes whose names are not registered, keeping only the unmatched names', async () => {
+    const root = writeProject({
+      'src/typestyles-entry.ts': `import './dist/styles';\n`,
+      'src/dist/styles.ts': `export const a = recipe({ name: 'clock' });\n`,
+      'src/widgets/W.styles.ts': `export const a = recipe({ name: 'clock' });\nexport const b = recipe({ name: 'weather' });\n`,
+    });
+    try {
+      const missing = await findUnextractedRecipes({
+        root,
+        extractEntries: ['src/typestyles-entry.ts'],
+        recipeModules: [{ id: join(root, 'src/widgets/W.styles.ts'), names: ['clock', 'weather'] }],
+      });
+      expect(missing).toEqual([{ modulePath: 'src/widgets/W.styles.ts', names: ['weather'] }]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('does not let a same-named recipe in another app module count as coverage', async () => {
+    const root = writeProject({
+      'src/typestyles-entry.ts': `import './a';\n`,
+      'src/a.ts': `export const x = recipe({ name: 'button' });\n`,
+      'src/b.ts': `export const y = recipe({ name: 'button' });\n`,
+    });
+    try {
+      const missing = await findUnextractedRecipes({
+        root,
+        extractEntries: ['src/typestyles-entry.ts'],
+        recipeModules: [
+          { id: join(root, 'src/a.ts'), names: ['button'] },
+          { id: join(root, 'src/b.ts'), names: ['button'] },
+        ],
+      });
+      expect(missing).toEqual([{ modulePath: 'src/b.ts', names: ['button'] }]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

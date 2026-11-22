@@ -9,6 +9,8 @@ import { expandColorModesInProperties } from './color-modes';
  * Handles vendor prefixes (ms, webkit, moz) correctly.
  */
 export function toKebabCase(prop: string): string {
+  // Custom properties are case-sensitive; emit verbatim.
+  if (prop.startsWith('--')) return prop;
   // Handle ms- prefix specially (no leading dash in camelCase)
   if (prop.startsWith('ms')) {
     return '-' + prop.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
@@ -22,6 +24,8 @@ export function toKebabCase(prop: string): string {
 export function serializeCSSValue(prop: string, value: string | number): string {
   if (typeof value === 'number') {
     if (value === 0) return '0';
+    // Custom properties have no known type; never append a unit.
+    if (prop.startsWith('--')) return String(value);
     // Unitless properties that shouldn't get 'px'
     if (isUnitlessProperty(prop)) return String(value);
     return value + 'px';
