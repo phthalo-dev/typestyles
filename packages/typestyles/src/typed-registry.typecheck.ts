@@ -3,6 +3,7 @@
  */
 import { createTypeStyles } from './create-type-styles';
 import { variant } from './variant';
+import type { Theme } from './types';
 
 const base = createTypeStyles({ scopeId: 'reg', colorModes: ['light', 'dark'] });
 const designTokens = base.tokens.declare({
@@ -121,5 +122,5 @@ base.override({
 });
 
 // A theme carrying built-in refs stays assignable to the plain `Theme<E>`.
-const _plain: import('./types').Theme<{ app: { glow: string } }> = parent;
+const _plain: Theme<{ app: { glow: string } }> = parent;
 void _plain;
