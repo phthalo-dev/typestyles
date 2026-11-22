@@ -1,5 +1,15 @@
 # @typestyles/vite
 
+## 0.9.1
+
+### Patch Changes
+
+- [#385](https://github.com/phthalo-dev/typestyles/pull/385) [`b314900`](https://github.com/phthalo-dev/typestyles/commit/b314900deb6f2874fa3901a5044744d5a4be10fd) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Custom property keys (`--*`) are emitted verbatim instead of kebab-cased ([#383](https://github.com/phthalo-dev/typestyles/issues/383)). The production extract coverage check now matches recipes by name when the app and the extract entry reach them through different file paths, such as workspace `src` aliases vs. package `dist` ([#384](https://github.com/phthalo-dev/typestyles/issues/384)).
+  
+  Numeric values on custom properties no longer get a `px` suffix. `@typestyles/props` leaves `--*` names verbatim too. Coverage name matching ignores same-named recipes in other app modules; a same-named recipe in an unrelated package's `dist` can still mask a missing one.
+- Updated dependencies [[`b314900`](https://github.com/phthalo-dev/typestyles/commit/b314900deb6f2874fa3901a5044744d5a4be10fd)]:
+  - @typestyles/build-runner@0.10.1
+
 ## 0.9.0
 
 ### Minor Changes

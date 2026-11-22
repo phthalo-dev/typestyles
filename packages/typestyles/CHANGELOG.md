@@ -1,5 +1,31 @@
 # typestyles
 
+## 0.38.0
+
+### Minor Changes
+
+- [#358](https://github.com/phthalo-dev/typestyles/pull/358) [`3784ed5`](https://github.com/phthalo-dev/typestyles/commit/3784ed5fe6312d0a71974dbccf3df36d843dddf5) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Dev-only: warn when two `style()` calls in the same `scopeId` declare byte-identical rules under different names ("Duplicate style definition"), the inverse of the existing class-name collision check. Once per pair; no production cost.
+
+- [#356](https://github.com/phthalo-dev/typestyles/pull/356) [`bacb89e`](https://github.com/phthalo-dev/typestyles/commit/bacb89e151753d716fa73f307f684488398b3378) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Add `RecipeVariantValues<typeof recipe>`: the value type of every recipe axis, required and non-null (`Required<RecipeVariants<…>>`). Name a single axis (`AlertVariants['tone']`) without a `NonNullable<…>` wrapper.
+
+- [#377](https://github.com/phthalo-dev/typestyles/pull/377) [`436d3dd`](https://github.com/phthalo-dev/typestyles/commit/436d3dd81cdbee97547f54c9e19d228c3bc989dc) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - `ctx.tokens` is now typed in `Theme.override({ components })` and `override({ styles })`, not just `createTheme({ components })`. With `createTypeStyles(...).withTokenRefs(designTokens)`, a child theme's component factory sees the instance's built-in refs plus the parent's namespaces and its own `extend`; `override({ styles })` sees the built-in refs. Without `withTokenRefs` both stay the loose token bag.
+  
+  `Theme` gains a second type parameter (`Theme<E, B>`, default empty) and `OverrideFn` gains `B`; existing code should be source-compatible: a theme or override type that omits the new parameter keeps its meaning. `Theme.override` also no longer collapses the theme's token types to `never` when `extend` is omitted.
+
+### Patch Changes
+
+- [#365](https://github.com/phthalo-dev/typestyles/pull/365) [`5d59b85`](https://github.com/phthalo-dev/typestyles/commit/5d59b85868c39ff689331edb549223a046eb3ddd) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Bare-length breakpoints (`md: '48rem'`) no longer warn. They already resolved to the mobile-first `(min-width: 48rem)`, the universal convention, so the warning described the supported behaviour rather than a problem. It printed once per breakpoint in every process.
+
+- [#376](https://github.com/phthalo-dev/typestyles/pull/376) [`dce5dc8`](https://github.com/phthalo-dev/typestyles/commit/dce5dc80213aee725f3416ecb24d389367c67960) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Fix stale CSS after editing a recipe or `style()` registered on a `createTypeStyles({ scopeId })` instance during Vite dev. The plugin's HMR `dispose` only knows the recipe name, so it released the namespace reservation without removing the scoped rules (`.var-ui-libraryWave__…`), and the re-run then skipped its dev cleanup. A namespace released by name is now remembered, and its next registration clears the old rules.
+
+- [#357](https://github.com/phthalo-dev/typestyles/pull/357) [`62683e9`](https://github.com/phthalo-dev/typestyles/commit/62683e90c738cbdb1049b6e1514bc804646374f2) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Fix nested `&` selectors under a selector-list parent: `'.a &, &.b': { '& .c': … }` now emits `.a .x .c, .x.b .c` instead of attaching `.c` only to the last list item. Nested keys that are themselves lists get the cross product.
+
+- [#380](https://github.com/phthalo-dev/typestyles/pull/380) [`f58fa2a`](https://github.com/phthalo-dev/typestyles/commit/f58fa2ab20b7ae590ff58ece78e4eedc6b2fde1b) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - `Theme.override({ extend })` that overlaps an existing namespace now types the child theme as a deep merge with `extend` winning, matching the runtime. It was an intersection, so a leaf both sides defined with different literals (`'2rem'` and `'3rem'`) collapsed the whole namespace to `never` and `theme.tokens.space.lg` failed to typecheck. Adds an exported `MergeThemeTokens` helper type.
+
+- [#385](https://github.com/phthalo-dev/typestyles/pull/385) [`b314900`](https://github.com/phthalo-dev/typestyles/commit/b314900deb6f2874fa3901a5044744d5a4be10fd) Thanks [@dbanksdesign](https://github.com/dbanksdesign)! - Custom property keys (`--*`) are emitted verbatim instead of kebab-cased ([#383](https://github.com/phthalo-dev/typestyles/issues/383)). The production extract coverage check now matches recipes by name when the app and the extract entry reach them through different file paths, such as workspace `src` aliases vs. package `dist` ([#384](https://github.com/phthalo-dev/typestyles/issues/384)).
+  
+  Numeric values on custom properties no longer get a `px` suffix. `@typestyles/props` leaves `--*` names verbatim too. Coverage name matching ignores same-named recipes in other app modules; a same-named recipe in an unrelated package's `dist` can still mask a missing one.
+
 ## 0.37.0
 
 ### Minor Changes
