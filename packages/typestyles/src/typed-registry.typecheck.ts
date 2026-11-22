@@ -3,7 +3,7 @@
  */
 import { createTypeStyles } from './create-type-styles';
 import { variant } from './variant';
-import type { Theme } from './types';
+import type { CreateTokenValues, Theme } from './types';
 
 const base = createTypeStyles({ scopeId: 'reg', colorModes: ['light', 'dark'] });
 const designTokens = base.tokens.declare({
@@ -150,3 +150,9 @@ const _lg: string = widened.tokens.space.lg.var;
 const _md: string = widened.tokens.space.md.var;
 const _xl: string = widened.tokens.space.xl.var;
 void [_lg, _md, _xl];
+
+// A wide (non-literal) `extend` has no keys to merge, so the parent's known tokens stay readable.
+declare const wideExtend: Record<string, CreateTokenValues>;
+const wideChild = spaced.override({ name: 'spaced-wide-index', extend: wideExtend });
+const _wideMd: string = wideChild.tokens.space.md.var;
+void _wideMd;

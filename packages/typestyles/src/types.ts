@@ -603,27 +603,33 @@ type IsPlainTokenObject<T> = T extends string | number | boolean | null | undefi
     : false;
 
 /**
- * Deep merge of two token trees with `B` winning, mirroring the runtime merge in
+ * Deep merge of two token trees with `B` winning (`B` empty keeps `A`; a wide index-signature `B`
+ * falls back to `A & B`), mirroring the runtime merge in
  * `Theme.override({ extend })`. An intersection would turn a leaf both sides define with
  * different literals (`'2rem' & '3rem'`) into `never`.
  */
-export type MergeThemeTokens<A, B> = {
-  [K in keyof A | keyof B]: K extends keyof B
-    ? K extends keyof A
-      ? IsPlainTokenObject<A[K]> extends true
-        ? IsPlainTokenObject<B[K]> extends true
-          ? MergeThemeTokens<A[K], B[K]>
-          : B[K]
-        : B[K]
-      : B[K]
-    : K extends keyof A
-      ? A[K]
-      : never;
-};
+export type MergeThemeTokens<A, B> = [keyof B] extends [never]
+  ? A
+  : string extends keyof B
+    ? // `B` is a wide `Record<string, …>` (not a literal), so there are no keys to merge: keep `A`.
+      A & B
+    : {
+        [K in keyof A | keyof B]: K extends keyof B
+          ? K extends keyof A
+            ? IsPlainTokenObject<A[K]> extends true
+              ? IsPlainTokenObject<B[K]> extends true
+                ? MergeThemeTokens<A[K], B[K]>
+                : B[K]
+              : B[K]
+            : B[K]
+          : K extends keyof A
+            ? A[K]
+            : never;
+      };
 
 /** {@link MergeThemeTokens} narrowed to a token map, for use as a {@link Theme} type argument. */
 export type MergedThemeTokens<A, B> =
-  MergeThemeTokens<A, B> extends infer M extends Record<string, CreateTokenValues> ? M : never;
+  MergeThemeTokens<A, B> extends Record<string, CreateTokenValues> ? MergeThemeTokens<A, B> : never;
 
 /**
  * The object returned by `tokens.createTheme()`.
