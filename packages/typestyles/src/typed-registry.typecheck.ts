@@ -2,6 +2,8 @@
  * Compile-only: `withTokenRefs` types `ctx.tokens` in theme `components` factories.
  */
 import { createTypeStyles } from './create-type-styles';
+import { variant } from './variant';
+import type { Theme } from './types';
 
 const base = createTypeStyles({ scopeId: 'reg', colorModes: ['light', 'dark'] });
 const designTokens = base.tokens.declare({
@@ -41,3 +43,84 @@ base.tokens.createTheme({
 // Same runtime instance.
 const _same: typeof base.recipe = ts.recipe;
 void _same;
+
+// --- Theme.override({ components }) ---
+
+const parent = ts.tokens.createTheme({
+  name: 'parent',
+  tokens: { app: { glow: '#0f0' } },
+});
+
+parent.override({
+  name: 'child',
+  // new namespace for this child, visible to its own factories
+  extend: { brand: { accent: '#f0f' } },
+  components: {
+    button: {
+      styles: ({ tokens: t }) => ({
+        base: {
+          margin: t.space.md.var,
+          outlineColor: t.app.glow.var,
+          color: t.brand.accent.var,
+          // @ts-expect-error — `spacing` is not built in, on the parent, or in `extend`
+          padding: t.spacing.md.var,
+        },
+      }),
+    },
+  },
+});
+
+// The child keeps the instance's refs, so a grandchild still sees them.
+parent.override({ name: 'child2', extend: { brand: { accent: '#f0f' } } }).override({
+  name: 'grandchild',
+  components: {
+    button: {
+      styles: ({ tokens: t }) => ({
+        base: { color: t.brand.accent.var, margin: t.space.sm.var },
+      }),
+    },
+  },
+});
+
+// Without `withTokenRefs`, a child's factory stays the loose bag.
+base.tokens.createTheme({ name: 'loose-parent', tokens: { app: { glow: '#0f0' } } }).override({
+  name: 'loose-child',
+  components: {
+    button: { styles: ({ tokens: t }) => ({ base: { margin: t.anything.goes.var } }) },
+  },
+});
+
+// --- override({ styles }) ---
+
+const widgetDef = {
+  name: 'widget',
+  variants: { size: variant.enum(['sm', 'lg'], { default: 'sm' }) },
+  styles: {
+    base: { color: 'red' },
+    variants: { size: { sm: { fontSize: '12px' }, lg: { fontSize: '16px' } } },
+  },
+} as const;
+const widget = ts.recipe(widgetDef);
+
+ts.override({
+  recipe: widget,
+  styles: ({ tokens: t }) => ({
+    base: {
+      margin: t.space.md.var,
+      color: t.color.text.var,
+      // @ts-expect-error — `spacing` is not a declared namespace
+      padding: t.spacing.md.var,
+    },
+  }),
+});
+
+// Without `withTokenRefs`, `override({ styles })` ctx.tokens stays loose.
+const looseWidget = base.recipe({ ...widgetDef, name: 'loose-widget' });
+base.override({
+  recipe: looseWidget,
+  styles: ({ tokens: t }) => ({ base: { margin: t.anything.goes.var } }),
+});
+
+// A theme carrying built-in refs stays assignable to the plain `Theme<E>`.
+const _plain: Theme<{ app: { glow: string } }> = parent;
+void _plain;

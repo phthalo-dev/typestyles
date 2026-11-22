@@ -8,7 +8,7 @@ import type {
   SyntaxRef,
 } from './types-syntax';
 import type { ThemeTokenContext } from './theme-token-context';
-import type { ThemeComponentPatch } from './theme-types';
+import type { ThemeComponentPatch, ThemeComponentPatchFor } from './theme-types';
 
 export type {
   CompatibleSourceSyntax,
@@ -604,7 +604,10 @@ export type ThemeOverrideInput<
  * - `theme.source` — mergeable token config snapshot for {@link Theme.override}
  * - `String(theme)` / template interpolation — coerces to `className`
  */
-export interface Theme<E extends Record<string, CreateTokenValues> = Record<string, never>> {
+export interface Theme<
+  E extends Record<string, CreateTokenValues> = Record<string, never>,
+  B extends object = Record<never, never>,
+> {
   readonly className: string;
   readonly name: string;
   /**
@@ -621,9 +624,17 @@ export interface Theme<E extends Record<string, CreateTokenValues> = Record<stri
    * `tokens` patches are closed against the root token tree; add brand-new namespaces with
    * `extend`, which the returned theme's `tokens` exposes with full types.
    */
-  override<const X extends Record<string, CreateTokenValues> = Record<string, never>>(
-    input: Omit<ThemeOverrideInput<E>, 'extend'> & { extend?: X },
-  ): Theme<E & X>;
+  override<const X extends Record<string, CreateTokenValues> = Record<never, never>>(
+    input: Omit<ThemeOverrideInput<E>, 'extend' | 'components'> & {
+      extend?: X;
+      /**
+       * `{ vars?, styles? }` per recipe. When the instance declared its built-in refs
+       * (`withTokenRefs`), a `styles` factory's `ctx.tokens` is those refs plus this theme's
+       * namespaces and `extend`, fully typed; otherwise the loose token bag.
+       */
+      components?: Record<string, ThemeComponentPatchFor<{ tokens: E & X }, B>>;
+    },
+  ): Theme<E & X, B>;
   toString(): string;
   [Symbol.toPrimitive](hint: string): string;
 }

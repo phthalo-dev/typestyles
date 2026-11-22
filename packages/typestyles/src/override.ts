@@ -1,3 +1,4 @@
+import type { ThemeTokenContext } from './theme-token-context';
 import type { ClassNamingConfig } from './class-naming';
 import {
   getComponentMeta,
@@ -940,10 +941,18 @@ export interface OverrideTokenNode {
   readonly [key: string]: any;
 }
 
-export type OverrideStyleContext<C> = {
+export type OverrideStyleContext<C, Tokens = OverrideTokenNode> = {
   readonly vars: C extends { readonly vars: infer V } ? V : Record<never, never>;
-  readonly tokens: OverrideTokenNode;
+  readonly tokens: Tokens;
 };
+
+/**
+ * `ctx.tokens` for `override({ styles })`: the instance's built-in refs when it declared them
+ * (`withTokenRefs`), otherwise the loose {@link OverrideTokenNode} bag.
+ */
+type OverrideCtxTokens<B extends object> = [keyof B] extends [never]
+  ? OverrideTokenNode
+  : ThemeTokenContext<Record<never, never>> & B;
 
 type OverrideStyleMap<C> = Omit<OverrideConfigFor<C>, 'vars'>;
 
@@ -953,10 +962,14 @@ type OverrideVarAssign<C> = OverrideConfigFor<C> extends { vars?: infer V } ? V 
  * One `override({ recipe, styles, ... })` call. `layer` and `selectorPrefix` sit on the
  * object. `styles` is partial against the recipe's slots and axes.
  */
-export type OverrideFn<L extends string = string> = <C extends object>(input: {
+export type OverrideFn<L extends string = string, B extends object = Record<never, never>> = <
+  C extends object,
+>(input: {
   readonly recipe: C;
   readonly selectorPrefix?: string;
   readonly layer?: L;
   readonly vars?: OverrideVarAssign<C>;
-  readonly styles?: OverrideStyleMap<C> | ((ctx: OverrideStyleContext<C>) => OverrideStyleMap<C>);
+  readonly styles?:
+    | OverrideStyleMap<C>
+    | ((ctx: OverrideStyleContext<C, OverrideCtxTokens<B>>) => OverrideStyleMap<C>);
 }) => void;

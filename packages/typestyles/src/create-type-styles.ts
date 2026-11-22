@@ -85,7 +85,7 @@ export type TypeStylesApi<
   withTokenRefs: <Refs extends object>(refs: Refs) => TypeStylesApi<Recipe, L, Refs>;
   global: GlobalApiUnlayered | GlobalApiLayered;
   compose: StylesApi['compose'];
-  override: [L] extends [undefined] ? OverrideFn : OverrideFn<L & string>;
+  override: [L] extends [undefined] ? OverrideFn<string, B> : OverrideFn<L & string, B>;
   scope: (opts: ScopeOptions, className: string, overrides: CSSProperties) => void;
   property: StylesPropertyFn;
   container: StylesApi['container'];
