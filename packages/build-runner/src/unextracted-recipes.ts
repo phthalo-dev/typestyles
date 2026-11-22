@@ -1,5 +1,6 @@
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { extractNamespaces } from './namespaces';
 import { traceReachableFiles } from './trace-imports';
 
 /** A local module Vite loaded that calls `recipe()` or `styles.component()`. */
@@ -96,10 +97,34 @@ export async function findUnextractedRecipes(options: {
     if (abs) reachable.add(abs);
   }
 
+  // The build may reach a recipe through a different path than extraction does
+  // (e.g. a workspace alias to `src` in the app vs. package `exports` -> `dist`
+  // in the Node-evaluated entry). Fall back to matching by recipe name.
+  let reachableNames: Set<string> | undefined;
+  const registeredByName = (name: string): boolean => {
+    if (!reachableNames) {
+      reachableNames = new Set();
+      for (const input of inputs) {
+        const file = resolve(root, input);
+        try {
+          if (!existsSync(file)) continue;
+          for (const found of extractNamespaces(readFileSync(file, 'utf8')).recipeNames) {
+            reachableNames.add(found);
+          }
+        } catch {
+          // unreadable file: skip
+        }
+      }
+    }
+    return reachableNames.has(name);
+  };
+
   const missing: UnextractedRecipe[] = [];
   for (const [abs, names] of pending) {
     if (reachable.has(abs)) continue;
-    missing.push({ modulePath: displayPath(root, abs), names });
+    const stillMissing = names.filter((name) => !registeredByName(name));
+    if (stillMissing.length === 0) continue;
+    missing.push({ modulePath: displayPath(root, abs), names: stillMissing });
   }
   missing.sort((a, b) => a.modulePath.localeCompare(b.modulePath));
   return missing;

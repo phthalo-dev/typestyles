@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vite-plus/test';
 import { toKebabCase, serializeStyle, resolveNestedSelector } from './serialize-style';
 
 describe('toKebabCase', () => {
+  it('leaves custom property names verbatim', () => {
+    expect(toKebabCase('--var-ui-fontFamily-body')).toBe('--var-ui-fontFamily-body');
+  });
+
   it('converts camelCase to kebab-case', () => {
     expect(toKebabCase('fontSize')).toBe('font-size');
     expect(toKebabCase('backgroundColor')).toBe('background-color');

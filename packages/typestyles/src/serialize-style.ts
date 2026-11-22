@@ -9,6 +9,8 @@ import { expandColorModesInProperties } from './color-modes';
  * Handles vendor prefixes (ms, webkit, moz) correctly.
  */
 export function toKebabCase(prop: string): string {
+  // Custom properties are case-sensitive; emit verbatim.
+  if (prop.startsWith('--')) return prop;
   // Handle ms- prefix specially (no leading dash in camelCase)
   if (prop.startsWith('ms')) {
     return '-' + prop.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());

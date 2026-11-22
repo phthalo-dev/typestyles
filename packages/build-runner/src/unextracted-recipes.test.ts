@@ -101,4 +101,23 @@ describe('findUnextractedRecipes', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('accepts a recipe registered from a different path than the app reached (src vs dist)', async () => {
+    const recipe = `export const clock = recipe({ name: 'clock' });\n`;
+    const root = writeProject({
+      'src/typestyles-entry.ts': `import './dist/styles';\n`,
+      'src/dist/styles.ts': recipe,
+      'src/widgets/ClockWidget.styles.ts': recipe,
+    });
+    try {
+      const missing = await findUnextractedRecipes({
+        root,
+        extractEntries: ['src/typestyles-entry.ts'],
+        recipeModules: [{ id: join(root, 'src/widgets/ClockWidget.styles.ts'), names: ['clock'] }],
+      });
+      expect(missing).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
