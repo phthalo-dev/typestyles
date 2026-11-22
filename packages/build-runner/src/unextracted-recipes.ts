@@ -106,6 +106,10 @@ export async function findUnextractedRecipes(options: {
       reachableNames = new Set();
       for (const input of inputs) {
         const file = resolve(root, input);
+        // A reachable file the app also loads as a recipe module is a distinct
+        // module, so a same-named recipe there is a collision, not coverage.
+        const canonical = canonicalModulePath(file);
+        if (canonical && pending.has(canonical)) continue;
         try {
           if (!existsSync(file)) continue;
           for (const found of extractNamespaces(readFileSync(file, 'utf8')).recipeNames) {

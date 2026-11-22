@@ -234,3 +234,33 @@ describe('nested & under a selector-list parent', () => {
     expect(resolveNestedSelector('.a:is(.b, .c)', '& > p')).toBe('.a:is(.b, .c) > p');
   });
 });
+
+describe('custom property declarations', () => {
+  const css = (props: Record<string, unknown>) =>
+    serializeStyle('.x', props as never)
+      .map((r) => r.css)
+      .join('\n');
+
+  it('keeps --* names and unitless numbers verbatim', () => {
+    const out = css({
+      '--var-ui-fontFamily-body': 'Allo, sans-serif',
+      '--opacity': 0.5,
+      '--n': 2,
+      '--zero': 0,
+    });
+    expect(out).toContain('--var-ui-fontFamily-body: Allo, sans-serif');
+    expect(out).toContain('--opacity: 0.5');
+    expect(out).toContain('--n: 2');
+    expect(out).toContain('--zero: 0');
+    expect(out).not.toContain('px');
+  });
+
+  it('keeps --* names inside nested selectors and at-rules', () => {
+    const out = css({
+      '&:hover': { '--minWidth': '0px' },
+      '@media (min-width: 1px)': { '--maxWidth': '1px' },
+    });
+    expect(out).toContain('--minWidth: 0px');
+    expect(out).toContain('--maxWidth: 1px');
+  });
+});

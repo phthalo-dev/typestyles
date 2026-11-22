@@ -24,6 +24,8 @@ export function toKebabCase(prop: string): string {
 export function serializeCSSValue(prop: string, value: string | number): string {
   if (typeof value === 'number') {
     if (value === 0) return '0';
+    // Custom properties have no known type; never append a unit.
+    if (prop.startsWith('--')) return String(value);
     // Unitless properties that shouldn't get 'px'
     if (isUnitlessProperty(prop)) return String(value);
     return value + 'px';
