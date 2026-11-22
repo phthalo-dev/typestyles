@@ -63,9 +63,11 @@ export type RecipeHasSlots<Def extends RecipeDefinition> = Def extends {
 
 /** The slot-name union for a definition, or `never` for single-target recipes. */
 export type RecipeSlots<Def extends RecipeDefinition> = Def extends {
-  readonly slots: readonly (infer S extends string)[];
+  readonly slots: infer Slots extends readonly string[];
 }
-  ? S
+  ? // Index the slots type, not `infer S` from it: a handle's brand is `RecipeDef<…> & RecipeDefinition`,
+    // and inferring an element from `readonly ['root', 'header'] & readonly string[]` widens to `string`.
+    Slots[number]
   : never;
 
 /** The variant keys declared by a definition. */

@@ -191,6 +191,7 @@ export type CreateTokensOptions = {
 export type TokensApi<
   R extends TokenRegistry = Record<string, never>,
   B extends object = Record<never, never>,
+  Rec extends object = Record<never, never>,
 > = {
   /** Same `scopeId` passed to `createTokens`, if any. */
   readonly scopeId: string | undefined;
@@ -269,8 +270,8 @@ export type TokensApi<
       >,
     >(
       input: { name: string; replace?: boolean; tokens?: T } & C &
-        ThemeComponentsFor<{ tokens: T }, B>,
-    ): Theme<InferThemeTokensFromConfig<{ tokens: T }>, B>;
+        ThemeComponentsFor<{ tokens: T }, B, Rec>,
+    ): Theme<InferThemeTokensFromConfig<{ tokens: T }>, B, Rec>;
   };
   disposeTheme: (name: string, options?: { removeLiveCss?: boolean }) => void;
   /**

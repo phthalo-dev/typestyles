@@ -8,7 +8,7 @@ import type {
   SyntaxRef,
 } from './types-syntax';
 import type { ThemeTokenContext } from './theme-token-context';
-import type { ThemeComponentPatch, ThemeComponentPatchFor } from './theme-types';
+import type { ThemeComponentPatch, ThemeComponentsMap } from './theme-types';
 
 export type {
   CompatibleSourceSyntax,
@@ -642,6 +642,7 @@ export type MergedThemeTokens<A, B> =
 export interface Theme<
   E extends Record<string, CreateTokenValues> = Record<string, never>,
   B extends object = Record<never, never>,
+  Rec extends object = Record<never, never>,
 > {
   readonly className: string;
   readonly name: string;
@@ -667,9 +668,9 @@ export interface Theme<
        * (`withTokenRefs`), a `styles` factory's `ctx.tokens` is those refs plus this theme's
        * namespaces and `extend`, fully typed; otherwise the loose token bag.
        */
-      components?: Record<string, ThemeComponentPatchFor<{ tokens: MergedThemeTokens<E, X> }, B>>;
+      components?: ThemeComponentsMap<{ tokens: MergedThemeTokens<E, X> }, B, Rec>;
     },
-  ): Theme<MergedThemeTokens<E, X>, B>;
+  ): Theme<MergedThemeTokens<E, X>, B, Rec>;
   toString(): string;
   [Symbol.toPrimitive](hint: string): string;
 }

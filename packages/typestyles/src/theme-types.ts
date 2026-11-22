@@ -1,4 +1,4 @@
-import type { OverrideTokenNode } from './override';
+import type { OverrideConfigFor, OverrideStyleContext, OverrideTokenNode } from './override';
 import type { ThemeTokenContext } from './theme-token-context';
 import type {
   CreateTokenValues,
@@ -72,18 +72,49 @@ export type ThemeComponentPatchFor<
       }) => ThemeComponentStylePatch);
 };
 
+type RecipePatchVars<C> = OverrideConfigFor<C> extends { vars?: infer V } ? V : never;
+type RecipePatchStyles<C> = Omit<OverrideConfigFor<C>, 'vars'>;
+
+/**
+ * A theme `components` entry for one known recipe `C`: `styles` is partial against that recipe's
+ * slots and axes, `vars` against the vars it declared, and a `styles` factory's `ctx.vars` are
+ * the recipe's own.
+ */
+export type ThemeRecipePatchFor<
+  C,
+  T extends Pick<ThemeConfig, 'tokens'>,
+  B extends object = Record<never, never>,
+> = {
+  readonly vars?: RecipePatchVars<C>;
+  readonly styles?:
+    | RecipePatchStyles<C>
+    | ((ctx: OverrideStyleContext<C, ThemeFactoryTokens<T, B>>) => RecipePatchStyles<C>);
+};
+
+/**
+ * The `components` map. With no recipe registry (`Rec` empty) it is a namespace → patch record
+ * with a typed `ctx.tokens`. When the instance recorded its recipes (`withRecipes`), keys are
+ * closed to those namespaces and each entry is typed against its recipe.
+ */
+export type ThemeComponentsMap<
+  T extends Pick<ThemeConfig, 'tokens'>,
+  B extends object = Record<never, never>,
+  Rec extends object = Record<never, never>,
+> = [keyof Rec] extends [never]
+  ? Record<string, ThemeComponentPatchFor<T, B>>
+  : { readonly [K in keyof Rec]?: ThemeRecipePatchFor<Rec[K], T, B> };
+
 /**
  * `components` on `createTheme` / `Theme.override`.
  *
- * The token map does not carry recipe handles, so this stays a namespace → patch
- * record. Check slots and axes with {@link ThemeComponentsOverrideMap} when you
- * have the recipe values.
+ * Namespace → patch. Record your recipes with `withRecipes` to type slots and axes per recipe.
  */
 export type ThemeComponentsFor<
   _T extends Pick<ThemeConfig, 'tokens'> = Pick<ThemeConfig, 'tokens'>,
   B extends object = Record<never, never>,
+  Rec extends object = Record<never, never>,
 > = {
-  components?: Record<string, ThemeComponentPatchFor<_T, B>>;
+  components?: ThemeComponentsMap<_T, B, Rec>;
 };
 
 type CreateThemeConfigFields = Omit<ThemeConfig, 'components'>;

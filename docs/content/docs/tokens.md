@@ -270,6 +270,31 @@ typestyles.override({
 
 Without `withTokenRefs`, `ctx.tokens` stays a loose bag that accepts any namespace.
 
+### Typed recipe patches
+
+By default `components` is an open namespace → patch record. Record your recipes with
+`withRecipes` and `components` keys are closed to them, with each entry's slots, axes and vars
+checked against its own recipe (a runtime no-op that returns the same instance). Keys must be the
+recipe's `name`; in development a mismatch warns.
+
+```ts
+export const button = typestyles.recipe({ name: 'button', variants: { size: … }, styles: … });
+export const card = typestyles.recipe({ name: 'card', slots: ['root', 'header'] as const, … });
+export const themed = typestyles.withTokenRefs(designTokens).withRecipes({ button, card });
+
+themed.tokens.createTheme({
+  name: 'compact',
+  components: {
+    button: { styles: { variants: { size: { sm: { fontSize: '11px' } } } } }, // `shape` is an error
+    card: { styles: ({ tokens: t }) => ({ base: { header: { margin: t.space.sm.var } } }) }, // `footer` is an error
+    // buton: …  ← error: not a registered recipe
+  },
+});
+```
+
+`Theme.override({ components })` gets the same typing, and `override({ recipe, styles })` checks
+slot names too.
+
 ## Syntax-typed tokens
 
 `tokens.declare()` is also the opt-in path for **compile-time syntax safety**. Schema
