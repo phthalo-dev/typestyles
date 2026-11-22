@@ -11,6 +11,8 @@ import type { TokensApi } from './tokens';
 import type { CascadeLayersObjectInput } from './layers';
 import type { OverrideFn } from './override';
 import { createThemeTokenContext } from './theme-token-context';
+import { getComponentMeta } from './component-meta';
+import { devDiagnosticsEnabled } from '#sheet';
 import type { ScopeOptions } from './scope';
 import type { StylesPropertyFn } from './types';
 import type { ContainerNameRef } from './container';
@@ -57,6 +59,7 @@ export type TypeStylesApi<
   Recipe = RecipeFn,
   L extends string | undefined = undefined,
   B extends object = Record<never, never>,
+  Rec extends object = Record<never, never>,
 > = ComponentRegistryApi & {
   readonly classNaming: Readonly<ClassNamingConfig>;
   /** Create a single named class (was `styles.class`). */
@@ -69,7 +72,7 @@ export type TypeStylesApi<
    * accept a `{ layer }` override on top of the `layers.style` default.
    */
   recipe: Recipe;
-  tokens: TokensApi<Record<string, never>, B>;
+  tokens: TokensApi<Record<string, never>, B, Rec>;
   /**
    * Tell this instance which token refs are built in (typically the root `tokens.declare()`
    * result), so `ctx.tokens` in `createTheme({ components })` factories is fully typed. Runtime
@@ -82,7 +85,21 @@ export type TypeStylesApi<
    * export const typestyles = base.withTokenRefs(designTokens);
    * ```
    */
-  withTokenRefs: <Refs extends object>(refs: Refs) => TypeStylesApi<Recipe, L, Refs>;
+  withTokenRefs: <Refs extends object>(refs: Refs) => TypeStylesApi<Recipe, L, Refs, Rec>;
+  /**
+   * Tell this instance which recipes exist, keyed by recipe `name` (its namespace), so `components`
+   * in `createTheme` / `Theme.override` is closed to those names and each entry is typed against its
+   * recipe's slots, axes and vars. Runtime no-op returning the same instance (in development it
+   * warns when a key is not the recipe's own name).
+   *
+   * @example
+   * ```ts
+   * export const button = typestyles.recipe({ name: 'button', … });
+   * export const themed = typestyles.withRecipes({ button, card });
+   * themed.tokens.createTheme({ name: 'x', components: { button: { styles: { base: {} } } } });
+   * ```
+   */
+  withRecipes: <Recipes extends object>(recipes: Recipes) => TypeStylesApi<Recipe, L, B, Recipes>;
   global: GlobalApiUnlayered | GlobalApiLayered;
   compose: StylesApi['compose'];
   override: [L] extends [undefined] ? OverrideFn<string, B> : OverrideFn<L & string, B>;
@@ -213,6 +230,21 @@ function flattenTypeStylesApi<Recipe = unknown>(
     listComponentNamespaces: s.listComponentNamespaces.bind(s),
     // Type-level only: returns this same instance with its built-in token refs recorded.
     withTokenRefs: (() => api) as unknown as TypeStylesApi<Recipe>['withTokenRefs'],
+    // Type-level only (plus a dev check that each key is the recipe's own namespace).
+    withRecipes: ((recipes: Record<string, object>) => {
+      if (devDiagnosticsEnabled()) {
+        for (const [key, handle] of Object.entries(recipes ?? {})) {
+          const namespace = getComponentMeta(handle)?.namespace;
+          if (namespace !== undefined && namespace !== key) {
+            console.warn(
+              `[typestyles] withRecipes: key "${key}" is recipe "${namespace}". ` +
+                `Keys must be the recipe name, because theme \`components\` match recipes by name.`,
+            );
+          }
+        }
+      }
+      return api;
+    }) as unknown as TypeStylesApi<Recipe>['withRecipes'],
   };
   return api;
 }
