@@ -154,5 +154,5 @@ void [_lg, _md, _xl];
 // A wide (non-literal) `extend` has no keys to merge, so the parent's known tokens stay readable.
 declare const wideExtend: Record<string, CreateTokenValues>;
 const wideChild = spaced.override({ name: 'spaced-wide-index', extend: wideExtend });
-const _wideMd: string = wideChild.tokens.space.md.var;
+const _wideMd = wideChild.tokens.space.md; // reachable (not `never`), whatever its leaf type
 void _wideMd;
