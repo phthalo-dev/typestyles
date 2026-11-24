@@ -16,11 +16,19 @@ function keepSingleTypestylesExtractor() {
   return {
     name: 'docs:single-typestyles-extractor',
     hooks: {
-      'astro:config:setup': ({ config }) => {
+      'astro:config:setup': ({ config, logger }) => {
         const plugins = config.vite?.plugins;
         if (!Array.isArray(plugins)) return;
         // The kit's copy is registered first (`varDocs` precedes `AstroTypestyles`); keep the last.
         const indexes = plugins.flatMap((p, i) => (p && p.name === 'typestyles' ? [i] : []));
+        // Exactly the kit's extractor + ours is expected. Anything else means the kit (or
+        // @typestyles/astro) changed how it registers plugins; re-check before trusting the strip.
+        if (indexes.length !== 2) {
+          logger.warn(
+            `expected 2 vite plugins named "typestyles" (varDocs + AstroTypestyles), found ${indexes.length}; ` +
+              'review keepSingleTypestylesExtractor() in astro.config.mjs',
+          );
+        }
         for (const i of indexes.slice(0, -1).reverse()) plugins.splice(i, 1);
       },
     },
@@ -32,6 +40,10 @@ export default defineConfig({
   integrations: [
     varDocs({
       title: 'typestyles',
+      favicon: '/favicon.svg',
+      // No `presets`: @var-ui/core ships only its default theme, and the old design styles
+      // (@examples/design-system) are not createDesignTheme() themes. The appearance menu shows
+      // colour mode only. See "Design styles changed" in specs/varui-docs-site-issues.md.
       theme: { defaultClassName: defaultThemeClassName },
       typestyles: { entry: 'src/typestyles-entry.ts' },
       routes: { docs: { prefix: '/docs', collection: 'docs' } },

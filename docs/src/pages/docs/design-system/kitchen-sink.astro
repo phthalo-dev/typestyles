@@ -1,6 +1,6 @@
 ---
 // @ts-nocheck
-import DocsLayout from '../../../layouts/DocsLayout.astro';
+import KitDocsLayout from '../../../layouts/KitDocsLayout.astro';
 import Alert from '../../../components/Alert.astro';
 import Aside from '../../../components/Aside.astro';
 import Badge from '../../../components/Badge.astro';
@@ -12,15 +12,11 @@ import LinkCard from '../../../components/LinkCard.astro';
 import Steps from '../../../components/Steps.astro';
 import { doc, docProseRoot } from '../../../styles';
 import { fileTree as fileTreeStyles, linkButton } from '@examples/design-system';
-import { getAllDocs } from '../../../lib/docs';
 
-const docs = await getAllDocs();
-const docsBySlug = Object.fromEntries(docs.map((entry) => [entry.slug, entry]));
 ---
 
-<DocsLayout
-  docsBySlug={docsBySlug}
-  currentSlug="/docs/design-system/kitchen-sink"
+<KitDocsLayout
+  currentPath="/docs/design-system/kitchen-sink"
   title="Astro Design System Kitchen Sink - typestyles documentation"
 >
   <article class={doc.root}>
@@ -119,4 +115,4 @@ console.log(classes.root);`}
       </p>
     </div>
   </article>
-</DocsLayout>
+</KitDocsLayout>

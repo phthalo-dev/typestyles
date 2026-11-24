@@ -1,11 +1,7 @@
 ---
 import { home } from '../styles';
-import DocsLayout from '../layouts/DocsLayout.astro';
+import KitDocsLayout from '../layouts/KitDocsLayout.astro';
 import Code from '../components/Code.astro';
-import { getAllDocs } from '../lib/docs';
-
-const docs = await getAllDocs();
-const docsBySlug = Object.fromEntries(docs.map((doc) => [doc.slug, { slug: doc.slug, title: doc.title }]));
 
 const heroSample = `import { createTypeStyles } from 'typestyles';
 
@@ -47,7 +43,7 @@ export const card = recipe('card', {
 const frameworks = ['Vite', 'Next.js', 'Astro', 'Rollup'];
 ---
 
-<DocsLayout docsBySlug={docsBySlug} hideDesktopSidebar mainVariant="landing">
+<KitDocsLayout title="typestyles - CSS-in-TypeScript" currentPath="/" sidebar={false} wide>
   <div class={home.hero}>
     <div class={home.heroGrid} aria-hidden="true"></div>
     <div class={home.heroInner}>
@@ -252,4 +248,4 @@ const frameworks = ['Vite', 'Next.js', 'Astro', 'Rollup'];
       </a>
     </div>
   </section>
-</DocsLayout>
+</KitDocsLayout>

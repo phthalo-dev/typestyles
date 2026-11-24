@@ -1,11 +1,8 @@
 ---
-import DocsLayout from '../../../layouts/DocsLayout.astro';
+import KitDocsLayout from '../../../layouts/KitDocsLayout.astro';
 import { doc, docProseRoot } from '../../../styles';
-import { getAllDocs } from '../../../lib/docs';
 import { listChangelogRefs, type ChangelogScope } from '../../../lib/changelogs';
 
-const docs = await getAllDocs();
-const docsBySlug = Object.fromEntries(docs.map((entry) => [entry.slug, entry]));
 const refs = await listChangelogRefs();
 
 function labelForScope(scope: ChangelogScope): string {
@@ -21,9 +18,8 @@ const byScope = refs.reduce(
 );
 ---
 
-<DocsLayout
-  docsBySlug={docsBySlug}
-  currentSlug="/docs/changelog"
+<KitDocsLayout
+  currentPath="/docs/changelog"
   title="Changelog - typestyles documentation"
 >
   <article class={doc.root}>
@@ -53,4 +49,4 @@ const byScope = refs.reduce(
       }
     </div>
   </article>
-</DocsLayout>
+</KitDocsLayout>

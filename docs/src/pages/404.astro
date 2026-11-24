@@ -1,15 +1,12 @@
 ---
-import DocsLayout from '../layouts/DocsLayout.astro';
+import KitDocsLayout from '../layouts/KitDocsLayout.astro';
 import Badge from '../components/Badge.astro';
 import { doc, home } from '../styles';
-import { getAllDocs } from '../lib/docs';
 import { linkButton } from '@examples/design-system';
 
-const docs = await getAllDocs();
-const docsBySlug = Object.fromEntries(docs.map((d) => [d.slug, { slug: d.slug, title: d.title }]));
 ---
 
-<DocsLayout title="Page not found — typestyles" docsBySlug={docsBySlug}>
+<KitDocsLayout title="Page not found — typestyles" currentPath="/404">
   <div class={doc.root}>
     <div class={doc.eyebrowRow}>
       <Badge variant="neutral">404</Badge>
@@ -24,4 +21,4 @@ const docsBySlug = Object.fromEntries(docs.map((d) => [d.slug, { slug: d.slug, t
       <a href="/docs" class={linkButton({ intent: 'secondary' }).className}>Documentation</a>
     </div>
   </div>
-</DocsLayout>
+</KitDocsLayout>

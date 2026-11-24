@@ -16,3 +16,4 @@ export { home } from './home';
 export { liveDemo } from './liveDemo';
 export { playground } from './playground';
 export * from './global';
+import './legacyThemeBridge';

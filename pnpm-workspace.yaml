@@ -36,6 +36,8 @@ peerDependencyRules:
   allowedVersions:
     vite: '*'
     vitest: '*'
+# TODO: remove these entries once @var-ui/*@0.14.0 is older than minimumReleaseAge
+# (published 2026-11-23; they only bypass the release-age gate for that one version).
 minimumReleaseAgeExclude:
   - '@var-ui/core@0.14.0'
   - '@var-ui/astro@0.14.0'

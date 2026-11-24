@@ -1,5 +1,5 @@
 ---
-import DocsLayout from '../../layouts/DocsLayout.astro';
+import KitDocsLayout from '../../layouts/KitDocsLayout.astro';
 import { doc, docProseRoot } from '../../styles';
 import { docNavigation } from '../../navigation';
 import { getAllDocs } from '../../lib/docs';
@@ -8,7 +8,7 @@ const docs = await getAllDocs();
 const docsBySlug = Object.fromEntries(docs.map((entry) => [entry.slug, entry]));
 ---
 
-<DocsLayout docsBySlug={docsBySlug} currentSlug="/docs">
+<KitDocsLayout title="typestyles - CSS-in-TypeScript" currentPath="/docs">
   <div class={doc.root}>
     <h1 class={doc.title}>Documentation</h1>
     <p class={doc.description}>
@@ -38,4 +38,4 @@ const docsBySlug = Object.fromEntries(docs.map((entry) => [entry.slug, entry]));
       }
     </div>
   </div>
-</DocsLayout>
+</KitDocsLayout>
