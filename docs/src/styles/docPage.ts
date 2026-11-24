@@ -1,51 +1,55 @@
-import { designTokens as t } from '@examples/design-system';
+import { designTokens as t } from '@var-ui/core';
 import { recipe } from './typestyles';
 
+/** "Last updated / Edit this page" footer and prev/next links under a docs article. */
 export const docPage = recipe({
   name: 'docs-doc-page',
   slots: ['footer', 'editLink', 'pagination', 'paginationLink'] as const,
   styles: {
     base: {
       footer: {
-        marginTop: t.space[5],
-        paddingTop: t.space[4],
-        borderTop: `${t.borderWidth.thick} solid ${t.color.border.strong}`,
+        marginTop: t.space.xl.var,
+        paddingTop: t.space.md.var,
+        borderTop: `${t.borderWidth.default.var} solid ${t.color.border.default.var}`,
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
-        gap: `${t.space[4]} ${t.space[5]}`,
-        fontSize: t.fontSize.sm,
-        color: t.color.text.secondary,
+        gap: `${t.space.md.var} ${t.space.lg.var}`,
+        fontSize: t.fontSize.sm.var,
+        color: t.color.text.secondary.var,
       },
       editLink: {
-        color: t.color.accent.default,
+        color: t.color.link.default.var,
         textDecoration: 'none',
-        fontWeight: t.fontWeight.bold,
+        fontWeight: t.fontWeight.medium.var,
         '&:hover': {
+          color: t.color.link.hover.var,
           textDecoration: 'underline',
         },
       },
       pagination: {
         display: 'flex',
         justifyContent: 'space-between',
-        marginTop: t.space[6],
-        paddingTop: t.space[5],
-        borderTop: `${t.borderWidth.thick} solid ${t.color.border.strong}`,
-        gap: t.space[4],
+        marginTop: t.space.lg.var,
+        gap: t.space.md.var,
       },
       paginationLink: {
-        fontSize: t.fontSize.md,
-        color: t.color.text.primary,
+        fontSize: t.fontSize.md.var,
+        fontWeight: t.fontWeight.medium.var,
+        color: t.color.text.primary.var,
         textDecoration: 'none',
-        padding: `${t.space[2]} ${t.space[4]}`,
-        border: `${t.borderWidth.default} solid ${t.color.border.default}`,
-        boxShadow: t.shadow.sm,
-        fontWeight: t.fontWeight.medium,
+        padding: `${t.space.sm.var} ${t.space.md.var}`,
+        border: `${t.borderWidth.default.var} solid ${t.color.border.default.var}`,
+        borderRadius: t.radius.md.var,
+        backgroundColor: t.color.background.surface.var,
+        transition: t.transition.controlSurface.var,
         '&:hover': {
-          backgroundColor: t.color.accent.default,
-          color: t.color.text.onAccent,
-          transform: 'translate(2px, 2px)',
-          boxShadow: 'none',
+          borderColor: t.color.border.strong.var,
+          backgroundColor: t.color.background.subtle.var,
+        },
+        '&:focus-visible': {
+          outline: `2px solid ${t.color.border.focus.var}`,
+          outlineOffset: '2px',
         },
       },
     },

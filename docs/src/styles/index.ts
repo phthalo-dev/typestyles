@@ -1,19 +1,17 @@
-import { proseContent } from '@examples/design-system';
+import { docsArticleProse } from '@var-ui/docs/styles';
 
-/** Compose with `doc.content` on markdown bodies — registers prose CSS before doc overrides. */
-export const docProseRoot = proseContent.root;
+/**
+ * Classes for a rendered markdown body: the kit's docs reading style (`prose` + `docsProse`).
+ * Compose with `doc.content` (heading permalinks, wrapping inline code).
+ */
+export const docProseRoot = docsArticleProse()
+  .map((part) => part.className)
+  .join(' ');
 
-export { layout } from './layout';
-export { sidebar } from './sidebar';
-export { siteHeader } from './siteHeader';
-export { appearanceControls } from './appearanceControls';
 export { doc } from './doc';
-export { skipLink } from './skipLink';
-export { toc } from './toc';
 export { docPage } from './docPage';
 export { docAiActions } from './docAiActions';
 export { home } from './home';
 export { liveDemo } from './liveDemo';
 export { playground } from './playground';
 export * from './global';
-import './legacyThemeBridge';

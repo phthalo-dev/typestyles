@@ -1,24 +1,22 @@
 ---
 import KitDocsLayout from '../layouts/KitDocsLayout.astro';
-import Badge from '../components/Badge.astro';
-import { doc, home } from '../styles';
-import { linkButton } from '@examples/design-system';
-
+import { Badge, Button } from '@var-ui/astro';
+import { doc } from '../styles';
 ---
 
 <KitDocsLayout title="Page not found — typestyles" currentPath="/404">
   <div class={doc.root}>
     <div class={doc.eyebrowRow}>
-      <Badge variant="neutral">404</Badge>
+      <Badge>404</Badge>
     </div>
     <h1 class={doc.title}>Page not found</h1>
     <p class={doc.description}>
       The page you requested does not exist, or it may have been moved. Try the home page or the docs
       index.
     </p>
-    <div class={home.actions}>
-      <a href="/" class={linkButton({ intent: 'primary' }).className}>Home</a>
-      <a href="/docs" class={linkButton({ intent: 'secondary' }).className}>Documentation</a>
+    <div class={doc.actions}>
+      <Button href="/" tone="accent" appearance="solid">Home</Button>
+      <Button href="/docs" appearance="outline">Documentation</Button>
     </div>
   </div>
 </KitDocsLayout>

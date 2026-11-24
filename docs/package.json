@@ -13,8 +13,6 @@
     "generate:mcp-content": "vp test run --config vitest.generate.config.ts"
   },
   "dependencies": {
-    "@examples/design-system": "workspace:*",
-    "@lucide/astro": "^1.7.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@netlify/functions": "^6.0.0",
     "@typestyles/props": "workspace:*",

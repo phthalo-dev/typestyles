@@ -3,7 +3,7 @@
 import KitDocsLayout from '../../../../layouts/KitDocsLayout.astro';
 import PageFooter from '../../../../components/PageFooter.astro';
 import { doc, docProseRoot } from '../../../../styles';
-import { linkButton } from '@examples/design-system';
+import { Button } from '@var-ui/astro';
 import { extractDocHeadings } from '../../../../lib/docs';
 import {
   listChangelogRefs,
@@ -46,7 +46,7 @@ const editHref = editUrlForChangelogPath(scope, name);
 >
   <article class={doc.root}>
     <p class={doc.eyebrowRow}>
-      <a class={linkButton({ intent: 'ghost' }).className} href="/docs/changelog">← All changelogs</a>
+      <Button href="/docs/changelog" appearance="ghost" size="sm">← All changelogs</Button>
     </p>
     <h1 class={doc.title}>{page.title}</h1>
     <p class={doc.description}>

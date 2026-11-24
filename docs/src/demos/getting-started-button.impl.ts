@@ -2,7 +2,7 @@ import { variant } from 'typestyles';
 /**
  * Style registration for the getting-started live demo.
  * Imported only by `@typestyles/build-runner` (see registry `modulePath`) so
- * `recipe('button', …)` does not collide with `@examples/design-system`
+ * `recipe('button', …)` does not collide with other `button` recipes on the site
  * in the Vite duplicate-namespace check.
  */
 import { createTypeStyles } from 'typestyles';

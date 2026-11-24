@@ -229,12 +229,6 @@ importers:
 
   docs:
     dependencies:
-      '@examples/design-system':
-        specifier: workspace:*
-        version: link:../examples/design-system
-      '@lucide/astro':
-        specifier: ^1.7.0
-        version: 1.7.0(astro@5.18.1(@netlify/blobs@9.1.2)(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(rollup@4.57.1)(supports-color@8.1.1)(terser@5.46.0)(tsx@4.23.13)(typescript@6.0.3)(yaml@2.9.1))
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.1
         version: 1.29.0(supports-color@8.1.1)(zod@4.6.7)
@@ -2004,11 +1998,6 @@ packages:
     resolution: {integrity: sha512-4wvrf5BgnR8RpogHhtpCPJMKBmvyZPhhUtEwMJbXh0ni2BucpfF07jlmyM11zRqQ2XIq6PbC2j7W7UCCcm1rRQ==}
     cpu: [x64]
     os: [win32]
-
-  '@lucide/astro@1.7.0':
-    resolution: {integrity: sha512-57+iM12BllbSrt2o5bW34pHyt+nnnSMTucS6HzzQls+0g3lGMyRwKjrbSo0IjCzLWhZaLQLYa05n3E0jNpPdNA==}
-    peerDependencies:
-      astro: ^4 || ^5 || ^6
 
   '@manypkg/find-root@3.1.0':
     resolution: {integrity: sha512-BcSqCyKhBVZ5YkSzOiheMCV41kqAFptW6xGqYSTjkVTl9XQpr+pqHhwgGCOHQtjDCv7Is6EFyA14Sm5GVbVABA==}
@@ -7920,10 +7909,6 @@ snapshots:
 
   '@lmdb/lmdb-win32-x64@2.8.5':
     optional: true
-
-  '@lucide/astro@1.7.0(astro@5.18.1(@netlify/blobs@9.1.2)(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(rollup@4.57.1)(supports-color@8.1.1)(terser@5.46.0)(tsx@4.23.13)(typescript@6.0.3)(yaml@2.9.1))':
-    dependencies:
-      astro: 5.18.1(@netlify/blobs@9.1.2)(@types/node@24.13.2)(jiti@2.6.1)(lightningcss@1.33.0)(rollup@4.57.1)(supports-color@8.1.1)(terser@5.46.0)(tsx@4.23.13)(typescript@6.0.3)(yaml@2.9.1)
 
   '@manypkg/find-root@3.1.0':
     dependencies:
