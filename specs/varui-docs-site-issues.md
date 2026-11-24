@@ -8,17 +8,19 @@ Severity: **high** = wrong output or a second runtime; **medium** = real cost or
 
 ## Open: `phthalo-dev/var-ui`
 
-### V1. `@var-ui/core`, `@var-ui/astro` and `@var-ui/icons` depend on `typestyles` instead of peer-depending
+### V1. `@var-ui/core` and `@var-ui/astro` depend on `typestyles` instead of peer-depending
 
 - **Severity:** high
 - **Repro:** in a pnpm workspace that links its own `typestyles` (`workspace:*`), add `@var-ui/core@0.14.0` and
   `@var-ui/astro@0.14.0`. The lockfile resolves a second runtime, `typestyles@0.37.0`, from the registry
-  (`@var-ui/core@0.14.0` has `dependencies: { typestyles: ^0.37.0 }`). Two runtimes mean two class and token
-  registries.
-- **Proposed fix:** make `typestyles` a `peerDependency` of every `@var-ui/*` package, as `@var-ui/docs` already does.
+  (`@var-ui/core@0.14.0` and `@var-ui/astro@0.14.0` have `dependencies: { typestyles: ^0.37.0 }`). Two runtimes
+  mean two class and token registries. (`@var-ui/icons@0.14.0` has no `typestyles` dependency.)
+- **Proposed fix:** make `typestyles` a `peerDependency` of `@var-ui/core` and `@var-ui/astro`, as `@var-ui/docs`
+  already does.
 - **Workaround:** `pnpm-workspace.yaml` `overrides` (`'@var-ui/core>typestyles': 'workspace:*'`, same for
-  `@var-ui/astro` and `@var-ui/icons`); `scripts/check-single-typestyles.ts` (`pnpm check:single-typestyles`, in
-  `pnpm verify`) fails if a second copy returns.
+  `@var-ui/astro`); `scripts/check-single-typestyles.ts` (`pnpm check:single-typestyles`, in `pnpm verify`) fails if
+  a second copy returns. The overrides also hide pnpm's range check, so the same script fails when the workspace
+  `typestyles` version is outside the `typestyles` range a pinned `@var-ui/*` package declares.
 
 ### V2. `varDocs()` always registers its own `@typestyles/vite` extractor
 

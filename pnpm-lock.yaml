@@ -186,7 +186,6 @@ overrides:
   astro>vite: npm:vite@^6.4.1
   '@var-ui/core>typestyles': workspace:*
   '@var-ui/astro>typestyles': workspace:*
-  '@var-ui/icons>typestyles': workspace:*
 
 importers:
 
