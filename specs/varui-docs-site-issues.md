@@ -19,8 +19,9 @@ Severity: **high** = wrong output or a second runtime; **medium** = real cost or
   already does.
 - **Workaround:** `pnpm-workspace.yaml` `overrides` (`'@var-ui/core>typestyles': 'workspace:*'`, same for
   `@var-ui/astro`); `scripts/check-single-typestyles.ts` (`pnpm check:single-typestyles`, in `pnpm verify`) fails if
-  a second copy returns. The overrides also hide pnpm's range check, so the same script fails when the workspace
-  `typestyles` version is outside the `typestyles` range a pinned `@var-ui/*` package declares.
+  a second copy returns. The overrides also hide pnpm's range check, so the same script warns (exit 0; `--strict-ranges`
+  fails) when the workspace `typestyles` version is outside the `typestyles` range a pinned `@var-ui/*` package
+  declares.
 
 ### V2. `varDocs()` always registers its own `@typestyles/vite` extractor
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 import {
   findTypestylesRangeMismatches,
+  reportRangeMismatches,
   findTypestylesResolutions,
   satisfiesRange,
 } from './check-single-typestyles.ts';
@@ -118,5 +119,29 @@ describe('findTypestylesRangeMismatches', () => {
       '@var-ui/core@0.14.0 dependencies.typestyles is ^0.37.0; workspace typestyles is 0.38.0',
       '@var-ui/docs@0.14.0 peerDependencies.typestyles is ^0.37.0; workspace typestyles is 0.38.0',
     ]);
+  });
+});
+
+describe('reportRangeMismatches', () => {
+  const mismatch =
+    '@var-ui/core@0.14.0 dependencies.typestyles is ^0.37.0; workspace typestyles is 0.38.0';
+
+  it('is silent and exits 0 without mismatches', () => {
+    expect(reportRangeMismatches([], false)).toEqual({ exitCode: 0, lines: [] });
+    expect(reportRangeMismatches([], true)).toEqual({ exitCode: 0, lines: [] });
+  });
+
+  it('warns but exits 0 by default (ci must not deadlock release PRs)', () => {
+    const { exitCode, lines } = reportRangeMismatches([mismatch], false);
+    expect(exitCode).toBe(0);
+    expect(lines[0]).toMatch(/^WARNING/);
+    expect(lines).toContain(`  - ${mismatch}`);
+    expect(lines.join('\n')).toMatch(/bump all @var-ui\/\* pins/);
+  });
+
+  it('exits 1 with --strict-ranges', () => {
+    const { exitCode, lines } = reportRangeMismatches([mismatch], true);
+    expect(exitCode).toBe(1);
+    expect(lines[0]).toMatch(/^ERROR/);
   });
 });

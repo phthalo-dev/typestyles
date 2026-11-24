@@ -2,13 +2,18 @@
  * Fails when pnpm-lock.yaml resolves more than one copy of the `typestyles` runtime.
  * Two copies mean two class-name/token registries, which breaks the @var-ui kit silently.
  *
- * Also fails when the workspace `typestyles` version does not satisfy the `typestyles` range
- * that a pinned `@var-ui/*` package (from `docs/package.json`) declares. `pnpm-workspace.yaml`
- * overrides `@var-ui/core>typestyles` and `@var-ui/astro>typestyles` to the workspace copy, so
- * pnpm itself never warns when typestyles moves past what Var UI supports; this is the signal to
- * hold the Var UI pins back (or bump them).
+ * Also checks that the workspace `typestyles` version satisfies the `typestyles` range each
+ * pinned `@var-ui/*` package (from `docs/package.json`) declares. `pnpm-workspace.yaml` overrides
+ * `@var-ui/core>typestyles` and `@var-ui/astro>typestyles` to the workspace copy, so pnpm itself
+ * never warns when typestyles moves past what Var UI supports.
  *
- * Usage: node scripts/check-single-typestyles.ts
+ * A range mismatch only WARNS by default (exit 0). This runs in `vp run ci`, and failing there
+ * would deadlock releases: the `chore: version packages` PR that bumps typestyles to a new 0.x
+ * minor could never pass Verify, so typestyles could never publish and Var UI could never ship a
+ * compatible release. The docs build in `vp run ci` is the real gate: a truly incompatible kit
+ * breaks it. Pass `--strict-ranges` to exit 1 on a mismatch (manual use).
+ *
+ * Usage: node scripts/check-single-typestyles.ts [--strict-ranges]
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -146,6 +151,30 @@ function installedVarUiPackages(): VarUiPackage[] {
     });
 }
 
+/** Lines for a mismatch report; exit code 1 only in strict mode. */
+export function reportRangeMismatches(
+  mismatches: string[],
+  strict: boolean,
+): { exitCode: 0 | 1; lines: string[] } {
+  if (!mismatches.length) return { exitCode: 0, lines: [] };
+  const lines = [
+    strict
+      ? 'ERROR: workspace typestyles is outside the range a pinned @var-ui package declares:'
+      : 'WARNING: workspace typestyles is outside the range a pinned @var-ui package declares:',
+    ...mismatches.map((problem) => `  - ${problem}`),
+    'pnpm-workspace.yaml overrides @var-ui/{core,astro}>typestyles to the workspace copy, so pnpm ' +
+      'does not warn. Once Var UI publishes a release that supports this typestyles, bump all ' +
+      '@var-ui/* pins in docs/package.json together (see docs/README.md, Var UI version pin policy).',
+  ];
+  if (!strict) {
+    lines.push(
+      'Not failing: the docs build is the gate for real incompatibility. ' +
+        'Run with --strict-ranges to fail on this.',
+    );
+  }
+  return { exitCode: strict ? 1 : 0, lines };
+}
+
 function main(): void {
   const lockPath = fileURLToPath(new URL('../pnpm-lock.yaml', import.meta.url));
   const resolutions = findTypestylesResolutions(readFileSync(lockPath, 'utf8'));
@@ -163,14 +192,11 @@ function main(): void {
   const varUi = installedVarUiPackages();
   const mismatches = findTypestylesRangeMismatches(workspaceVersion, varUi);
   if (mismatches.length) {
-    console.error('Workspace typestyles is outside the range a pinned @var-ui package supports:');
-    for (const problem of mismatches) console.error(`  - ${problem}`);
-    console.error(
-      'pnpm-workspace.yaml overrides @var-ui/{core,astro}>typestyles to the workspace copy, so pnpm does not ' +
-        'warn. Bump the @var-ui pins in docs/package.json to a release that supports this ' +
-        'typestyles, or hold typestyles back (see docs/README.md, Var UI version pin policy).',
-    );
-    process.exit(1);
+    const strict = process.argv.includes('--strict-ranges');
+    const { exitCode, lines } = reportRangeMismatches(mismatches, strict);
+    const bar = '!'.repeat(72);
+    console.warn([bar, ...lines, bar].join('\n'));
+    process.exit(exitCode);
   }
   console.log(
     `typestyles ${workspaceVersion} satisfies the range of ${varUi.map((p) => `${p.name}@${p.version}`).join(', ')}`,

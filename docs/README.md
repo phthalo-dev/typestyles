@@ -88,15 +88,18 @@ Production CSS is emitted as `typestyles.css` and linked by the kit (`DocsPage`,
 - `@var-ui/astro`, `@var-ui/core`, `@var-ui/docs` and `@var-ui/icons` are pinned to **exact** versions (no `^`) in
   `docs/package.json`, all on the same version.
 - Bump them **together with `typestyles`**: Var UI is built on typestyles, so a typestyles release and the Var UI
-  release that supports it move as a pair. If Var UI has not caught up with a new typestyles version yet, **hold the
-  Var UI pins back** (the docs keep building against the workspace `typestyles`).
+  release that supports it move as a pair. If Var UI has not caught up with a new typestyles version yet, leave the
+  Var UI pins where they are (the docs keep building against the workspace `typestyles`) and bump them once Var UI
+  ships a release that supports it.
 - There must be exactly one `typestyles` in the install. `pnpm-workspace.yaml` overrides `@var-ui/core>typestyles`
   and `@var-ui/astro>typestyles` to the workspace copy, and `pnpm check:single-typestyles` (part of `pnpm verify`)
   fails if a second copy appears.
 - The overrides also stop pnpm from warning when `typestyles` leaves the range Var UI declares, so the same check
-  fails when the workspace `typestyles` version does not satisfy the `typestyles` range of any pinned `@var-ui/*`
-  package. A typestyles release outside that range (for example the `chore: version packages` PR moving to the next
-  0.x minor) turns `Verify` red until the pins move to a Var UI release that supports it.
+  prints a prominent **warning** (package, declared range, workspace version) when the workspace `typestyles`
+  version does not satisfy the `typestyles` range of a pinned `@var-ui/*` package. It does not fail `pnpm verify`:
+  the `chore: version packages` PR that moves typestyles to the next 0.x minor must stay releasable, or Var UI could
+  never ship a compatible version. **The docs build is the gate**: if the kit is really incompatible, the build in
+  `pnpm verify` breaks. Run `node scripts/check-single-typestyles.ts --strict-ranges` to make a mismatch fail.
 - After a bump: `pnpm install`, `pnpm verify` (docs build, CI parity and the typestyles range check), then look at the kitchen sink in both colour modes.
 
 ## Adding a documentation page

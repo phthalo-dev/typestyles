@@ -27,8 +27,8 @@ overrides:
   astro>vite: npm:vite@^6.4.1
   # @var-ui/core and @var-ui/astro hard-depend on a registry typestyles; keep exactly one runtime
   # (the workspace copy). @var-ui/docs peer-depends on it and @var-ui/icons does not use it.
-  # Overrides silence pnpm's range check: `pnpm check:single-typestyles` asserts the workspace
-  # version still satisfies each @var-ui package's declared typestyles range.
+  # Overrides silence pnpm's range check: `pnpm check:single-typestyles` warns when the workspace
+  # version leaves an @var-ui package's declared typestyles range (the docs build is the gate).
   '@var-ui/core>typestyles': 'workspace:*'
   '@var-ui/astro>typestyles': 'workspace:*'
 peerDependencyRules:
