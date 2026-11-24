@@ -43,10 +43,13 @@ export default defineConfig({
       favicon: '/favicon.svg',
       // No `presets`: @var-ui/core ships only its default theme, and the old design styles
       // (@examples/design-system) are not createDesignTheme() themes. The appearance menu shows
-      // colour mode only. See "Design styles changed" in specs/varui-docs-site-issues.md.
+      // colour mode only. See "User-visible changes > Design styles" in
+      // specs/varui-docs-site-issues.md.
       theme: { defaultClassName: defaultThemeClassName },
       typestyles: { entry: 'src/typestyles-entry.ts' },
-      routes: { docs: { prefix: '/docs', collection: 'docs' } },
+      // No `routes`: guide routes are disabled below and there is no `docs` content collection
+      // (pages load markdown through src/lib/docs.ts). The kit's default (`/docs` → `docs`) is all
+      // it still reads, for markdown link prefixes.
       // Docs keep their own routes, middleware, .md views and llms outputs.
       disableGuideRoutes: true,
       disableMiddleware: true,
