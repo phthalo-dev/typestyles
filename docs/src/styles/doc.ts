@@ -72,6 +72,13 @@ export const doc = recipe({
         textWrap: 'pretty',
       },
       content: {
+        // Long inline code (changelog entries, API signatures) wraps instead of widening the article
+        // past a phone viewport. Code blocks scroll on their own. `!important`: the legacy prose
+        // (`@examples/design-system`) sets `nowrap` in the later `utilities` layer; drop with it.
+        '& :not(pre) > code': {
+          whiteSpace: 'normal !important',
+          overflowWrap: 'anywhere',
+        },
         '& [data-codeblock] code': {
           fontFamily: 'inherit',
           fontSize: 'inherit',

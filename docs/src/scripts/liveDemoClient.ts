@@ -1,3 +1,5 @@
+import { SEGMENTED_CONTROL_CHANGE_EVENT } from '@var-ui/astro';
+
 export type LiveDemoVariantPayload = {
   id: string;
   label: string;
@@ -109,7 +111,11 @@ export function bindLiveDemo(root: HTMLElement): void {
   if (root.dataset.liveDemoBound !== 'true') {
     root.dataset.liveDemoBound = 'true';
     // Kit `SegmentedControl` (native radios): arrows move and check, the change event carries the id.
-    root.addEventListener('var-ui:segmented-control-change', (event) => {
+    // Warm the lazy highlighter when the reader reaches for a demo, so the first switch is not laggy.
+    const preload = () => void import('./highlightLiveCode').catch(() => {});
+    root.addEventListener('pointerenter', preload, { once: true });
+    root.addEventListener('focusin', preload, { once: true });
+    root.addEventListener(SEGMENTED_CONTROL_CHANGE_EVENT, (event) => {
       const id = (event as CustomEvent<{ id: string | null }>).detail?.id;
       if (id) activateVariant(root, id);
     });

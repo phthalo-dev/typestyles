@@ -12,8 +12,6 @@ const REGION_RE = /<!--\s*doc-install-tabs\s*-->\s*([\s\S]*?)\s*<!--\s*\/doc-ins
 
 const FENCE_RE = /```(?:bash|sh)\s*\n([\s\S]*?)```/g;
 
-let tabGroupSeq = 0;
-
 const MANAGERS = ['pnpm', 'npm', 'yarn'];
 
 function inferTabLabel(code: string): string {
@@ -52,8 +50,8 @@ function attrs(slot: Slot, extra: Record<string, string | boolean | undefined> =
  * tabs in the header, one copy button, one `pre` per manager). Switching, the shared preference
  * and arrow keys live in `scripts/docInstallTabs.ts`; copy in `scripts/docsCodeBlockCopy.ts`.
  */
-function renderTabGroup(blocks: { label: string; html: string }[]): string {
-  const gid = `doc-install-tabs-${tabGroupSeq++}`;
+function renderTabGroup(blocks: { label: string; html: string }[], index: number): string {
+  const gid = `doc-install-tabs-${index}`;
   const cb = codeBlock({ variant: 'default' });
   const buttons = blocks
     .map(
@@ -101,7 +99,12 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * Group ids (`doc-install-tabs-<n>`) count per call, so a page's HTML does not depend on how many
+ * pages were rendered before it. Each doc body is one call, so ids stay unique within a page.
+ */
 export function expandInstallTabGroups(markdown: string): string {
+  let groupIndex = 0;
   return markdown.replace(REGION_RE, (_full, inner: string) => {
     const codes: string[] = [];
     let m: RegExpExecArray | null;
@@ -119,7 +122,7 @@ export function expandInstallTabGroups(markdown: string): string {
       label: code === bun ? 'bun' : inferTabLabel(code),
       html: highlightDocCode(code, 'bash').highlighted,
     }));
-    return renderTabGroup(blocks);
+    return renderTabGroup(blocks, groupIndex++);
   });
 }
 

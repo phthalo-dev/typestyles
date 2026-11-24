@@ -73,4 +73,12 @@ describe('expandInstallTabGroups', () => {
     );
     expect(odd).not.toContain('data-package-manager="bun"');
   });
+
+  it('numbers groups per call, so ids do not depend on render order', () => {
+    const twice = `${source}\n\n${source}`;
+    const first = expandInstallTabGroups(twice);
+    expect(first).toContain('id="doc-install-tabs-0-tab-0"');
+    expect(first).toContain('id="doc-install-tabs-1-tab-0"');
+    expect(expandInstallTabGroups(twice)).toBe(first);
+  });
 });

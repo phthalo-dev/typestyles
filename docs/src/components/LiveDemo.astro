@@ -58,7 +58,12 @@ const options = variants.map((v) => ({ value: v.id, label: v.label }));
         update together.
       </p>
     </div>
-    <SegmentedControl size="sm" options={options} aria-label="Demo variants" />
+    <SegmentedControl
+      size="sm"
+      name={`live-demo-${id}`}
+      options={options}
+      aria-label="Demo variants"
+    />
   </div>
 
   <div {...stageProps}>

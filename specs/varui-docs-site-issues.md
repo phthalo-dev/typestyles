@@ -56,8 +56,9 @@ Repo for all items: `phthalo-dev/var-ui` (packages are `@var-ui/*` 0.14.0). Not 
 - **Repro:** `themeClassName="a b"` throws in `ThemeScript` (`classList.add('a b')`), and `htmlAttributes.class`
   would duplicate the `class` attribute.
 - **Why it matters:** a site migrating gradually needs a second (legacy) theme class on `<html>`.
-- **Workaround:** `KitDocsLayout.astro` adds `@examples/design-system`'s `defaultTheme.className` with an inline
-  head script (also on `astro:before-swap`). Temporary; goes away with the legacy components.
+- **Workaround:** `docs/src/components/KitSiteHead.astro` (head of every page: `KitDocsLayout`, home,
+  playground) adds `@examples/design-system`'s `defaultTheme.className` with an inline script (also on
+  `astro:before-swap`). Temporary; goes away with the legacy components.
 
 ## 8. Command palette items have no full-text field
 
@@ -89,15 +90,16 @@ Repo for all items: `phthalo-dev/var-ui` (packages are `@var-ui/*` 0.14.0). Not 
   never match. Titles, descriptions, categories and h2/h3 headings are searched in full, as before.
   Remove all of this when the kit has a lazy index.
 
-## 9. Colour mode key differs between kit shell and the old playground shell
+## 9. Colour mode key differs between kit shell and the old playground shell (resolved in the docs)
 
 - `@var-ui/docs` (`ThemeScript`) stores the mode under `theme-mode`; the old `Head.astro` /
-  `docsAppearanceRuntime.ts` (still used by `/playground` via `PlaygroundLayout`) used `typestyles-theme`.
-- **Fixed in Task 2:** the old code now reads and writes `theme-mode`, so docs and `/playground` share the
-  preference. Still inconsistent until Task 5 moves the playground shell to the kit: the old shell
-  sets `data-mode`, while the kit and the token CSS use `data-color-mode`, so the playground's explicit
-  light/dark choice may not repaint its legacy tokens. The playground's style picker still writes
-  `typestyles-style`, which the kit ignores.
+  `docsAppearanceRuntime.ts` (used by `/playground` via `PlaygroundLayout`) used `typestyles-theme`.
+- **Fixed in Task 2:** the old code read and wrote `theme-mode`.
+- **Closed in Task 5:** `/playground` now uses the kit chrome (`ThemeScript`, `DocsTopBar` with
+  `DocsAppearanceMenu`, `DocsMobileMenu`), so it sets `data-color-mode` like every other page and nothing
+  sets the legacy `data-mode` or reads/writes `typestyles-style` any more. Mode chosen on a docs page
+  carries to `/playground` and back (checked in the browser). The Monaco editor theme stays `vs-dark` in
+  both modes, as before (the playground never switched it). Not a kit gap; kept for the record.
 
 ## 10. (typestyles repo) `@examples/design-system` themes emit `-name`/`-var` props instead of colour tokens
 
@@ -122,6 +124,11 @@ Not a `packages/typestyles` regression and not caused by b314900 (#385). Repo: `
 - **typestyles DX candidate:** `tokens.createTheme` silently accepts a nested `{ name: …, var: … }` object and
   emits `-name`/`-var` custom properties. A dev warning (or type error) when a token subtree has exactly the
   `name`/`var` ref shape would have caught this.
+- **Also seen (Task 5, kitchen-sink page):** the same ref-shape bug in component recipes. `alert`'s tone
+  variants emit `undefined: var(--example-ds-color-text-onAccent)` (a property name that is a ref object),
+  so `/docs/design-system/kitchen-sink` shows alerts with no surface or border, and the solid `linkButton`
+  label is invisible. Pre-existing on the base commit (`examples/design-system` is untouched on this
+  branch); goes away when Task 6 drops the legacy components.
 - Docs workaround: `docs/src/styles/legacyThemeBridge.ts` maps those tokens onto Var UI tokens until the legacy
   components are removed.
 
@@ -185,8 +192,25 @@ Also changed:
 - **Workaround:** `docs/src/scripts/docAiActions.ts` sets `target="_blank" rel="noopener noreferrer"` on
   `[data-doc-ai-actions] a[role=menuitem]` after load (links open in the same tab without JS).
 
-## 14. `SegmentedControl` has no documented way to listen for changes from a page script
+## 14. `SegmentedControl` change event is not in the component docs
 
 - The change event (`var-ui:segmented-control-change`, `detail.id`) is exported as
-  `SEGMENTED_CONTROL_CHANGE_EVENT` from `@var-ui/astro`'s `scripts/segmentedControl`, but the name is not in the
-  component docs; `LiveDemo` listens for the literal string. Minor; document it on the component.
+  `SEGMENTED_CONTROL_CHANGE_EVENT` from `@var-ui/astro` (root entry) and documented in the kit source
+  (`src/scripts/segmentedControl.ts`), but the component docs do not mention it. `LiveDemo` imports the
+  constant. Minor; document it on the component page.
+- Related: `SegmentedControl` defaults `name` to a generated (random) value, so the HTML differs between
+  builds unless `name` is passed. `LiveDemo` passes `live-demo-<id>`. A deterministic default (or a note in
+  the docs) would help static sites that diff their output.
+
+## 15. No kit layout for a full-height tool page (playground)
+
+- **Repro:** a page that wants the docs top bar and mobile menu but a full-height, unpadded content area
+  (editor + preview). `DocsPage` adds the docs grid and `DocsMarketingPage` a scrolling `main`
+  (`bleed` removes padding but keeps `minHeight: auto` and the scroll column).
+- **Workaround:** `docs/src/layouts/PlaygroundLayout.astro` composes `ThemeScript`, `DocsFavicon`,
+  `AppShell`, `DocsTopBar`, `DocsMobileMenu`, `Layout`/`LayoutContent` by hand, as Var UI's own site does
+  (`docs/src/layouts/PlaygroundLayout.astro` there). It must repeat the `<head>` wiring (`typestyles.css`,
+  `ClientRouter`) that `DocsPage` owns, so the two can drift.
+- **Expected:** a `DocsToolPage` (or `DocsMarketingPage` `fill` variant) with the same props and slots.
+- Item 4 (empty brand link) also applies to `DocsMobileMenu`'s drawer header; the playground passes a
+  `brand` slot to both.

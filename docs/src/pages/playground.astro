@@ -1,4 +1,5 @@
 ---
+import { Button } from '@var-ui/astro';
 import PlaygroundLayout from '../layouts/PlaygroundLayout.astro';
 import { defaultPresetId, getPresetSource, playgroundPresets } from '../playground/presets';
 import { playground } from '../styles/playground';
@@ -25,9 +26,7 @@ const bootstrap = {
       </label>
     </div>
     <div class={playground.toolbarRight}>
-      <button type="button" class={playground.shareButton} data-playground-share>
-        Share
-      </button>
+      <Button appearance="outline" size="sm" data-playground-share>Share</Button>
     </div>
   </div>
 
@@ -134,12 +133,7 @@ const bootstrap = {
 </script>
 
 <style is:global>
-  [data-playground-tab][data-active='true'] {
-    color: inherit;
-    border-bottom: 2px solid currentColor;
-    opacity: 1;
-  }
-
+  /* Active tab styling: `playground.tab` (`[data-active]`). */
   [data-playground-panel][data-active='true'] {
     display: flex;
     flex-direction: column;

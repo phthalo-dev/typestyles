@@ -1,14 +1,23 @@
 ---
-import Head from '../components/Head.astro';
-import SkipLink from '../components/SkipLink.astro';
-import SiteHeader from '../components/SiteHeader.astro';
-import SearchPalette from '../components/SearchPalette.astro';
-import {
-  designStyleList,
-  docsAppearanceClassesToClear,
-  getDocsAppearanceClass,
-  type DesignStyleId,
-} from '../tokens';
+/**
+ * Playground shell on the kit chrome: the same `DocsTopBar` (search + `DocsAppearanceMenu`) and
+ * `DocsMobileMenu` as every docs page, in an `AppShell` whose content fills the viewport (no
+ * sidebar, TOC or page padding: the editor and preview own the space). Built like Var UI's own
+ * playground layout (`DocsPage`/`DocsMarketingPage` would add a scrolling, padded main column).
+ *
+ * Colour mode comes from the kit's `ThemeScript` (`theme-mode` key, `data-color-mode` on
+ * `<html>`), shared with the docs pages. Playground internals are unchanged.
+ */
+import { ClientRouter } from 'astro:transitions';
+import { AppShell, Layout, LayoutContent, ThemeScript } from '@var-ui/astro';
+import { defaultThemeClassName } from '@var-ui/core';
+import DocsFavicon from '@var-ui/docs/DocsFavicon';
+import DocsMobileMenu from '@var-ui/docs/DocsMobileMenu';
+import DocsTopBar from '@var-ui/docs/DocsTopBar';
+import { normalizeDocsPath } from '@var-ui/docs/utils';
+import KitSiteHead from '../components/KitSiteHead.astro';
+import { toKitTopNav } from '../lib/kitNav';
+import { getKitSearchItems } from '../lib/kitSearchItems';
 import { playground } from '../styles/playground';
 
 type Props = {
@@ -17,35 +26,47 @@ type Props = {
 
 const { title = 'Playground — typestyles' } = Astro.props;
 
-const typestylesCssHref = `${import.meta.env.BASE_URL}typestyles.css`;
-
-const appearanceMap = Object.fromEntries(
-  designStyleList.map(({ id }) => [id, getDocsAppearanceClass(id, 'light')]),
-) as Record<
-  DesignStyleId,
-  { className: string; dataMode: 'light' | 'dark' | undefined; dataStyle: DesignStyleId }
->;
-
-const appearanceBootstrap = {
-  clear: docsAppearanceClassesToClear.filter(Boolean),
-  map: appearanceMap,
-};
+const topNav = toKitTopNav();
+const searchItems = await getKitSearchItems();
+const brand = { heading: 'typestyles', href: '/' };
+const currentPath = normalizeDocsPath(Astro.url.pathname);
 ---
 
-<html lang="en">
+<html lang="en" class={defaultThemeClassName}>
   <head>
-    <Head title={title} appearanceBootstrap={appearanceBootstrap} typestylesCssHref={typestylesCssHref} />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+    <DocsFavicon />
+    <ThemeScript themeClass={defaultThemeClassName} />
+    <link rel="stylesheet" href={`${import.meta.env.BASE_URL}typestyles.css`} />
+    <ClientRouter />
+    <KitSiteHead />
     <!-- Static copy from build-playground-assets (monaco package exports block CSS imports). -->
     <link rel="stylesheet" href={`${import.meta.env.BASE_URL}playground/monaco-editor.css`} />
   </head>
-  <body>
-    <div transition:persist="docs-skip">
-      <SkipLink />
-    </div>
-    <SiteHeader appearanceBootstrap={appearanceBootstrap} hideMenuToggle />
-    <SearchPalette />
-    <div class={playground.page} data-playground>
-      <slot />
-    </div>
+  <body class="docs-body">
+    <AppShell variant="wash" height="fill" contentPadding="none" mobileBreakpoint="md">
+      <DocsTopBar
+        slot="topNav"
+        topNav={topNav}
+        searchItems={searchItems}
+        brand={brand}
+        currentPath={currentPath}
+      >
+        {/* Without a `brand` slot the kit renders an empty brand link (kit gap, see issues file). */}
+        <span slot="brand">typestyles</span>
+      </DocsTopBar>
+      <DocsMobileMenu slot="mobileNav" topNav={topNav} currentPath={currentPath} brand={brand}>
+        <span slot="brand">typestyles</span>
+      </DocsMobileMenu>
+      <Layout height="fill" padding="none" className={playground.layout}>
+        <LayoutContent label="Playground" className={playground.content}>
+          <div class={playground.page} data-playground>
+            <slot />
+          </div>
+        </LayoutContent>
+      </Layout>
+    </AppShell>
   </body>
 </html>

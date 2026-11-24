@@ -1,0 +1,47 @@
+---
+/**
+ * `<head>` additions shared by every kit-shell page (`KitDocsLayout`, home, playground): SEO and
+ * AI alternates, fonts, and the legacy theme class.
+ *
+ * Components not yet moved to the kit (LiveDemo, PageFooter, Pagination, Alert, prose, the global
+ * body rule…) read `@examples/design-system` tokens, which only resolve under its theme class on
+ * `<html>`. The kit takes a single `themeClassName` (it is passed to `classList.add`), so the
+ * legacy class is added by the inline script below. Remove with the legacy components.
+ */
+import { defaultTheme as legacyTheme } from '@examples/design-system';
+
+type Props = {
+  canonicalUrl?: string;
+  /** Sibling `.md` URL for `<link rel="alternate">`. */
+  markdownAlternateUrl?: string;
+};
+
+const { canonicalUrl, markdownAlternateUrl } = Astro.props;
+const legacyThemeClassName = legacyTheme.className;
+---
+
+<script is:inline define:vars={{ legacyThemeClassName }}>
+  document.documentElement.classList.add(legacyThemeClassName);
+  if (!window.__typestylesLegacyThemeNav) {
+    window.__typestylesLegacyThemeNav = true;
+    document.addEventListener('astro:before-swap', (event) => {
+      event.newDocument.documentElement.classList.add(legacyThemeClassName);
+    });
+  }
+</script>
+{canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+{markdownAlternateUrl && <link rel="alternate" type="text/markdown" href={markdownAlternateUrl} />}
+<link rel="llms-txt" href="/llms.txt" type="text/plain" title="Documentation index for LLMs" />
+<link
+  rel="service-desc"
+  href="/.well-known/mcp.json"
+  type="application/json"
+  title="MCP server discovery"
+/>
+<link rel="service" href="/mcp" title="MCP server" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link
+  rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..900;1,9..144,400..900&family=JetBrains+Mono:ital,wght@0,400..600;1,400..600&display=swap"
+/>
