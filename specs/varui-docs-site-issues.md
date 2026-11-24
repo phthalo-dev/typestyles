@@ -145,6 +145,16 @@ Severity: **high** = wrong output or a second runtime; **medium** = real cost or
 - **Workaround:** `docs/src/components/LiveDemo.astro` imports the constant and passes `name={`live-demo-${id}`}`;
   the kitchen sink passes `name` too.
 
+### V13. `DocsPage` and `DocsMarketingPage` viewport meta has no `initial-scale=1`
+
+- **Severity:** low
+- **Repro:** both components hardcode `<meta name="viewport" content="width=device-width" />` in their `<head>`.
+  Without `initial-scale=1`, iOS Safari can keep a zoomed-out scale after an orientation change.
+- **Proposed fix:** `content="width=device-width, initial-scale=1"` (or a prop to override it).
+- **Workaround:** none for kit-shell pages: a second viewport meta through the `head` slot would be a duplicate
+  whose precedence is browser-dependent. `docs/src/layouts/PlaygroundLayout.astro` owns its `<head>` and sets
+  `initial-scale=1`.
+
 ## Open: `phthalo-dev/typestyles`
 
 ### T1. `examples/design-system` themes and recipes emit `-name` / `-var` properties instead of colour tokens

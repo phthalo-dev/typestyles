@@ -16,6 +16,8 @@ import { PACKAGE_MANAGER_STORAGE_KEY } from '../lib/packageManagerStorage';
 
 type Props = {
   title: string;
+  /** Meta description (doc frontmatter `description`). */
+  description?: string;
   currentPath: string;
   /** Headings of the page; the TOC rail shows when there is at least one. */
   toc?: DocHeading[];
@@ -26,6 +28,7 @@ type Props = {
 
 const {
   title,
+  description,
   currentPath,
   toc = [],
   canonicalUrl,
@@ -49,7 +52,12 @@ const searchItems = await getKitSearchItems();
 >
   {/* Without a `brand` slot the kit renders an empty brand link (kit gap, see issues file). */}
   <span slot="brand">typestyles</span>
-  <KitSiteHead slot="head" canonicalUrl={canonicalUrl} markdownAlternateUrl={markdownAlternateUrl} />
+  <KitSiteHead
+    slot="head"
+    description={description}
+    canonicalUrl={canonicalUrl}
+    markdownAlternateUrl={markdownAlternateUrl}
+  />
   <div data-doc-article>
     <slot />
   </div>
