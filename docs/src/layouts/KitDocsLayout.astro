@@ -5,7 +5,7 @@
  */
 import DocsPage from '@var-ui/docs/DocsPage';
 import { defaultThemeClassName } from '@var-ui/core';
-import { codeHljsScope, defaultTheme as legacyTheme } from '@examples/design-system';
+import { defaultTheme as legacyTheme } from '@examples/design-system';
 import CodeBlockCopy from '../components/CodeBlockCopy.astro';
 import type { DocHeading } from '../lib/docs';
 import { toKitSidebarSections, toKitTopNav } from '../lib/kitNav';
@@ -51,7 +51,6 @@ const legacyThemeClassName = legacyTheme.className;
 <DocsPage
   title={title}
   themeClassName={defaultThemeClassName}
-  bodyClassName={codeHljsScope.root}
   topNav={topNav}
   sidebarSections={sidebarSections}
   searchItems={searchItems}

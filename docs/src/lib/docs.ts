@@ -31,7 +31,7 @@ const docsDir = new URL('../../content/docs', import.meta.url);
 
 const marked = new Marked(
   markedHighlight({
-    langPrefix: 'hljs language-',
+    langPrefix: 'language-',
     highlight(code, lang) {
       return highlightDocCode(code, lang).highlighted;
     },
@@ -39,10 +39,10 @@ const marked = new Marked(
 );
 
 function wrapCodeBlocks(html: string): string {
-  // Marked emits <pre><code class="hljs language-xyz">…</code></pre> for fenced blocks.
+  // Marked emits <pre><code class="language-xyz">…</code></pre> for fenced blocks.
   // We wrap that structure so the docs site can share framework-agnostic code block styles.
   return html.replace(
-    /<pre><code class="hljs language-([^"]*)">([\s\S]*?)<\/code><\/pre>/g,
+    /<pre><code class="language-([^"]*)">([\s\S]*?)<\/code><\/pre>/g,
     (_match, lang: string, highlighted: string) => {
       const safeLang = (lang || 'text').toLowerCase();
       return markdownCodeBlockHtml(safeLang, highlighted);

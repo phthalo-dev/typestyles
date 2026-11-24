@@ -1,20 +1,22 @@
-import hljs from 'highlight.js/lib/core';
-import css from 'highlight.js/lib/languages/css';
-import typescript from 'highlight.js/lib/languages/typescript';
-import xml from 'highlight.js/lib/languages/xml';
+import css from 'shiki/langs/css.mjs';
+import html from 'shiki/langs/html.mjs';
+import tsx from 'shiki/langs/tsx.mjs';
+import typescript from 'shiki/langs/typescript.mjs';
+import { createDocHighlighter, escapeHtml } from '../lib/shikiTokens';
 
-hljs.registerLanguage('css', css);
-hljs.registerLanguage('typescript', typescript);
-hljs.registerLanguage('tsx', typescript);
-hljs.registerLanguage('xml', xml);
+// Same theme and renderer as the build-time `highlightDocCode`, with only the grammars LiveDemo
+// panels use, so the client chunk stays small and live edits look like the server render.
+const highlighter = createDocHighlighter([typescript, tsx, css, html].flat(), {
+  ts: 'typescript',
+  xml: 'html',
+});
 
 export function highlightLiveCode(code: string, lang: string): { safeLang: string; html: string } {
-  const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-  const safeLang = language.toLowerCase();
-  return {
-    safeLang,
-    html: hljs.highlight(code, { language }).value,
-  };
+  const language = lang.trim().toLowerCase();
+  const out = highlighter.highlight(code, language);
+  return out === null
+    ? { safeLang: 'plaintext', html: escapeHtml(code) }
+    : { safeLang: language, html: out };
 }
 
 /** Update a `<pre><code>` (or container holding `code`) with highlighted markup. */
@@ -22,6 +24,9 @@ export function applyLiveCodeHighlight(container: Element, code: string, lang: s
   const codeEl = container.querySelector('code');
   if (!codeEl || !(codeEl instanceof HTMLElement)) return;
   const { safeLang, html } = highlightLiveCode(code, lang);
-  codeEl.className = `hljs language-${safeLang}`;
+  codeEl.classList.forEach((c) => {
+    if (c.startsWith('language-')) codeEl.classList.remove(c);
+  });
+  codeEl.classList.add(`language-${safeLang}`);
   codeEl.innerHTML = html;
 }

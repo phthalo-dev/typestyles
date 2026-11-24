@@ -145,3 +145,21 @@ Also changed:
   `/playground` now uses the same key (item 9). The style choice (`typestyles-style`) is no longer read by docs pages.
 - To bring styles back as presets, each would need a `createDesignTheme()` port (as Var UI's own site does in
   `docs/src/themes/*` + `typestyles-themes/*.ts`).
+
+## 11. `@var-ui/docs/highlight` colours nothing without the kit site's own CSS; markdown path is Shiki-only
+
+- **Repro:** `highlightCodeBlockContent()` (`@var-ui/docs/highlight`, the documented sync entry) returns
+  highlight.js markup (`hljs-keyword` …). Nothing in `@var-ui/docs`, `@var-ui/astro` or `@var-ui/core` styles those
+  classes. The `hljs-*` to `color.code.*` rules live in the kit's own site (`docs/src/styles/codeHighlight.ts`,
+  scoped by `codeHljsScope.root`) and are not exported. So a consumer using `./highlight` gets unstyled tokens.
+- **What the README promises** (`syntax: 'design-tokens'` → `color.code.*`) is only true for the Shiki theme
+  (`@var-ui/docs/shiki`, `designTokenShikiTheme`), which the kit wires into MDX fences only.
+- **Also:** `./highlight` exports no plain `highlightCode(code, lang)`, and there is no sync Shiki helper, so
+  non-MDX consumers (marked, `Code.astro`-style components, build scripts) must assemble Shiki themselves.
+- **Expected:** export a sync `highlightCode` that uses the token theme (or ship the `hljs-*` token rules).
+- **Workaround:** `docs/src/lib/shikiTokens.ts` builds a sync Shiki core highlighter (`createHighlighterCoreSync` +
+  JavaScript regex engine, grammars imported statically) with `designTokenShikiTheme` and renders spans with
+  `style="color:var(--var-ui-color-code-…)"`. `shiki` was added to `docs/package.json` for that.
+- **Related:** `codeBlockMarkup()`'s copy button carries the raw source in `data-var-ui-code`, which doubles page
+  weight for long fences. Docs copy `pre code` text through their own delegated handler instead, so the kit's
+  `initCodeBlockCopy` is not used on doc pages.

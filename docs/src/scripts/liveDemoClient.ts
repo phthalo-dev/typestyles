@@ -1,5 +1,3 @@
-import { applyLiveCodeHighlight } from './highlightLiveCode';
-
 export type LiveDemoVariantPayload = {
   id: string;
   label: string;
@@ -47,12 +45,18 @@ function setPanelHighlight(
   lang: string,
 ): void {
   if (!container || !code) return;
-  try {
-    applyLiveCodeHighlight(container, code, lang);
-  } catch {
+  const plain = () => {
     const codeEl = container.querySelector('code');
     if (codeEl) codeEl.textContent = code;
-  }
+  };
+  // The highlighter (Shiki grammars, ~130 KB gzip) loads on the first variant switch, not with the page.
+  import('./highlightLiveCode').then(({ applyLiveCodeHighlight }) => {
+    try {
+      applyLiveCodeHighlight(container, code, lang);
+    } catch {
+      plain();
+    }
+  }, plain);
 }
 
 function activateVariant(root: HTMLElement, variantId: string): void {

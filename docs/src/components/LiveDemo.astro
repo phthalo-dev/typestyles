@@ -96,7 +96,7 @@ const cssHighlight = highlightDocCode(defaultVariant.css, 'css');
     </p>
     <div class={liveDemo.codeShell} data-codeblock>
       <pre class={codeBlock.pre} data-codeblock-pre>
-        <code class:list={['hljs', `language-${safeLang}`, codeBlock.code]} set:html={highlighted} />
+        <code class:list={[`language-${safeLang}`, codeBlock.code]} set:html={highlighted} />
       </pre>
     </div>
   </div>
@@ -114,7 +114,7 @@ const cssHighlight = highlightDocCode(defaultVariant.css, 'css');
         >
           <pre class={codeBlock.pre} data-codeblock-pre>
             <code
-              class:list={['hljs', `language-${usageHighlight.safeLang}`, codeBlock.code]}
+              class:list={[`language-${usageHighlight.safeLang}`, codeBlock.code]}
               set:html={usageHighlight.highlighted}
             />
           </pre>
@@ -129,7 +129,7 @@ const cssHighlight = highlightDocCode(defaultVariant.css, 'css');
       <div class:list={[liveDemo.codeShell, liveDemo.outputShell]} data-codeblock data-live-demo-dom>
         <pre class={codeBlock.pre} data-codeblock-pre>
           <code
-            class:list={['hljs', `language-${domHighlight.safeLang}`, codeBlock.code]}
+            class:list={[`language-${domHighlight.safeLang}`, codeBlock.code]}
             set:html={domHighlight.highlighted}
           />
         </pre>
@@ -140,7 +140,7 @@ const cssHighlight = highlightDocCode(defaultVariant.css, 'css');
       <div class:list={[liveDemo.codeShell, liveDemo.outputShell]} data-codeblock data-live-demo-css>
         <pre class={codeBlock.pre} data-codeblock-pre>
           <code
-            class:list={['hljs', `language-${cssHighlight.safeLang}`, codeBlock.code]}
+            class:list={[`language-${cssHighlight.safeLang}`, codeBlock.code]}
             set:html={cssHighlight.highlighted}
           />
         </pre>

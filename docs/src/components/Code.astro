@@ -39,7 +39,7 @@ const headerText = headerLabel?.trim() || safeLang;
     </div>
   </div>
   <div class={codeBlock.body} data-codeblock-body>
-    <pre class={codeBlock.pre} data-codeblock-pre><code class:list={['hljs', `language-${safeLang}`, codeBlock.code]} set:html={highlighted}></code></pre>
+    <pre class={codeBlock.pre} data-codeblock-pre><code class:list={[`language-${safeLang}`, codeBlock.code]} set:html={highlighted}></code></pre>
   </div>
 </div>
 
