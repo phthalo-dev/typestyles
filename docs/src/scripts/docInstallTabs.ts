@@ -4,7 +4,7 @@
  * shared by every install block and remembered across visits (same storage key), and the tablist
  * is keyboard operable (arrows, Home, End; automatic activation).
  */
-const STORAGE_KEY = 'var-docs-package-manager';
+import { PACKAGE_MANAGER_STORAGE_KEY as STORAGE_KEY } from '../lib/packageManagerStorage';
 
 let delegated = false;
 

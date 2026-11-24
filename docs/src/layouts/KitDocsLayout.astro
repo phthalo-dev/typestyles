@@ -12,6 +12,7 @@ import type { DocHeading } from '../lib/docs';
 import { toKitSidebarSections, toKitTopNav } from '../lib/kitNav';
 import { getKitSearchItems } from '../lib/kitSearchItems';
 import { docNavigation } from '../navigation';
+import { PACKAGE_MANAGER_STORAGE_KEY } from '../lib/packageManagerStorage';
 
 type Props = {
   title: string;
@@ -56,10 +57,10 @@ const searchItems = await getKitSearchItems();
     Apply the stored package manager to install tabs before first paint (the module script in
     `docInstallTabs.ts` runs deferred and also handles clicks, keys and view transitions).
   */}
-  <script is:inline>
+  <script is:inline define:vars={{ storageKey: PACKAGE_MANAGER_STORAGE_KEY }}>
     (function () {
       try {
-        var id = localStorage.getItem('var-docs-package-manager');
+        var id = localStorage.getItem(storageKey);
         if (!id) return;
         document.querySelectorAll('[data-package-install]').forEach(function (root) {
           var tabs = root.querySelectorAll('[role="tab"]');
