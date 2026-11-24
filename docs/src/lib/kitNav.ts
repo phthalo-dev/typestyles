@@ -4,17 +4,23 @@
  * `src/navigation.ts` stays the single source of order and titles.
  */
 import type { DocsSearchItem, SidebarSection, TopNavItem } from '@var-ui/docs/utils';
-import type { docNavigation } from '../navigation';
+import type { DocNavItem, docNavigation } from '../navigation';
 import type { SearchIndexItem } from './searchIndex';
 
 export const githubUrl = 'https://github.com/phthalo-dev/typestyles';
+
+function itemLink(item: DocNavItem): string {
+  if (item.slug) return `/docs/${item.slug}`;
+  if (item.href) return item.href;
+  throw new Error(`navigation item "${item.title}" has neither slug nor href`);
+}
 
 export function toKitSidebarSections(nav: typeof docNavigation): SidebarSection[] {
   return nav.categories.map((category) => ({
     title: category.title,
     items: category.items.map((item) => ({
       text: item.title,
-      link: item.slug ? `/docs/${item.slug}` : (item.href ?? ''),
+      link: itemLink(item),
     })),
   }));
 }
@@ -32,15 +38,46 @@ export function toKitTopNav(): TopNavItem[] {
   ];
 }
 
-/** Command-palette rows from the `search-index.json` data (body text is not shipped per page). */
+/** Words of a page body, lower-cased; keeps identifiers like `getRegisteredCss` or `font-face` whole. */
+function bodyWords(body: string): Set<string> {
+  return new Set(body.toLowerCase().match(/[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*/g) ?? []);
+}
+
+/** Shorter words are mostly stop words; they add size, not recall. */
+const MIN_BODY_WORD_LENGTH = 4;
+/** Words found in more than this share of pages do not tell pages apart. */
+const MAX_BODY_WORD_PAGE_SHARE = 0.5;
+
+/**
+ * Command-palette rows from the `search-index.json` data. The kit palette searches `title`,
+ * `meta`, `keywords` and `headings` only (no body field, see specs/varui-docs-site-issues.md), so
+ * each page's distinctive body words go into `keywords` after its category: a word that appears
+ * only in the body still finds the page. Multi-word phrases match only within title, description
+ * or headings.
+ */
 export function toKitSearchItems(index: readonly SearchIndexItem[]): DocsSearchItem[] {
-  return index.map((entry) => ({
-    id: entry.slug,
-    title: entry.title,
-    ...(entry.description ? { meta: entry.description } : {}),
-    keywords: [entry.categoryTitle],
-    ...(entry.headings.length ? { headings: entry.headings } : {}),
-    group: entry.categoryTitle,
-    icon: 'page',
-  }));
+  const words = index.map((entry) => bodyWords(entry.body));
+  const pageCount = new Map<string, number>();
+  for (const set of words)
+    for (const word of set) pageCount.set(word, (pageCount.get(word) ?? 0) + 1);
+  const maxPages = Math.max(1, Math.floor(index.length * MAX_BODY_WORD_PAGE_SHARE));
+
+  return index.map((entry, i) => {
+    const own = [entry.title, entry.description ?? '', ...entry.headings].join(' ').toLowerCase();
+    const bodyTerms = [...words[i]].filter(
+      (word) =>
+        word.length >= MIN_BODY_WORD_LENGTH &&
+        (pageCount.get(word) ?? 0) <= maxPages &&
+        !own.includes(word),
+    );
+    return {
+      id: entry.slug,
+      title: entry.title,
+      ...(entry.description ? { meta: entry.description } : {}),
+      keywords: [entry.categoryTitle, ...bodyTerms],
+      ...(entry.headings.length ? { headings: entry.headings } : {}),
+      group: entry.categoryTitle,
+      icon: 'page',
+    };
+  });
 }

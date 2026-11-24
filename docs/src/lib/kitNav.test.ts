@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { docNavigation } from '../navigation';
+import { matchCommandItem } from '@var-ui/core/shared/commandSearch';
 import { toKitSearchItems, toKitSidebarSections, toKitTopNav } from './kitNav';
 
 describe('toKitSidebarSections', () => {
@@ -62,7 +63,7 @@ describe('toKitSearchItems', () => {
           categoryTitle: 'Core Concepts',
           description: 'Design tokens',
           headings: ['Create', 'Use'],
-          body: 'long text',
+          body: 'Create and use tokens.',
         },
         {
           slug: '/docs/fonts',
@@ -90,5 +91,47 @@ describe('toKitSearchItems', () => {
         icon: 'page',
       },
     ]);
+  });
+});
+
+describe('toKitSearchItems body search', () => {
+  const row = (slug: string, body: string, title = slug) => ({
+    slug: `/docs/${slug}`,
+    title,
+    categoryTitle: 'Guides',
+    headings: ['Setup'],
+    body,
+  });
+  const items = toKitSearchItems([
+    row('ssr', 'Collect styles with getRegisteredCss during hydration of the setup.'),
+    row('fonts', 'Load fonts with fontFace and preload them; styles stay readable.'),
+    row('keyframes', 'Animate with keyframes; styles again.'),
+  ]);
+  const find = (query: string) =>
+    items.filter((item) => matchCommandItem(item, query)).map((item) => item.id);
+
+  it('finds a page by a word that only appears in its body', () => {
+    expect(find('hydration')).toEqual(['/docs/ssr']);
+    expect(find('getregisteredcss')).toEqual(['/docs/ssr']);
+    expect(find('preload')).toEqual(['/docs/fonts']);
+  });
+
+  it('skips short words, words in most pages and words already in title or headings', () => {
+    const ssr = items[0].keywords ?? [];
+    expect(ssr).not.toContain('with'); // in every page
+    expect(ssr).not.toContain('styles'); // in every page
+    expect(ssr).not.toContain('the'); // short
+    expect(ssr).not.toContain('setup'); // a heading
+    expect(ssr[0]).toBe('Guides');
+  });
+});
+
+describe('toKitSidebarSections guards', () => {
+  it('throws on an item with neither slug nor href', () => {
+    expect(() =>
+      toKitSidebarSections({
+        categories: [{ title: 'X', slug: 'x', items: [{ title: 'Broken' }] }],
+      }),
+    ).toThrow(/Broken/);
   });
 });

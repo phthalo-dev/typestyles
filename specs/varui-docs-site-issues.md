@@ -61,12 +61,56 @@ Repo for all items: `phthalo-dev/var-ui` (packages are `@var-ui/*` 0.14.0). Not 
 
 ## 8. Command palette items have no full-text field
 
-- **Repro:** `DocsSearchItem` has `title`, `meta`, `keywords`, `headings`; items are inlined into every page.
-  The old site searched page bodies (lazy-loaded `/search-index.json` with MiniSearch).
-- **Why it matters:** body-text search is a regression; shipping bodies inline would bloat every page.
-- **Expected:** an optional lazily fetched index (URL) or a `body` field searched after load.
-- **Workaround:** none; titles, descriptions, categories and h2/h3 headings are searchable. `/search-index.json`
-  is unchanged and still served.
+- **Repro:** `DocsSearchItem` has `title`, `meta`, `keywords`, `headings`; items are inlined as JSON into every
+  page, and `initCommandPalette` (`@var-ui/astro`) parses them once with no hook for a custom matcher or result
+  provider (`rankCommandItems` takes an `isMatch` argument, but the palette never passes one). The old site
+  searched page bodies through a lazily fetched `/search-index.json` (MiniSearch).
+- **Why it matters:** body text is the largest part of the index; inlining it on every page is heavy.
+- **Proposal for the kit:** an optional lazy index on `DocsSearch`/`CommandPalette`, for example
+  `searchIndexUrl` returning items with a `body` field that is fetched on first open and matched after the existing
+  fields (ranked below headings), or a documented `isMatch`/result-provider hook.
+- **Workaround (no kit DOM changes):** `toKitSearchItems()` in `docs/src/lib/kitNav.ts` puts each page's
+  distinctive body words in `keywords`. These are words of 4+ characters that appear in at most half of the pages
+  and are not already in the title, description or headings. A word that appears only in a page body finds that
+  page again. Limits: multi-word body phrases do not match, because the kit matches the whole query against each
+  field. Each page's HTML also grows by about 120 KB raw (about 36 KB gzipped), because every page inlines the
+  terms of all pages. Remove when the kit has a lazy index.
+
+## 9. Colour mode key differs between kit shell and the old playground shell
+
+- `@var-ui/docs` (`ThemeScript`) stores the mode under `theme-mode`; the old `Head.astro` /
+  `docsAppearanceRuntime.ts` (still used by `/playground` via `PlaygroundLayout`) used `typestyles-theme`.
+- **Fixed in Task 2:** the old code now reads and writes `theme-mode`, so docs and `/playground` share the
+  preference. Still inconsistent until Task 5 moves the playground shell to the kit: the old shell
+  sets `data-mode`, while the kit and the token CSS use `data-color-mode`, so the playground's explicit
+  light/dark choice may not repaint its legacy tokens. The playground's style picker still writes
+  `typestyles-style`, which the kit ignores.
+
+## 10. (typestyles repo) `@examples/design-system` themes emit `-name`/`-var` props instead of colour tokens
+
+Not a `packages/typestyles` regression and not caused by b314900 (#385). Repo: `phthalo-dev/typestyles`
+(`examples/design-system`). The `createTheme` DX point below could be a typestyles issue.
+
+- **Symptom:** in the built CSS, `.theme-example-ds-default` has no `--example-ds-color-accent-default`. It has
+  `--example-ds-color-accent-default-name: --example-ds-palette-sky-7` and
+  `--example-ds-color-accent-default-var: light-dark(var(--example-ds-palette-sky-7), var(--example-ds-palette-blue-4))`
+  instead, and the `:root` default is empty (`--example-ds-color-accent-default: ;`). Same for every semantic
+  colour whose value is a palette reference (`text.secondary`, `danger.default`, …). `text.primary` (light literal
+  `#14110D`, dark palette ref) becomes the light literal only, so it stays dark in dark mode.
+- **Cause:** since e997f7d (#370, "every token leaf is a `{ name, var }` ref"), `p.palette['sky-7']` is a
+  `{ name, var }` object. `toModeAwareTokens()` in `examples/design-system/src/create-theme.ts` treats any plain
+  object as a nested group: it recurses into `name` and `var`, so the leaf becomes the subtree
+  `{ name: { light, dark }, var: { light, dark } }`. When light is a string and dark is a ref, it keeps the light
+  string and drops dark.
+- **Repro:** `vp run -F docs build`, then search `docs/dist/typestyles.css` for `--example-ds-color-accent-default`.
+  In code: `createDesignTheme({ name: 'x', light: { color: { a: p.palette['sky-7'] } }, dark: { color: { a: p.palette['blue-4'] } } })`
+  emits `--…-color-a-name` / `--…-color-a-var`, not `--…-color-a`.
+- **Fix (example):** treat token refs as leaves in `zip` (detect `{ name, var }`, or use the ref's `.var` string).
+- **typestyles DX candidate:** `tokens.createTheme` silently accepts a nested `{ name: …, var: … }` object and
+  emits `-name`/`-var` custom properties. A dev warning (or type error) when a token subtree has exactly the
+  `name`/`var` ref shape would have caught this.
+- Docs workaround: `docs/src/styles/legacyThemeBridge.ts` maps those tokens onto Var UI tokens until the legacy
+  components are removed.
 
 ## Design styles changed
 
@@ -85,6 +129,6 @@ classes from `@var-ui/core`, which ships only its default theme (`defaultThemeCl
 Also changed:
 
 - Colour mode is stored under the kit's `theme-mode` key (old: `typestyles-theme`), so a saved choice resets once.
-  The style choice (`typestyles-style`) is no longer read.
+  `/playground` now uses the same key (item 9). The style choice (`typestyles-style`) is no longer read by docs pages.
 - To bring styles back as presets, each would need a `createDesignTheme()` port (as Var UI's own site does in
   `docs/src/themes/*` + `typestyles-themes/*.ts`).

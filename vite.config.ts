@@ -200,6 +200,10 @@ export default defineConfig({
         cache: false,
         command: [
           'vp run -F "./packages/*" build',
+          // Docs output parity (URLs, heading ids, md/llms/search/sitemap/MCP hashes) against
+          // specs/baseline/. Rebaseline intended content changes with `vp run -F docs parity:update`.
+          'vp run -F docs build',
+          'vp run -F docs parity',
           'vp check',
           'vp run -r typecheck',
           'vp run -r test',

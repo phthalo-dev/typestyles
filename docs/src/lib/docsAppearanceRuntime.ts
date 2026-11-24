@@ -13,8 +13,9 @@ export function readStoredStyle(config: AppearanceBootstrap): string {
   return config.map[style] ? style : 'default';
 }
 
+/** Same key as the `@var-ui/docs` shell (`ThemeScript` default), so /playground and docs share the mode. */
 export function readStoredMode(): 'light' | 'dark' | 'system' {
-  const m = localStorage.getItem('typestyles-theme');
+  const m = localStorage.getItem('theme-mode');
   if (m === 'light' || m === 'dark' || m === 'system') return m;
   return 'system';
 }
@@ -38,5 +39,5 @@ export function syncDocumentClass(
 
 export function persistAppearance(style: string, mode: 'light' | 'dark' | 'system'): void {
   localStorage.setItem('typestyles-style', style);
-  localStorage.setItem('typestyles-theme', mode);
+  localStorage.setItem('theme-mode', mode);
 }
