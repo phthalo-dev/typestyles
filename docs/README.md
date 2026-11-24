@@ -90,9 +90,14 @@ Production CSS is emitted as `typestyles.css` and linked by the kit (`DocsPage`,
 - Bump them **together with `typestyles`**: Var UI is built on typestyles, so a typestyles release and the Var UI
   release that supports it move as a pair. If Var UI has not caught up with a new typestyles version yet, **hold the
   Var UI pins back** (the docs keep building against the workspace `typestyles`).
-- There must be exactly one `typestyles` in the install. `pnpm-workspace.yaml` overrides `@var-ui/*>typestyles` to
-  the workspace copy, and `pnpm check:single-typestyles` (part of `pnpm verify`) fails if a second copy appears.
-- After a bump: `pnpm install`, `pnpm verify` (docs build + parity), then look at the kitchen sink in both colour modes.
+- There must be exactly one `typestyles` in the install. `pnpm-workspace.yaml` overrides `@var-ui/core>typestyles`
+  and `@var-ui/astro>typestyles` to the workspace copy, and `pnpm check:single-typestyles` (part of `pnpm verify`)
+  fails if a second copy appears.
+- The overrides also stop pnpm from warning when `typestyles` leaves the range Var UI declares, so the same check
+  fails when the workspace `typestyles` version does not satisfy the `typestyles` range of any pinned `@var-ui/*`
+  package. A typestyles release outside that range (for example the `chore: version packages` PR moving to the next
+  0.x minor) turns `Verify` red until the pins move to a Var UI release that supports it.
+- After a bump: `pnpm install`, `pnpm verify` (docs build, CI parity and the typestyles range check), then look at the kitchen sink in both colour modes.
 
 ## Adding a documentation page
 
@@ -113,12 +118,21 @@ Guides use a unified markdown pipeline (`src/lib/docs.ts`) with GFM, syntax high
 
 ## Output parity baseline
 
-`pnpm verify` (`vp run ci`) builds the docs and runs `vp run -F docs parity`, which compares `dist/` with
-`specs/baseline/`: URL list, heading ids, `llms.txt`, and content hashes of the `.md` views, `llms-full.txt`,
-the docs/search indexes, sitemaps and MCP content (`docs/scripts/capture-baseline.mts --check`). **Any doc content
-edit (or other intended output change) changes those hashes**: after it, run
-`vp run -F docs build && vp run -F docs parity:update` and commit `specs/baseline/` with the change. HTML markup and
-CSS are not hashed, so shell or styling changes pass parity as long as no URL or heading id disappears.
+`specs/baseline/` records the docs output contract: URL list, heading ids, `llms.txt`, and content hashes of the
+`.md` views, `llms-full.txt`, the docs/search indexes, sitemaps and `.well-known/mcp.json`
+(`docs/scripts/capture-baseline.mts`, comparison in `src/lib/parity.ts`). Changelog views (`/docs/changelog/**`,
+generated from every `CHANGELOG.md`) and `/mcp-content.json` (which embeds the changelogs) are never hashed, so
+release PRs do not touch it. There are two checks, both reading an existing build (`vp run -F "docs..." build`):
+
+- **CI mode**, `vp run -F docs parity:ci`, part of `pnpm verify` (`vp run ci`). Fails only when a URL from the
+  baseline is missing from the build: a deleted or renamed page breaks inbound links. New pages, doc content edits
+  and release PRs pass without a rebaseline; lost heading ids are printed as warnings. If you remove or rename a
+  page on purpose, add a redirect, then run `vp run -F docs parity:update` and commit `specs/baseline/`.
+- **Strict mode**, `vp run -F docs parity`, run by hand for migrations (shell or pipeline rewrites that must not
+  change any output): URL lists must match exactly, no heading id may disappear, and `llms.txt` and every hashed
+  output must be unchanged. HTML markup and CSS are not hashed. To use it, run `vp run -F docs parity:update` on the
+  base branch build first (or check that the committed baseline is current), then build the migration and run
+  `vp run -F docs parity`.
 
 ## Adding a live demo
 

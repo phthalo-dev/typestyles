@@ -11,8 +11,9 @@ Internal research notes live under `research/` and are not built or indexed.
   marked + kit code blocks + install tabs + live-demo markers) and renders inside `src/layouts/KitDocsLayout.astro`,
   which wraps the kit's `DocsPage` (top bar, sidebar, TOC, search, appearance menu, mobile menu).
 - The same pipeline produces the `.md` views, `llms.txt` / `llms-full.txt`, the search and docs indexes and the MCP
-  content. `pnpm verify` checks those outputs against `specs/baseline/` (`vp run -F docs parity`); after an
-  intended content change, rebuild and run `vp run -F docs parity:update`, then commit `specs/baseline/`.
+  content. `pnpm verify` runs `vp run -F docs parity:ci`, which fails only when a URL in `specs/baseline/` is
+  missing from the build; the strict check (`vp run -F docs parity`, content hashes) is a manual migration tool.
+  See "Output parity baseline" in `docs/README.md`.
 - Non-guide pages: home (`src/pages/index.astro`, kit `DocsMarketingPage`), `/playground`
   (`src/layouts/PlaygroundLayout.astro`), changelogs (`src/pages/docs/changelog/`), and the kitchen sink of Var UI
   components (`src/pages/docs/design-system/kitchen-sink.astro`).

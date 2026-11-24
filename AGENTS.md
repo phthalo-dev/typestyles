@@ -29,11 +29,14 @@ Package manager: **pnpm** (workspace). Node 20+ recommended.
 **Docs site and Var UI.** The docs shell comes from the [Var UI](https://github.com/phthalo-dev/var-ui) docs kit
 (`@var-ui/docs`, `@var-ui/astro`, `@var-ui/core`, `@var-ui/icons`), which is built on typestyles. Those packages are
 pinned to **exact** versions in `docs/package.json` and bumped together with `typestyles`; if Var UI lags behind a
-typestyles release, hold the pins back. `pnpm-workspace.yaml` overrides `@var-ui/*>typestyles` to the workspace copy,
-and `pnpm check:single-typestyles` (in `pnpm verify`) fails if a second `typestyles` is installed. `pnpm verify` also
-builds the docs and compares the output with `specs/baseline/` (`vp run -F docs parity`); after an intended content
-change run `vp run -F docs build && vp run -F docs parity:update` and commit `specs/baseline/`. Details:
-`docs/README.md`.
+typestyles release, hold the pins back. `pnpm-workspace.yaml` overrides `@var-ui/core>typestyles` and
+`@var-ui/astro>typestyles` to the workspace copy, and `pnpm check:single-typestyles` (in `pnpm verify`) fails if a
+second `typestyles` is installed or if the workspace `typestyles` version is outside the `typestyles` range a pinned
+`@var-ui/*` package declares. `pnpm verify` also
+builds the docs and runs `vp run -F docs parity:ci`, which fails only when a URL in `specs/baseline/` is missing from
+the build (new pages, doc edits and release PRs pass). After removing or renaming a page on purpose, add a redirect,
+run `vp run -F docs parity:update` and commit `specs/baseline/`. The strict check (`vp run -F docs parity`: exact URL
+list, heading ids, content hashes) is a manual tool for migrations. Details: `docs/README.md`.
 
 ## Key commands
 

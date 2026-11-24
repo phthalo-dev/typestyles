@@ -200,10 +200,12 @@ export default defineConfig({
         cache: false,
         command: [
           'vp run -F "./packages/*" build',
-          // Docs output parity (URLs, heading ids, md/llms/search/sitemap/MCP hashes) against
-          // specs/baseline/. Rebaseline intended content changes with `vp run -F docs parity:update`.
+          // Building the docs catches docs build breakage. `parity:ci` then fails only when a URL
+          // in specs/baseline/ is missing from the build (broken inbound links); new pages, doc
+          // edits and release PRs (CHANGELOG.md) pass. The strict check (`vp run -F docs parity`,
+          // hashes + exact URL list) is a manual migration tool, see docs/README.md.
           'vp run -F docs build',
-          'vp run -F docs parity',
+          'vp run -F docs parity:ci',
           'vp check',
           'vp run -r typecheck',
           'vp run -r test',

@@ -1444,7 +1444,7 @@
     "versioning",
     "best-practices-summary"
   ],
-  "/docs/design-system/kitchen-sink/index.html": [],
+  "/docs/design-system/kitchen-sink/index.html": ["install-tabs", "live-demo"],
   "/docs/dynamic-styles/index.html": [
     "basic-pattern",
     "debug-names",

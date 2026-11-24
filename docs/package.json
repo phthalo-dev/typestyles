@@ -8,6 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "parity": "node scripts/capture-baseline.mts --check",
+    "parity:ci": "node scripts/capture-baseline.mts --check --ci",
     "parity:update": "node scripts/capture-baseline.mts",
     "test": "vp test run",
     "generate:mcp-content": "vp test run --config vitest.generate.config.ts"
