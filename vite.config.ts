@@ -203,6 +203,8 @@ export default defineConfig({
           'vp check',
           'vp run -r typecheck',
           'vp run -r test',
+          'vp test run scripts',
+          'pnpm check:single-typestyles',
         ],
       },
     },

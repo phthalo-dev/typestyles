@@ -1,0 +1,58 @@
+# typestyles
+
+> TypeStyles is CSS-in-TypeScript: type-safe styles, design tokens as CSS custom properties, and zero-runtime production extraction via bundler plugins.
+
+## Getting Started
+- [Getting Started](https://typestyles.dev/docs/getting-started.md): Install TypeStyles and ship your first typed component styles in a few minutes
+- [Zero-runtime extraction](https://typestyles.dev/docs/zero-runtime.md): How to eliminate the typestyles runtime in production and emit a static CSS file
+- [Vite Plugin](https://typestyles.dev/docs/vite-plugin.md): Enhance your Vite development experience with HMR and style validation
+- [Framework comparison](https://typestyles.dev/docs/framework-comparison.md): How TypeStyles compares to StyleX, Panda CSS, vanilla-extract, Stitches, Emotion, CSS Modules, and plain CSS—with a shared button example and a topic-by-topic comparison
+- [API Reference](https://typestyles.dev/docs/api-reference.md): Complete API reference for typestyles
+- [Use with AI tools](https://typestyles.dev/docs/ai-tools.md): Query typestyles documentation from LLM crawlers, coding agents, and chat assistants
+
+## Core Concepts
+- [Styles](https://typestyles.dev/docs/styles.md): Create and compose style variants with recipe
+- [Components](https://typestyles.dev/docs/components.md): Build typed variant APIs with recipe
+- [Schema-first recipes](https://typestyles.dev/docs/schema-recipes.md): Define a recipe's visual props once with variant axes and let TypeScript type the style map
+- [Style Composition](https://typestyles.dev/docs/compose.md): Combine multiple style functions and class strings with compose
+- [Dynamic styling](https://typestyles.dev/docs/dynamic-styles.md): Per-instance values with createVar and assignVars — the TypeStyles way to handle dynamic CSS
+- [Atomic CSS Utilities](https://typestyles.dev/docs/atomic-css.md): Type-safe atomic CSS utilities with @typestyles/props
+- [Tokens](https://typestyles.dev/docs/tokens.md): Design tokens, mode-aware leaves, and theming with tokens.create and createTheme
+- [CSS primitives](https://typestyles.dev/docs/css-primitives.md): Progressive-disclosure ladder for custom properties — tokens, component vars, scoped properties, and exact-name css.*
+- [Open Props](https://typestyles.dev/docs/open-props.md): Type-safe access to Open Props CSS custom properties
+- [Fonts](https://typestyles.dev/docs/fonts.md): Loading web fonts with global.fontFace, Vite, and Next.js
+- [Keyframes](https://typestyles.dev/docs/keyframes.md): Create CSS animations with type-safe keyframe definitions
+- [Color Helpers](https://typestyles.dev/docs/color.md): Type-safe helpers for CSS color functions
+
+## Advanced Features
+- [Server-Side Rendering](https://typestyles.dev/docs/ssr.md): Render typestyles on the server for better performance and SEO
+- [Class naming](https://typestyles.dev/docs/class-naming.md): Per-instance semantic, hashed, or atomic class names via createTypeStyles; scoped tokens via createTokens
+- [Cascade layers (@layer)](https://typestyles.dev/docs/cascade-layers.md): Opt-in CSS cascade layers for predictable specificity against global CSS
+- [Custom Selectors & At-Rules](https://typestyles.dev/docs/custom-at-rules.md): Using @container, @supports, and other CSS features
+- [End-to-end theming](https://typestyles.dev/docs/theming-end-to-end.md): Build and apply a TypeStyles theme — tokens, createTheme, override, and mount
+- [Theming Patterns](https://typestyles.dev/docs/theming-patterns.md): Light/dark mode, multi-brand theming, and advanced theme strategies
+
+## Guides
+- [Migration Guide](https://typestyles.dev/docs/migration.md): Migrate to typestyles from StyleX, Panda CSS, vanilla-extract, Stitches, and other CSS-in-JS libraries
+- [Style Dictionary & W3C tokens](https://typestyles.dev/docs/style-dictionary.md): Use TypeStyles alongside the W3C Design Tokens Community Group (DTCG) format and Style Dictionary for a design-tool-to-code pipeline
+- [Publishing Packages](https://typestyles.dev/docs/publishing-packages.md): Safe defaults and collision-proof patterns for npm-published libraries using TypeStyles
+- [Best Practices](https://typestyles.dev/docs/best-practices.md): Tips for organizing and maintaining typestyles in your project
+- [Testing](https://typestyles.dev/docs/testing.md): Testing strategies for typestyles components
+- [Testing Design Systems](https://typestyles.dev/docs/testing-design-systems.md): Test harness patterns for design systems and component libraries built on typestyles
+- [Performance](https://typestyles.dev/docs/performance.md): Understanding and optimizing typestyles performance
+- [Benchmarks](https://typestyles.dev/docs/benchmarks.md): Reproducible performance measurements for TypeStyles — CSS generation, file size, runtime injection, SSR collection, and cross-framework comparison
+- [TypeScript Tips](https://typestyles.dev/docs/typescript-tips.md): TypeScript best practices and advanced types for typestyles
+- [Troubleshooting](https://typestyles.dev/docs/troubleshooting.md): Common issues and how to fix them
+
+## Examples
+- [React Integration](https://typestyles.dev/docs/react-integration.md): Using typestyles with React patterns and best practices
+- [Attribute mode (React & Astro)](https://typestyles.dev/docs/attribute-mode-react.md): Spread recipe results onto elements in attribute naming mode without dropping variant attrs
+- [Component Library](https://typestyles.dev/docs/component-library.md): Building a reusable component library with typestyles
+- [Design System](https://typestyles.dev/docs/design-system.md): Building a comprehensive design system using typestyles tokens
+- [Animation Patterns](https://typestyles.dev/docs/animation-patterns.md): Common animation patterns and techniques with typestyles
+
+## Optional
+- [Full documentation bundle](https://typestyles.dev/llms-full.txt): all pages as clean markdown
+- [Documentation index](https://typestyles.dev/docs-index.json): machine-readable doc metadata
+- [Changelog index](https://typestyles.dev/docs/changelog): package and example changelogs
+- [MCP server](https://typestyles.dev/mcp): query docs from coding agents

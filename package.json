@@ -34,6 +34,8 @@
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
     "verify": "vp run ci",
+    "check:single-typestyles": "node scripts/check-single-typestyles.ts",
+    "test:scripts": "vp test run scripts",
     "format": "vp fmt",
     "format:check": "vp fmt --check",
     "changeset": "changeset",

@@ -25,6 +25,10 @@ overrides:
   vite@*: 'catalog:'
   vitest@*: 'catalog:'
   astro>vite: npm:vite@^6.4.1
+  # @var-ui/* hard-depend on a registry typestyles; keep exactly one runtime (the workspace copy).
+  '@var-ui/core>typestyles': 'workspace:*'
+  '@var-ui/astro>typestyles': 'workspace:*'
+  '@var-ui/icons>typestyles': 'workspace:*'
 peerDependencyRules:
   allowAny:
     - vite
@@ -32,3 +36,8 @@ peerDependencyRules:
   allowedVersions:
     vite: '*'
     vitest: '*'
+minimumReleaseAgeExclude:
+  - '@var-ui/core@0.14.0'
+  - '@var-ui/astro@0.14.0'
+  - '@var-ui/docs@0.14.0'
+  - '@var-ui/icons@0.14.0'
