@@ -1,8 +1,8 @@
 # TypeStyles documentation site
 
-Astro site for [typestyles.dev](https://typestyles.dev) — markdown guides, live style demos, design-system kitchen sink, and package changelogs.
+Astro site for [typestyles.dev](https://typestyles.dev) — markdown guides, live style demos, a playground, a kitchen sink of the components the site is built from, and package changelogs.
 
-The site **dogfoods typestyles**: styles live in TypeScript, production builds extract static CSS via `@typestyles/astro`, and interactive pages use `@typestyles/props` plus `@examples/design-system`.
+The site **dogfoods typestyles**: styles live in TypeScript and production builds extract static CSS via `@typestyles/astro`. The chrome (top bar, sidebar, TOC, search, appearance menu, mobile menu, code blocks) comes from the [Var UI](https://github.com/phthalo-dev/var-ui) docs kit (`@var-ui/docs`, `@var-ui/astro`, `@var-ui/core`), which is itself written with typestyles.
 
 ## Run
 
@@ -37,16 +37,16 @@ pnpm lint
 docs/
 ├── content/docs/          # Guide markdown (routes at /docs/<slug>)
 ├── src/
-│   ├── pages/             # Astro routes (home, docs shell, changelog, kitchen sink)
-│   ├── layouts/           # DocsLayout, etc.
-│   ├── components/        # Site chrome, LiveDemo, CodeBlock, search, …
+│   ├── pages/             # Astro routes (home, docs, changelog, playground, kitchen sink)
+│   ├── layouts/           # KitDocsLayout (docs pages), PlaygroundLayout
+│   ├── components/        # KitSiteHead, LiveDemo, Code, DocAiActions, PageFooter, …
 │   ├── demos/             # Live demo modules + registry
-│   ├── styles/            # Site typestyles (nav, doc page, live demo chrome)
-│   ├── lib/               # Markdown pipeline, search index, demo CSS helpers
-│   ├── atoms.ts           # @typestyles/props utilities for layout
-│   ├── tokens.ts          # Docs theme tokens (uses @examples/design-system)
+│   ├── styles/            # Site typestyles (doc page, home, live demo, playground)
+│   ├── lib/               # Markdown pipeline, kitNav, search/MCP/llms outputs, highlighting
+│   ├── scripts/           # Client scripts (install tabs, code-block copy, live demos, AI actions)
+│   ├── atoms.ts           # @typestyles/props utilities (atomic CSS guide)
 │   ├── typestyles-entry.ts  # Extraction entry — import all registrations here
-│   └── navigation.ts      # Sidebar structure
+│   └── navigation.ts      # Sidebar structure (source of truth for the kit sidebar)
 ├── astro.config.mjs       # @typestyles/astro + vite-tsconfig-paths
 └── package.json
 ```
@@ -57,11 +57,50 @@ docs/
 | ------------------------- | ----------------------------------------------------------------------------------------- |
 | `src/typestyles-entry.ts` | Side-effect imports for **`mode: 'build'`** extraction                                    |
 | `astro.config.mjs`        | `@typestyles/astro({ mode: 'build', extract: { modules: ['src/typestyles-entry.ts'] } })` |
-| `src/styles/`             | Site chrome registered via typestyles                                                     |
+| `src/styles/`             | Page styles on `@var-ui/core` tokens (doc frame, home, live demo, playground)             |
 | `src/demos/*.ts`          | Isolated demo styles extracted per-demo for `LiveDemo` previews                           |
-| `@examples/design-system` | Shared tokens, recipes, themes, syntax highlighting                                       |
+| `@var-ui/core/styles`     | Kit component recipes and the default theme (imported by the entry)                       |
+| `@var-ui/docs/styles`     | Kit docs chrome recipes, including the prose used for markdown bodies (`docProseRoot`)    |
 
-Production CSS is emitted as `typestyles.css` and linked from `Head.astro`. Demo previews can inject scoped CSS from individual demo modules (`previewCss` in the registry).
+Production CSS is emitted as `typestyles.css` and linked by the kit (`DocsPage`, `DocsMarketingPage`) or by
+`PlaygroundLayout`. Demo previews can inject scoped CSS from individual demo modules (`previewCss` in the registry).
+
+## Site shell (Var UI docs kit)
+
+| Page                       | Shell                                                                                    |
+| -------------------------- | ---------------------------------------------------------------------------------------- |
+| `/docs/**`, changelog, 404 | `src/layouts/KitDocsLayout.astro` wraps `@var-ui/docs/DocsPage`                          |
+| `/` (home)                 | `@var-ui/docs/DocsMarketingPage`                                                         |
+| `/playground`              | `src/layouts/PlaygroundLayout.astro` composes `AppShell`, `DocsTopBar`, `DocsMobileMenu` |
+
+- **Navigation:** `src/navigation.ts` stays the source of truth. `src/lib/kitNav.ts` maps it to the kit's top nav,
+  sidebar sections and search items (`toKitTopNav`, `toKitSidebarSections`, `toKitSearchItems`).
+- **Content:** pages still render markdown through `getDocBySlug` (`src/lib/docs.ts`), because the `.md` views,
+  `llms.txt`, search index, MCP content, install tabs and live demos all consume that pipeline. Code blocks use the
+  kit's code-block markup with the kit's Shiki design-token theme (`src/lib/shikiTokens.ts`).
+- **Head:** `src/components/KitSiteHead.astro` adds canonical, markdown alternate and llms/MCP links to every page.
+- **Kitchen sink:** `/docs/design-system/kitchen-sink` renders the Var UI components the site uses in one page; check
+  it in light and dark mode after a Var UI bump.
+- **Known kit gaps** and the workaround for each are listed in `specs/varui-docs-site-issues.md` (filed as var-ui#332-#343 and typestyles#391).
+
+## Var UI version pin policy
+
+- `@var-ui/astro`, `@var-ui/core`, `@var-ui/docs` and `@var-ui/icons` are pinned to **exact** versions (no `^`) in
+  `docs/package.json`, all on the same version.
+- Bump them **together with `typestyles`**: Var UI is built on typestyles, so a typestyles release and the Var UI
+  release that supports it move as a pair. If Var UI has not caught up with a new typestyles version yet, leave the
+  Var UI pins where they are (the docs keep building against the workspace `typestyles`) and bump them once Var UI
+  ships a release that supports it.
+- There must be exactly one `typestyles` in the install. `pnpm-workspace.yaml` overrides `@var-ui/core>typestyles`
+  and `@var-ui/astro>typestyles` to the workspace copy, and `pnpm check:single-typestyles` (part of `pnpm verify`)
+  fails if a second copy appears.
+- The overrides also stop pnpm from warning when `typestyles` leaves the range Var UI declares, so the same check
+  prints a prominent **warning** (package, declared range, workspace version) when the workspace `typestyles`
+  version does not satisfy the `typestyles` range of a pinned `@var-ui/*` package. It does not fail `pnpm verify`:
+  the `chore: version packages` PR that moves typestyles to the next 0.x minor must stay releasable, or Var UI could
+  never ship a compatible version. **The docs build is the gate**: if the kit is really incompatible, the build in
+  `pnpm verify` breaks. Run `node scripts/check-single-typestyles.ts --strict-ranges` to make a mismatch fail.
+- After a bump: `pnpm install`, `pnpm verify` (docs build, CI parity and the typestyles range check), then look at the kitchen sink in both colour modes.
 
 ## Adding a documentation page
 
@@ -79,6 +118,24 @@ Production CSS is emitted as `typestyles.css` and linked from `Head.astro`. Demo
 3. Run `pnpm dev` and open `/docs/your-page`.
 
 Guides use a unified markdown pipeline (`src/lib/docs.ts`) with GFM, syntax highlighting, and optional live demo expansion.
+
+## Output parity baseline
+
+`specs/baseline/` records the docs output contract: URL list, heading ids, `llms.txt`, and content hashes of the
+`.md` views, `llms-full.txt`, the docs/search indexes, sitemaps and `.well-known/mcp.json`
+(`docs/scripts/capture-baseline.mts`, comparison in `src/lib/parity.ts`). Changelog views (`/docs/changelog/**`,
+generated from every `CHANGELOG.md`) and `/mcp-content.json` (which embeds the changelogs) are never hashed, so
+release PRs do not touch it. There are two checks, both reading an existing build (`vp run -F "docs..." build`):
+
+- **CI mode**, `vp run -F docs parity:ci`, part of `pnpm verify` (`vp run ci`). Fails only when a URL from the
+  baseline is missing from the build: a deleted or renamed page breaks inbound links. New pages, doc content edits
+  and release PRs pass without a rebaseline; lost heading ids are printed as warnings. If you remove or rename a
+  page on purpose, add a redirect, then run `vp run -F docs parity:update` and commit `specs/baseline/`.
+- **Strict mode**, `vp run -F docs parity`, run by hand for migrations (shell or pipeline rewrites that must not
+  change any output): URL lists must match exactly, no heading id may disappear, and `llms.txt` and every hashed
+  output must be unchanged. HTML markup and CSS are not hashed. To use it, run `vp run -F docs parity:update` on the
+  base branch build first (or check that the committed baseline is current), then build the migration and run
+  `vp run -F docs parity`.
 
 ## Adding a live demo
 
@@ -136,9 +193,11 @@ Updates `content/docs/api-reference.md` from JSDoc in `packages/typestyles`.
 | Dependency                 | Use                                               |
 | -------------------------- | ------------------------------------------------- |
 | `@typestyles/astro`        | Integration wrapper around `@typestyles/vite`     |
-| `@typestyles/props`        | Docs layout utilities (`src/atoms.ts`)            |
+| `@typestyles/props`        | Atomic utilities (`src/atoms.ts`)                 |
 | `@typestyles/build-runner` | Demo CSS extraction in Node (`collectDemoCss.ts`) |
-| `@examples/design-system`  | Tokens, recipes, themes, code highlighting        |
+| `@var-ui/docs`             | Docs shell, prose, code-block and Shiki theme     |
+| `@var-ui/astro`            | Astro components (Button, Menu, Tabs, …)          |
+| `@var-ui/core`             | Tokens, recipes, default theme                    |
 | `typestyles`               | Core styling API                                  |
 
 ## Examples elsewhere in the monorepo
@@ -184,7 +243,7 @@ When editing a guide, use these repos as the source of truth. Paths are relative
 | Class naming                | `/docs/class-naming`     | [`examples/react-design-system`](../examples/react-design-system/README.md) vs [`examples/typewind`](../examples/typewind/README.md)                                                                                                    |
 | Cascade layers              | `/docs/cascade-layers`   | [`examples/design-system`](../examples/design-system/README.md) · [`examples/vite-app/src/site-styles.ts`](../examples/vite-app/src/site-styles.ts)                                                                                     |
 | Custom selectors & at-rules | `/docs/custom-at-rules`  | [`examples/design-system`](../examples/design-system/README.md)                                                                                                                                                                         |
-| Theming patterns            | `/docs/theming-patterns` | [`examples/design-system`](../examples/design-system/README.md) · [`examples/vite-app`](../examples/vite-app/README.md) (Sunset override) · docs [`src/tokens.ts`](./src/tokens.ts)                                                     |
+| Theming patterns            | `/docs/theming-patterns` | [`examples/design-system`](../examples/design-system/README.md) · [`examples/vite-app`](../examples/vite-app/README.md) (Sunset override)                                                                                               |
 
 ### Guides
 
@@ -199,20 +258,21 @@ When editing a guide, use these repos as the source of truth. Paths are relative
 
 ### Examples (doc category)
 
-| Doc page           | Route                      | Example / source                                                                                                  |
-| ------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| React Integration  | `/docs/react-integration`  | [`examples/vite-app`](../examples/vite-app/README.md) · [`examples/next-app`](../examples/next-app/README.md)     |
-| Component Library  | `/docs/component-library`  | [`examples/react-design-system`](../examples/react-design-system/README.md)                                       |
-| Design System      | `/docs/design-system`      | [`examples/design-system`](../examples/design-system/README.md) · kitchen sink `/docs/design-system/kitchen-sink` |
-| Animation Patterns | `/docs/animation-patterns` | [`examples/design-system`](../examples/design-system/README.md) (`designMotion`, keyframes)                       |
+| Doc page           | Route                      | Example / source                                                                                              |
+| ------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| React Integration  | `/docs/react-integration`  | [`examples/vite-app`](../examples/vite-app/README.md) · [`examples/next-app`](../examples/next-app/README.md) |
+| Component Library  | `/docs/component-library`  | [`examples/react-design-system`](../examples/react-design-system/README.md)                                   |
+| Design System      | `/docs/design-system`      | [`examples/design-system`](../examples/design-system/README.md)                                               |
+| Animation Patterns | `/docs/animation-patterns` | [`examples/design-system`](../examples/design-system/README.md) (`designMotion`, keyframes)                   |
 
 ### Docs-only surfaces
 
-| Surface            | Route              | Source                                                                              |
-| ------------------ | ------------------ | ----------------------------------------------------------------------------------- |
-| Documentation site | `/`                | This package — [`docs/README.md`](./README.md)                                      |
-| Live demos         | embedded in guides | [`src/demos/registry.ts`](./src/demos/registry.ts)                                  |
-| Changelog          | `/docs/changelog`  | Package `CHANGELOG.md` files via [`src/lib/changelogs.ts`](./src/lib/changelogs.ts) |
+| Surface            | Route                              | Source                                                                                                                                      |
+| ------------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Documentation site | `/`                                | This package — [`docs/README.md`](./README.md)                                                                                              |
+| Live demos         | embedded in guides                 | [`src/demos/registry.ts`](./src/demos/registry.ts)                                                                                          |
+| Changelog          | `/docs/changelog`                  | Package `CHANGELOG.md` files via [`src/lib/changelogs.ts`](./src/lib/changelogs.ts)                                                         |
+| Kitchen sink       | `/docs/design-system/kitchen-sink` | Var UI components used by the site ([`src/pages/docs/design-system/kitchen-sink.astro`](./src/pages/docs/design-system/kitchen-sink.astro)) |
 
 When you add a doc page that describes runnable code, add a row here and link the guide markdown to the example README (see **Contributing** below).
 

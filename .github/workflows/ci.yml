@@ -43,6 +43,8 @@ jobs:
             docs:
               - 'docs/**'
               - 'packages/**'
+              # Example CHANGELOG.md files feed /docs/changelog/examples/*.
+              - 'examples/**'
               - 'pnpm-lock.yaml'
               - 'package.json'
               - 'pnpm-workspace.yaml'

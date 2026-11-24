@@ -7,21 +7,25 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "parity": "node scripts/capture-baseline.mts --check",
+    "parity:ci": "node scripts/capture-baseline.mts --check --ci",
+    "parity:update": "node scripts/capture-baseline.mts",
     "test": "vp test run",
     "generate:mcp-content": "vp test run --config vitest.generate.config.ts"
   },
   "dependencies": {
-    "@examples/design-system": "workspace:*",
-    "@lucide/astro": "^1.7.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@netlify/functions": "^6.0.0",
     "@typestyles/props": "workspace:*",
     "@typestyles/react": "workspace:^",
+    "@var-ui/astro": "0.14.0",
+    "@var-ui/core": "0.14.0",
+    "@var-ui/docs": "0.14.0",
+    "@var-ui/icons": "0.14.0",
     "astro": "^5.6.1",
     "esbuild-wasm": "^0.28.2",
     "fetch-to-node": "^2.1.0",
     "hast-util-to-text": "^4.0.2",
-    "highlight.js": "^11.11.1",
     "lz-string": "^1.5.0",
     "marked": "^18.1.0",
     "marked-highlight": "^2.2.3",
@@ -30,6 +34,7 @@
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "shiki": "^3.23.0",
     "typestyles": "workspace:*",
     "unified": "^11.0.5",
     "zod": "^4.6.0"
@@ -44,7 +49,7 @@
     "esbuild": "^0.27.3",
     "tsx": "^4.23.13",
     "typescript": "catalog:",
-    "vite-tsconfig-paths": "^6.1.0",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "vite-tsconfig-paths": "^6.1.0"
   }
 }

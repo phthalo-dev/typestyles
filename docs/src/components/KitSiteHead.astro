@@ -1,0 +1,28 @@
+---
+/**
+ * `<head>` additions shared by every kit-shell page (`KitDocsLayout`, home, playground): meta
+ * description, canonical URL, the markdown alternate, and the llms.txt / MCP discovery links. Fonts, favicon, theme and
+ * colour-mode bootstrap come from the kit.
+ */
+type Props = {
+  /** `<meta name="description">`, from the doc's frontmatter `description`. */
+  description?: string;
+  canonicalUrl?: string;
+  /** Sibling `.md` URL for `<link rel="alternate">`. */
+  markdownAlternateUrl?: string;
+};
+
+const { description, canonicalUrl, markdownAlternateUrl } = Astro.props;
+---
+
+{description && <meta name="description" content={description} />}
+{canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+{markdownAlternateUrl && <link rel="alternate" type="text/markdown" href={markdownAlternateUrl} />}
+<link rel="llms-txt" href="/llms.txt" type="text/plain" title="Documentation index for LLMs" />
+<link
+  rel="service-desc"
+  href="/.well-known/mcp.json"
+  type="application/json"
+  title="MCP server discovery"
+/>
+<link rel="service" href="/mcp" title="MCP server" />

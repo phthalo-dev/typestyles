@@ -1,47 +1,25 @@
 ---
-// @ts-nocheck
 /**
- * Starlight-style code block for Astro: pass source as `code` + optional `lang` only.
- * Copy buttons use the same listener setup as Markdown blocks via `attachDocsCodeBlockCopyListeners`
- * (bundled once per page; safe if `CodeBlockCopy` is also in the layout).
+ * Code block for Astro pages: pass source as `code` + optional `lang`. Same markup as fenced
+ * markdown blocks (the kit's `codeBlock` recipe via `markdownCodeBlockHtml`), so it shares their
+ * styling and the delegated copy handler (`attachDocsCodeBlockCopyListeners`, bundled once per page).
  */
-import { codeBlock } from '@examples/design-system';
 import { highlightDocCode } from '../lib/highlightDocCode';
+import { markdownCodeBlockHtml } from '../lib/markdownCodeBlockHtml';
 
 interface Props {
   code: string;
   lang?: string;
-  /** Header label (e.g. filename). Defaults to the highlight language id (`typescript`, `bash`, …). */
+  /** Header label (e.g. filename), shown before the language. */
   headerLabel?: string;
 }
 
-const { code, lang: langProp, headerLabel } = Astro.props;
-const { safeLang, highlighted } = highlightDocCode(code, langProp);
-const headerText = headerLabel?.trim() || safeLang;
+const { code, lang, headerLabel } = Astro.props;
+const { safeLang, highlighted } = highlightDocCode(code, lang);
+const html = markdownCodeBlockHtml(safeLang, highlighted, headerLabel?.trim() || undefined);
 ---
 
-<div class={codeBlock.root} data-codeblock>
-  <div class={codeBlock.header} data-codeblock-header>
-    <div class={codeBlock.title}>
-      <span class={codeBlock.language} data-codeblock-language>{headerText}</span>
-    </div>
-    <div class={codeBlock.actions}>
-      <button
-        type="button"
-        class:list={[codeBlock.copyButton, codeBlock.copyButtonIdle]}
-        data-codeblock-copy
-        data-copy-label="Copy code"
-        data-copied-label="Copied"
-        aria-label="Copy code"
-      >
-        Copy
-      </button>
-    </div>
-  </div>
-  <div class={codeBlock.body} data-codeblock-body>
-    <pre class={codeBlock.pre} data-codeblock-pre><code class:list={['hljs', `language-${safeLang}`, codeBlock.code]} set:html={highlighted}></code></pre>
-  </div>
-</div>
+<Fragment set:html={html} />
 
 <script>
   import { attachDocsCodeBlockCopyListeners } from '../scripts/docsCodeBlockCopy';

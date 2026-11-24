@@ -5,5 +5,5 @@
 import './styles';
 import './demos/components-variants';
 import './demos/theming-light-dark';
-import '@examples/design-system';
-import '@examples/design-system/codeHighlight';
+import '@var-ui/core/styles';
+import '@var-ui/docs/styles';

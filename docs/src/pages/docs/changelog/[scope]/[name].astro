@@ -1,10 +1,10 @@
 ---
 // @ts-nocheck
-import DocsLayout from '../../../../layouts/DocsLayout.astro';
+import KitDocsLayout from '../../../../layouts/KitDocsLayout.astro';
 import PageFooter from '../../../../components/PageFooter.astro';
 import { doc, docProseRoot } from '../../../../styles';
-import { linkButton } from '@examples/design-system';
-import { extractDocHeadings, getAllDocs } from '../../../../lib/docs';
+import { Button } from '@var-ui/astro';
+import { extractDocHeadings } from '../../../../lib/docs';
 import {
   listChangelogRefs,
   loadChangelogPage,
@@ -34,22 +34,19 @@ if (!page) {
   return Astro.redirect('/docs/changelog');
 }
 
-const docs = await getAllDocs();
-const docsBySlug = Object.fromEntries(docs.map((entry) => [entry.slug, entry]));
 const tocHeadings = extractDocHeadings(page.html);
 const path = `/docs/changelog/${scope}/${name}`;
 const editHref = editUrlForChangelogPath(scope, name);
 ---
 
-<DocsLayout
-  docsBySlug={docsBySlug}
-  currentSlug={path}
+<KitDocsLayout
+  currentPath={path}
   title={`${page.title} changelog - typestyles documentation`}
-  tocHeadings={tocHeadings}
+  toc={tocHeadings}
 >
   <article class={doc.root}>
     <p class={doc.eyebrowRow}>
-      <a class={linkButton({ intent: 'ghost' }).className} href="/docs/changelog">← All changelogs</a>
+      <Button href="/docs/changelog" appearance="ghost" size="sm">← All changelogs</Button>
     </p>
     <h1 class={doc.title}>{page.title}</h1>
     <p class={doc.description}>
@@ -58,4 +55,4 @@ const editHref = editUrlForChangelogPath(scope, name);
     <div class:list={[docProseRoot, doc.content]} set:html={page.html} />
     <PageFooter lastModified={page.lastModified} editHref={editHref} />
   </article>
-</DocsLayout>
+</KitDocsLayout>

@@ -1,4 +1,4 @@
-import { applyLiveCodeHighlight } from './highlightLiveCode';
+import { SEGMENTED_CONTROL_CHANGE_EVENT } from '@var-ui/astro';
 
 export type LiveDemoVariantPayload = {
   id: string;
@@ -47,15 +47,21 @@ function setPanelHighlight(
   lang: string,
 ): void {
   if (!container || !code) return;
-  try {
-    applyLiveCodeHighlight(container, code, lang);
-  } catch {
+  const plain = () => {
     const codeEl = container.querySelector('code');
     if (codeEl) codeEl.textContent = code;
-  }
+  };
+  // The highlighter (Shiki grammars, ~130 KB gzip) loads on the first variant switch, not with the page.
+  import('./highlightLiveCode').then(({ applyLiveCodeHighlight }) => {
+    try {
+      applyLiveCodeHighlight(container, code, lang);
+    } catch {
+      plain();
+    }
+  }, plain);
 }
 
-function activateVariant(root: HTMLElement, variantId: string): void {
+function activateVariant(root: HTMLElement, variantId: string, rehighlight = true): void {
   const state = demoState.get(root);
   if (!state) return;
 
@@ -64,10 +70,6 @@ function activateVariant(root: HTMLElement, variantId: string): void {
   if (!variant) return;
 
   const { previewKind } = state;
-
-  for (const btn of root.querySelectorAll<HTMLButtonElement>('[data-live-demo-variant]')) {
-    btn.dataset.active = btn.dataset.liveDemoVariant === variant.id ? 'true' : 'false';
-  }
 
   const preview = root.querySelector<HTMLElement>('[data-live-demo-preview]');
   if (preview) {
@@ -79,6 +81,9 @@ function activateVariant(root: HTMLElement, variantId: string): void {
   if (themeWrap) {
     themeWrap.className = variant.themeClass ?? '';
   }
+
+  // The server already rendered the default variant's panels, highlighted.
+  if (!rehighlight) return;
 
   setPanelHighlight(
     root.querySelector('[data-live-demo-dom]'),
@@ -105,13 +110,14 @@ export function bindLiveDemo(root: HTMLElement): void {
 
   if (root.dataset.liveDemoBound !== 'true') {
     root.dataset.liveDemoBound = 'true';
-    root.addEventListener('click', (event) => {
-      const target = (event.target as HTMLElement).closest<HTMLButtonElement>(
-        '[data-live-demo-variant]',
-      );
-      if (!target || !root.contains(target)) return;
-      const variantId = target.dataset.liveDemoVariant;
-      if (variantId) activateVariant(root, variantId);
+    // Kit `SegmentedControl` (native radios): arrows move and check, the change event carries the id.
+    // Warm the lazy highlighter when the reader reaches for a demo, so the first switch is not laggy.
+    const preload = () => void import('./highlightLiveCode').catch(() => {});
+    root.addEventListener('pointerenter', preload, { once: true });
+    root.addEventListener('focusin', preload, { once: true });
+    root.addEventListener(SEGMENTED_CONTROL_CHANGE_EVENT, (event) => {
+      const id = (event as CustomEvent<{ id: string | null }>).detail?.id;
+      if (id) activateVariant(root, id);
     });
   } else {
     // Re-read bootstrap after View Transitions swap in new JSON payload.
@@ -121,7 +127,7 @@ export function bindLiveDemo(root: HTMLElement): void {
     }
   }
 
-  activateVariant(root, bootstrap.variants[0].id);
+  activateVariant(root, bootstrap.variants[0].id, false);
 }
 
 export function initLiveDemos(): void {

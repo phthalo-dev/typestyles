@@ -4,7 +4,7 @@ import type { LiveDemoModule } from './registry';
 /**
  * Vite-facing facade for the getting-started demo. Style registration lives in
  * `getting-started-button.impl.ts` (build-runner only) so the logical namespace
- * `button` does not clash with `@examples/design-system`.
+ * `button` does not clash with other `button` recipes on the site.
  */
 export { demoSourceCode };
 

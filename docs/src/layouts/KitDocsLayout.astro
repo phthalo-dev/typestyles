@@ -1,0 +1,93 @@
+---
+/**
+ * Site shell from `@var-ui/docs` (`DocsPage`: top bar, sidebar, TOC, mobile menu, search,
+ * appearance menu). The home page uses `DocsMarketingPage` and the playground its own layout
+ * (`PlaygroundLayout`). Page bodies are still rendered by each page (prose from `getDocBySlug`).
+ */
+import DocsPage from '@var-ui/docs/DocsPage';
+import { defaultThemeClassName } from '@var-ui/core';
+import CodeBlockCopy from '../components/CodeBlockCopy.astro';
+import KitSiteHead from '../components/KitSiteHead.astro';
+import type { DocHeading } from '../lib/docs';
+import { toKitSidebarSections, toKitTopNav } from '../lib/kitNav';
+import { getKitSearchItems } from '../lib/kitSearchItems';
+import { docNavigation } from '../navigation';
+import { PACKAGE_MANAGER_STORAGE_KEY } from '../lib/packageManagerStorage';
+
+type Props = {
+  title: string;
+  /** Meta description (doc frontmatter `description`). */
+  description?: string;
+  currentPath: string;
+  /** Headings of the page; the TOC rail shows when there is at least one. */
+  toc?: DocHeading[];
+  canonicalUrl?: string;
+  /** Sibling `.md` URL for `<link rel="alternate">`. */
+  markdownAlternateUrl?: string;
+};
+
+const {
+  title,
+  description,
+  currentPath,
+  toc = [],
+  canonicalUrl,
+  markdownAlternateUrl,
+} = Astro.props;
+
+const topNav = toKitTopNav();
+const sidebarSections = toKitSidebarSections(docNavigation);
+const searchItems = await getKitSearchItems();
+---
+
+<DocsPage
+  title={title}
+  themeClassName={defaultThemeClassName}
+  topNav={topNav}
+  sidebarSections={sidebarSections}
+  searchItems={searchItems}
+  brand={{ heading: 'typestyles', href: '/' }}
+  showToc={toc.length > 0}
+  tocContentSelector="[data-doc-article]"
+>
+  {/* Without a `brand` slot the kit renders an empty brand link (TODO(var-ui#310): fixed upstream; drop once @var-ui/docs is bumped). */}
+  <span slot="brand">typestyles</span>
+  <KitSiteHead
+    slot="head"
+    description={description}
+    canonicalUrl={canonicalUrl}
+    markdownAlternateUrl={markdownAlternateUrl}
+  />
+  <div data-doc-article>
+    <slot />
+  </div>
+  {/*
+    Apply the stored package manager to install tabs before first paint (the module script in
+    `docInstallTabs.ts` runs deferred and also handles clicks, keys and view transitions).
+  */}
+  <script is:inline define:vars={{ storageKey: PACKAGE_MANAGER_STORAGE_KEY }}>
+    (function () {
+      try {
+        var id = localStorage.getItem(storageKey);
+        if (!id) return;
+        document.querySelectorAll('[data-package-install]').forEach(function (root) {
+          var tabs = root.querySelectorAll('[role="tab"]');
+          if (!root.querySelector('[role="tab"][data-package-manager="' + id + '"]')) return;
+          tabs.forEach(function (tab) {
+            var on = tab.getAttribute('data-package-manager') === id;
+            tab.setAttribute('aria-selected', String(on));
+            tab.tabIndex = on ? 0 : -1;
+            var panel = document.getElementById(tab.getAttribute('aria-controls') || '');
+            if (panel) panel.hidden = !on;
+          });
+        });
+      } catch (_) {}
+    })();
+  </script>
+  <CodeBlockCopy />
+</DocsPage>
+
+<script>
+  import { attachDocInstallTabs } from '../scripts/docInstallTabs';
+  attachDocInstallTabs();
+</script>

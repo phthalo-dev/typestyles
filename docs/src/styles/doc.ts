@@ -1,9 +1,23 @@
-import { designTokens as t } from '@examples/design-system';
+import { designTokens as t } from '@var-ui/core';
 import { recipe } from './typestyles';
 
+/**
+ * Page frame for docs articles (kicker, title, description) on Var UI tokens. Markdown bodies use
+ * `docProseRoot` (the kit's `docsArticleProse`) composed with `doc.content`, which adds the
+ * docs-only pieces: heading permalinks and wrapping inline code.
+ */
 export const doc = recipe({
   name: 'docs-doc',
-  slots: ['root', 'eyebrowRow', 'kicker', 'kickerDot', 'title', 'description', 'content'] as const,
+  slots: [
+    'root',
+    'eyebrowRow',
+    'kicker',
+    'kickerDot',
+    'title',
+    'description',
+    'content',
+    'actions',
+  ] as const,
   styles: {
     base: {
       root: {
@@ -11,67 +25,56 @@ export const doc = recipe({
         minWidth: 0,
       },
       eyebrowRow: {
-        marginBottom: t.space[2],
+        marginBottom: t.space.xs.var,
       },
       kicker: {
         display: 'inline-flex',
         alignItems: 'center',
-        gap: t.space[2],
+        gap: t.space.xs.var,
         marginTop: 0,
         marginRight: 0,
-        marginBottom: t.space[3],
+        marginBottom: t.space.sm.var,
         marginLeft: 0,
-        fontFamily: t.fontFamily.mono,
-        fontSize: t.fontSize.xs,
-        fontWeight: t.fontWeight.bold,
-        letterSpacing: '0.1em',
+        fontFamily: t.fontFamily.mono.var,
+        fontSize: t.fontSize.xs.var,
+        fontWeight: t.fontWeight.bold.var,
+        letterSpacing: t.letterSpacing.caps.var,
         textTransform: 'uppercase',
-        color: t.color.text.secondary,
+        color: t.color.text.secondary.var,
       },
       kickerDot: {
         width: '6px',
         height: '6px',
-        backgroundColor: t.color.accent.default,
+        borderRadius: t.radius.full.var,
+        backgroundColor: t.color.tone.accent.foreground.var,
       },
       title: {
-        fontFamily: t.fontFamily.display,
-        fontStyle: 'italic',
+        fontFamily: t.fontFamily.display.var,
         fontSize: 'clamp(2rem, 2.2vw + 1.25rem, 2.75rem)',
-        fontWeight: t.fontWeight.bold,
+        fontWeight: t.fontWeight.bold.var,
         marginTop: 0,
-        marginBottom: t.space[3],
-        color: t.color.text.primary,
-        letterSpacing: '-0.025em',
+        marginBottom: t.space.sm.var,
+        color: t.color.text.primary.var,
+        letterSpacing: '-0.02em',
         lineHeight: 1.1,
         textWrap: 'balance',
-        'html[data-style="ai-glow"] &': {
-          fontStyle: 'normal',
-          letterSpacing: '-0.045em',
-        },
-        'html[data-style="new-wave"] &': {
-          fontStyle: 'normal',
-          textTransform: 'uppercase',
-          letterSpacing: '0.02em',
-        },
-        'html[data-style="windows-95"] &': {
-          fontStyle: 'normal',
-          letterSpacing: 0,
-        },
-        'html[data-style="classic-system"] &': {
-          fontStyle: 'normal',
-          letterSpacing: 0,
-        },
       },
       description: {
-        fontSize: t.fontSize.lg,
-        color: t.color.text.secondary,
+        fontSize: t.fontSize.prose.lead.var,
+        lineHeight: t.lineHeight.prose.lead.var,
+        color: t.color.text.secondary.var,
         marginTop: 0,
-        marginBottom: t.space[6],
-        lineHeight: t.lineHeight.relaxed,
+        marginBottom: t.space.xl.var,
         maxWidth: '60ch',
         textWrap: 'pretty',
       },
       content: {
+        // Long inline code (changelog entries, API signatures) wraps instead of widening the
+        // article past a phone viewport. Code blocks scroll on their own.
+        '& :not(pre) > code': {
+          whiteSpace: 'normal',
+          overflowWrap: 'anywhere',
+        },
         '& [data-codeblock] code': {
           fontFamily: 'inherit',
           fontSize: 'inherit',
@@ -82,61 +85,34 @@ export const doc = recipe({
           borderRadius: 0,
           border: 'none',
         },
-        /** Install tab group (`expandInstallTabGroups`) — tab rail + stacked code blocks */
-        '& [data-doc-install-tabs]': {
-          marginBlock: t.space[6],
+        // Heading permalinks emitted by `withHeadingAnchors()` in `lib/docs.ts`.
+        '& [data-prose-heading-anchor]': {
+          marginInlineStart: t.space.xs.var,
+          fontWeight: t.fontWeight.medium.var,
+          color: t.color.text.secondary.var,
+          textDecoration: 'none',
+          opacity: 0,
+          transition: `opacity ${t.duration.medium.var} ${t.easing.standard.var}`,
         },
-        '& .doc-install-tabs-tablist': {
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: t.space[1],
-          paddingTop: t.space[2],
-          paddingRight: t.space[2],
-          paddingLeft: t.space[2],
-          borderTop: `${t.borderWidth.default} solid ${t.color.border.default}`,
-          borderRight: `${t.borderWidth.default} solid ${t.color.border.default}`,
-          borderLeft: `${t.borderWidth.default} solid ${t.color.border.default}`,
-          borderBottom: 'none',
-          borderTopLeftRadius: t.radius.lg,
-          borderTopRightRadius: t.radius.lg,
-          backgroundColor: t.codeBlock.backgroundHeader,
+        '& [data-prose-heading-anchor]::before': {
+          content: '"#"',
+          fontSize: '0.85em',
         },
-        '& .doc-install-tabs-tab': {
-          appearance: 'none',
-          margin: 0,
-          border: 'none',
-          borderRadius: t.radius.md,
-          paddingBlock: t.space[1],
-          paddingInline: t.space[3],
-          fontFamily: t.fontFamily.mono,
-          fontSize: t.fontSize.xs,
-          fontWeight: t.fontWeight.semibold,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          color: t.color.text.secondary,
-          backgroundColor: 'transparent',
-          cursor: 'pointer',
-          transition: t.transition.colorShift,
-          '&:hover': {
-            color: t.color.text.primary,
-            backgroundColor: t.color.background.subtle,
+        '& :is(h1, h2, h3, h4, h5, h6):hover [data-prose-heading-anchor], & [data-prose-heading-anchor]:focus-visible':
+          {
+            opacity: 1,
           },
+        '& [data-prose-heading-anchor]:focus-visible': {
+          outline: `2px solid ${t.color.border.focus.var}`,
+          outlineOffset: '2px',
+          borderRadius: t.radius.sm.var,
         },
-        '& .doc-install-tabs-tab[aria-selected="true"]': {
-          color: t.color.text.primary,
-          backgroundColor: t.color.background.default,
-          boxShadow: t.shadow.sm,
-        },
-        '& [data-doc-install-tabs] [data-codeblock]': {
-          borderTopLeftRadius: 0,
-          borderTopRightRadius: 0,
-        },
-        '& .doc-install-tabs-panels': {
-          position: 'relative',
-        },
-        '& .doc-install-tabs-panelwrap[hidden]': {
-          display: 'none',
-        },
+      },
+      actions: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: t.space.sm.var,
       },
     },
   },

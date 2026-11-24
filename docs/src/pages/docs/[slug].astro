@@ -1,18 +1,9 @@
 ---
 // @ts-nocheck
-import DocsLayout from '../../layouts/DocsLayout.astro';
-import Alert from '../../components/Alert.astro';
-import Aside from '../../components/Aside.astro';
-import Badge from '../../components/Badge.astro';
-import Card from '../../components/Card.astro';
-import CardGrid from '../../components/CardGrid.astro';
-import LinkCard from '../../components/LinkCard.astro';
-import Steps from '../../components/Steps.astro';
-import FileTree from '../../components/FileTree.astro';
+import KitDocsLayout from '../../layouts/KitDocsLayout.astro';
 import PageFooter from '../../components/PageFooter.astro';
 import Pagination from '../../components/Pagination.astro';
 import { doc, docProseRoot } from '../../styles';
-import { fileTree as fileTreeStyles, linkButton } from '@examples/design-system';
 import LiveDemo from '../../components/LiveDemo.astro';
 import DocAiActions from '../../components/DocAiActions.astro';
 import { extractDocHeadings, getAllDocs, getDocBySlug, getDocNeighbors } from '../../lib/docs';
@@ -33,8 +24,6 @@ if (!slug) {
   return Astro.redirect('/docs');
 }
 
-const docs = await getAllDocs();
-const docsBySlug = Object.fromEntries(docs.map((entry) => [entry.slug, entry]));
 const entry = await getDocBySlug(slug);
 
 if (!entry) {
@@ -52,11 +41,11 @@ const canonicalUrl = docHtmlUrl(slug);
 const markdownUrl = docMarkdownUrl(slug);
 ---
 
-<DocsLayout
-  docsBySlug={docsBySlug}
-  currentSlug={`/docs/${slug}`}
+<KitDocsLayout
+  currentPath={`/docs/${slug}`}
   title={`${entry.title} - typestyles documentation`}
-  tocHeadings={tocHeadings}
+  description={entry.description}
+  toc={tocHeadings}
   canonicalUrl={canonicalUrl}
   markdownAlternateUrl={markdownUrl}
 >
@@ -81,113 +70,12 @@ const markdownUrl = docMarkdownUrl(slug);
     {
       slug === 'component-library' ? (
         <div class:list={[docProseRoot, doc.content]}>
-          <h2>Aside (Starlight-style)</h2>
+          <h2>See also</h2>
           <p>
-            Thin wrapper over the design-system <code>alert</code> styles; use <code>Aside</code> for
-            Starlight-like <code>note</code> / <code>tip</code> / <code>caution</code> /{' '}
-            <code>danger</code> types.
+            The components this site is built from (Var UI buttons, alerts, tabs, code blocks and
+            more) are shown together on the{' '}
+            <a href="/docs/design-system/kitchen-sink">docs kitchen sink</a>.
           </p>
-          <Aside type="note">Neutral context with the default “Note” label.</Aside>
-          <Aside type="tip" title="Pro tip">
-            Optional custom titles still map to the same visual variants.
-          </Aside>
-          <Aside type="caution">Caution maps to the warning palette.</Aside>
-          <Aside type="danger">Danger maps to the danger palette.</Aside>
-
-          <h2>Badge</h2>
-          <p>
-            <Badge>neutral</Badge>{' '}
-            <Badge variant="accent">accent</Badge>{' '}
-            <Badge variant="success">success</Badge>{' '}
-            <Badge variant="warning">warning</Badge>{' '}
-            <Badge variant="danger">danger</Badge>{' '}
-            <Badge variant="tip">tip</Badge>
-          </p>
-
-          <h2>Cards & link card</h2>
-          <CardGrid>
-            <Card title="Card title">
-              Static card body using the <code>card</code> component styles from <code>@examples/design-system</code>.
-            </Card>
-            <LinkCard
-              href="/docs/components"
-              title="Components"
-              description="Model variant-driven UI with styles.component and optional slots."
-            />
-          </CardGrid>
-
-          <h2>Steps</h2>
-          <p>Numbered procedure — pass <code>&lt;li&gt;</code> children in order:</p>
-          <Steps>
-            <li>
-              <p>Install dependencies with your package manager.</p>
-            </li>
-            <li>
-              <p>
-                Register styles in a side-effect entry so build extraction can emit CSS (<code>
-                  typestyles-entry.ts
-                </code>).
-              </p>
-            </li>
-            <li>
-              <p>Run the dev server and open the docs.</p>
-            </li>
-          </Steps>
-
-          <h2>Link button (CTA)</h2>
-          <p>
-            <a class={linkButton({ intent: 'primary' }).className} href="/docs/getting-started">
-              Primary CTA
-            </a>{' '}
-            <a class={linkButton({ intent: 'secondary' }).className} href="/docs/components">
-              Secondary
-            </a>{' '}
-            <a class={linkButton({ intent: 'ghost' }).className} href="/docs/tokens">
-              Ghost
-            </a>
-          </p>
-
-          <h2>File tree</h2>
-          <FileTree>
-            <ul class={fileTreeStyles.list}>
-              <li class={fileTreeStyles.item}>
-                <div class:list={[fileTreeStyles.row, fileTreeStyles.folder]}>src/</div>
-                <ul class={fileTreeStyles.listNested}>
-                  <li class={fileTreeStyles.item}>
-                    <div class:list={[fileTreeStyles.row, fileTreeStyles.file]}>index.ts</div>
-                  </li>
-                  <li class={fileTreeStyles.item}>
-                    <div class:list={[fileTreeStyles.row, fileTreeStyles.file]}>styles.ts</div>
-                  </li>
-                </ul>
-              </li>
-            </ul>
-          </FileTree>
-
-          <h2>Alert / callout (direct)</h2>
-          <p>
-            The docs use the same alert styles as <code>@examples/design-system</code> (see{' '}
-            <code>Alert.astro</code>).
-          </p>
-          <Alert variant="info" title="Info">
-            Use informational callouts for neutral context that supports the main content.
-          </Alert>
-          <Alert variant="tip" title="Tip" actionLabel="Read the components guide" actionHref="/docs/components">
-            Optional action links inherit the callout foreground for solid and subtle modes.
-          </Alert>
-          <Alert variant="warning" title="Warning" appearance="solid">
-            Solid mode uses filled surfaces with foreground colors tuned for contrast in light and dark
-            themes.
-          </Alert>
-          <Alert variant="danger" title="Danger" appearance="subtle">
-            Subtle mode uses tinted backgrounds and a colored title accent.
-          </Alert>
-          <Alert variant="success" title="Success">
-            <span slot="icon" aria-hidden="true">
-              ✓
-            </span>
-            The icon slot is optional; use it for inline SVG or text symbols.
-          </Alert>
         </div>
       ) : null
     }
@@ -195,4 +83,4 @@ const markdownUrl = docMarkdownUrl(slug);
     <PageFooter lastModified={entry.lastModified} editHref={editHref} />
     <Pagination prev={neighbors.prev} next={neighbors.next} />
   </article>
-</DocsLayout>
+</KitDocsLayout>

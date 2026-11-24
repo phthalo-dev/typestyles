@@ -1,6 +1,6 @@
 ---
 // @ts-nocheck
-import { linkButton } from '@examples/design-system';
+import { Button, Menu } from '@var-ui/astro';
 import { docAiActions } from '../styles/docAiActions';
 
 type Props = {
@@ -8,30 +8,30 @@ type Props = {
 };
 
 const { markdownUrl } = Astro.props;
-const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(`Read ${markdownUrl} so we can discuss it`)}`;
-const chatGptUrl = `https://chatgpt.com/?q=${encodeURIComponent(`Read ${markdownUrl} so we can discuss it`)}`;
+const prompt = encodeURIComponent(`Read ${markdownUrl} so we can discuss it`);
+const claudeUrl = `https://claude.ai/new?q=${prompt}`;
+const chatGptUrl = `https://chatgpt.com/?q=${prompt}`;
 ---
 
 <div class={docAiActions.root} data-doc-ai-actions data-md-url={markdownUrl}>
-  <button type="button" class:list={[linkButton({ intent: 'ghost' }).className, docAiActions.button]} data-doc-copy-md>
-    Copy as Markdown
-  </button>
-  <a class:list={[linkButton({ intent: 'ghost' }).className, docAiActions.button]} href={markdownUrl}>
-    View as Markdown
-  </a>
-  <details class={docAiActions.menu}>
-    <summary class:list={[linkButton({ intent: 'ghost' }).className, docAiActions.button, docAiActions.menuSummary]}>
-      Open in AI
-    </summary>
-    <div class={docAiActions.menuPanel} role="menu">
-      <a class={docAiActions.menuItem} href={claudeUrl} target="_blank" rel="noopener noreferrer">
-        Open in Claude
-      </a>
-      <a class={docAiActions.menuItem} href={chatGptUrl} target="_blank" rel="noopener noreferrer">
-        Open in ChatGPT
-      </a>
-    </div>
-  </details>
+  <Button size="sm" tone="neutral" appearance="outline" data-doc-copy-md>Copy as Markdown</Button>
+  <Button size="sm" tone="neutral" appearance="outline" href={markdownUrl}>View as Markdown</Button>
+  <Menu
+    triggerLabel="Open in AI"
+    menuLabel="Open this page in an AI assistant"
+    size="sm"
+    tone="neutral"
+    appearance="outline"
+    placement="bottom start"
+    sections={[
+      {
+        items: [
+          { id: 'open-claude', label: 'Open in Claude', href: claudeUrl },
+          { id: 'open-chatgpt', label: 'Open in ChatGPT', href: chatGptUrl },
+        ],
+      },
+    ]}
+  />
 </div>
 
 <script>

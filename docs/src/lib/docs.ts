@@ -2,7 +2,6 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { Marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
-import { proseContent } from '@examples/design-system';
 import { docNavigation } from '../navigation';
 import { highlightDocCode } from './highlightDocCode';
 import { markdownCodeBlockHtml } from './markdownCodeBlockHtml';
@@ -31,7 +30,7 @@ const docsDir = new URL('../../content/docs', import.meta.url);
 
 const marked = new Marked(
   markedHighlight({
-    langPrefix: 'hljs language-',
+    langPrefix: 'language-',
     highlight(code, lang) {
       return highlightDocCode(code, lang).highlighted;
     },
@@ -39,10 +38,10 @@ const marked = new Marked(
 );
 
 function wrapCodeBlocks(html: string): string {
-  // Marked emits <pre><code class="hljs language-xyz">…</code></pre> for fenced blocks.
+  // Marked emits <pre><code class="language-xyz">…</code></pre> for fenced blocks.
   // We wrap that structure so the docs site can share framework-agnostic code block styles.
   return html.replace(
-    /<pre><code class="hljs language-([^"]*)">([\s\S]*?)<\/code><\/pre>/g,
+    /<pre><code class="language-([^"]*)">([\s\S]*?)<\/code><\/pre>/g,
     (_match, lang: string, highlighted: string) => {
       const safeLang = (lang || 'text').toLowerCase();
       return markdownCodeBlockHtml(safeLang, highlighted);
@@ -77,11 +76,9 @@ function slugifyHeading(text: string): string {
   return s || 'section';
 }
 
-/** Permalink control for h1–h6; pairs with `proseContent` heading anchor styles. */
+/** Permalink control for h1–h6; styled by `doc.content` (`[data-prose-heading-anchor]`). */
 function withHeadingAnchors(html: string): string {
   const slugCounts = new Map<string, number>();
-  const anchorClass = proseContent.headingAnchor;
-
   return html.replace(
     /<h([1-6])([^>]*)>([\s\S]*?)<\/h\1>/gi,
     (_full, level: string, attrs: string, inner: string) => {
@@ -99,7 +96,7 @@ function withHeadingAnchors(html: string): string {
         if (n > 0) id = `${base}-${n + 1}`;
         openAttrs = attrs.trim() ? `${attrs} id="${id}"` : ` id="${id}"`;
       }
-      const anchor = `<a href="#${id}" class="${anchorClass}" data-prose-heading-anchor="true" aria-label="Link to this heading"></a>`;
+      const anchor = `<a href="#${id}" data-prose-heading-anchor="true" aria-label="Link to this heading"></a>`;
       return `<h${level}${openAttrs}>${inner}${anchor}</h${level}>`;
     },
   );

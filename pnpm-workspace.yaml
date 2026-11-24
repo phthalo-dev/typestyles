@@ -25,6 +25,13 @@ overrides:
   vite@*: 'catalog:'
   vitest@*: 'catalog:'
   astro>vite: npm:vite@^6.4.1
+  # TODO(var-ui#332): drop these overrides once core and astro peer-depend on typestyles.
+  # @var-ui/core and @var-ui/astro hard-depend on a registry typestyles; keep exactly one runtime
+  # (the workspace copy). @var-ui/docs peer-depends on it and @var-ui/icons does not use it.
+  # Overrides silence pnpm's range check: `pnpm check:single-typestyles` warns when the workspace
+  # version leaves an @var-ui package's declared typestyles range (the docs build is the gate).
+  '@var-ui/core>typestyles': 'workspace:*'
+  '@var-ui/astro>typestyles': 'workspace:*'
 peerDependencyRules:
   allowAny:
     - vite
@@ -32,3 +39,10 @@ peerDependencyRules:
   allowedVersions:
     vite: '*'
     vitest: '*'
+# TODO: remove these entries once @var-ui/*@0.14.0 is older than minimumReleaseAge
+# (published 2026-11-23; they only bypass the release-age gate for that one version).
+minimumReleaseAgeExclude:
+  - '@var-ui/core@0.14.0'
+  - '@var-ui/astro@0.14.0'
+  - '@var-ui/docs@0.14.0'
+  - '@var-ui/icons@0.14.0'

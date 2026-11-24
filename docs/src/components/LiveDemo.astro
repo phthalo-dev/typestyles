@@ -1,8 +1,10 @@
 ---
 // @ts-nocheck
-import { codeBlock } from '@examples/design-system';
+import { SegmentedControl, mergeProps } from '@var-ui/astro';
+import { stage } from '@var-ui/core';
 import { resolveLiveDemo } from '../lib/resolveLiveDemo';
 import { highlightDocCode } from '../lib/highlightDocCode';
+import { markdownCodeBlockHtml } from '../lib/markdownCodeBlockHtml';
 import { liveDemo } from '../styles/liveDemo';
 
 interface Props {
@@ -24,12 +26,19 @@ const domDisplay =
 const defaultUsageCode = defaultVariant.usageCode ?? usageCode;
 const defaultUsageLang = defaultVariant.usageLang ?? usageLang;
 
-const { safeLang, highlighted } = highlightDocCode(code, spec.codeLang);
-const usageHighlight = defaultUsageCode
-  ? highlightDocCode(defaultUsageCode, defaultUsageLang)
+function panel(source: string, lang: string, filename?: string): string {
+  const { safeLang, highlighted } = highlightDocCode(source, lang);
+  return markdownCodeBlockHtml(safeLang, highlighted, filename);
+}
+
+const sourcePanel = panel(code, spec.codeLang, spec.headerLabel);
+const usagePanel = defaultUsageCode
+  ? panel(defaultUsageCode, defaultUsageLang, usageLabel || undefined)
   : null;
-const domHighlight = highlightDocCode(domDisplay, 'xml');
-const cssHighlight = highlightDocCode(defaultVariant.css, 'css');
+const domPanel = panel(domDisplay, 'xml', 'DOM');
+const cssPanel = panel(defaultVariant.css, 'css', 'Emitted CSS');
+const stageProps = mergeProps(stage({ fade: 'radial' }), liveDemo.preview);
+const options = variants.map((v) => ({ value: v.id, label: v.label }));
 ---
 
 <section
@@ -45,27 +54,20 @@ const cssHighlight = highlightDocCode(defaultVariant.css, 'css');
     <div class={liveDemo.headerText}>
       <p class={liveDemo.title}>{spec.title}</p>
       <p class={liveDemo.caption}>
-        Read-only live output. Toggle variants to see the preview, DOM classes, and emitted CSS
+        Read-only live output. Choose a variant to see the preview, DOM classes, and emitted CSS
         update together.
       </p>
     </div>
-    <div class={liveDemo.variantList} role="group" aria-label="Demo variants">
-      {
-        variants.map((variant, index) => (
-          <button
-            type="button"
-            class={liveDemo.variantButton}
-            data-live-demo-variant={variant.id}
-            data-active={index === 0 ? 'true' : 'false'}
-          >
-            {variant.label}
-          </button>
-        ))
-      }
-    </div>
+    {/* TODO(var-ui#342): the kit default `name` is random; pass one for deterministic HTML. */}
+    <SegmentedControl
+      size="sm"
+      name={`live-demo-${id}`}
+      options={options}
+      aria-label="Demo variants"
+    />
   </div>
 
-  <div class={liveDemo.preview}>
+  <div {...stageProps}>
     {
       spec.preview === 'button' ? (
         <button
@@ -90,61 +92,12 @@ const cssHighlight = highlightDocCode(defaultVariant.css, 'css');
     }
   </div>
 
-  <div class={liveDemo.section}>
-    <p class={liveDemo.sectionLabel}>
-      Source <span class={liveDemo.sectionFile}>· {spec.headerLabel}</span>
-    </p>
-    <div class={liveDemo.codeShell} data-codeblock>
-      <pre class={codeBlock.pre} data-codeblock-pre>
-        <code class:list={['hljs', `language-${safeLang}`, codeBlock.code]} set:html={highlighted} />
-      </pre>
-    </div>
-  </div>
-
-  {
-    usageHighlight && (
-      <div class={liveDemo.section}>
-        <p class={liveDemo.sectionLabel}>
-          Usage {usageLabel && <span class={liveDemo.sectionFile}>· {usageLabel}</span>}
-        </p>
-        <div
-          class={liveDemo.codeShell}
-          data-codeblock
-          data-live-demo-usage
-        >
-          <pre class={codeBlock.pre} data-codeblock-pre>
-            <code
-              class:list={['hljs', `language-${usageHighlight.safeLang}`, codeBlock.code]}
-              set:html={usageHighlight.highlighted}
-            />
-          </pre>
-        </div>
-      </div>
-    )
-  }
-
-  <div class={liveDemo.detailsGrid}>
-    <div class={liveDemo.detailSection}>
-      <p class={liveDemo.sectionLabel}>DOM</p>
-      <div class:list={[liveDemo.codeShell, liveDemo.outputShell]} data-codeblock data-live-demo-dom>
-        <pre class={codeBlock.pre} data-codeblock-pre>
-          <code
-            class:list={['hljs', `language-${domHighlight.safeLang}`, codeBlock.code]}
-            set:html={domHighlight.highlighted}
-          />
-        </pre>
-      </div>
-    </div>
-    <div class={liveDemo.detailSection}>
-      <p class={liveDemo.sectionLabel}>Emitted CSS</p>
-      <div class:list={[liveDemo.codeShell, liveDemo.outputShell]} data-codeblock data-live-demo-css>
-        <pre class={codeBlock.pre} data-codeblock-pre>
-          <code
-            class:list={['hljs', `language-${cssHighlight.safeLang}`, codeBlock.code]}
-            set:html={cssHighlight.highlighted}
-          />
-        </pre>
-      </div>
+  <div class={liveDemo.panels}>
+    <div class={liveDemo.panel} set:html={sourcePanel} />
+    {usagePanel && <div class={liveDemo.panel} data-live-demo-usage set:html={usagePanel} />}
+    <div class={liveDemo.detailsGrid}>
+      <div class={liveDemo.panel} data-live-demo-dom set:html={domPanel} />
+      <div class={liveDemo.panel} data-live-demo-css set:html={cssPanel} />
     </div>
   </div>
 </section>

@@ -1,11 +1,16 @@
 ---
+/**
+ * Home page on the kit's marketing shell (`DocsMarketingPage`: top bar, search, appearance menu,
+ * mobile menu; no sidebar or TOC). `bleed`: `home.page` owns the gutters.
+ */
+import DocsMarketingPage from '@var-ui/docs/DocsMarketingPage';
+import { Button } from '@var-ui/astro';
+import { defaultThemeClassName } from '@var-ui/core';
 import { home } from '../styles';
-import DocsLayout from '../layouts/DocsLayout.astro';
 import Code from '../components/Code.astro';
-import { getAllDocs } from '../lib/docs';
-
-const docs = await getAllDocs();
-const docsBySlug = Object.fromEntries(docs.map((doc) => [doc.slug, { slug: doc.slug, title: doc.title }]));
+import KitSiteHead from '../components/KitSiteHead.astro';
+import { toKitTopNav } from '../lib/kitNav';
+import { getKitSearchItems } from '../lib/kitSearchItems';
 
 const heroSample = `import { createTypeStyles } from 'typestyles';
 
@@ -45,211 +50,224 @@ export const card = recipe('card', {
 .card-legacy { padding: var(--spacing-md); }`;
 
 const frameworks = ['Vite', 'Next.js', 'Astro', 'Rollup'];
+
+const topNav = toKitTopNav();
+const searchItems = await getKitSearchItems();
 ---
 
-<DocsLayout docsBySlug={docsBySlug} hideDesktopSidebar mainVariant="landing">
-  <div class={home.hero}>
-    <div class={home.heroGrid} aria-hidden="true"></div>
-    <div class={home.heroInner}>
-      <div class={home.heroTop}>
-        <div class={home.heroCopy}>
-          <p class={home.eyebrow}>
-            <span class={home.eyebrowDot} aria-hidden="true"></span>
-            v0.5 &nbsp;·&nbsp; Apache 2.0 &nbsp;·&nbsp; Zero runtime
-          </p>
-          <h1 class={home.title}>
-            Styles that live in TypeScript, but behave like <span class={home.titleAccent}>real CSS</span>
-          </h1>
-          <p class={home.subtitle}>
-            Typed variants, design tokens as CSS variables, and predictable class names — without
-            locking you into a proprietary runtime or unreadable hashes in the DOM.
-          </p>
+<DocsMarketingPage
+  title="typestyles - CSS-in-TypeScript"
+  themeClassName={defaultThemeClassName}
+  topNav={topNav}
+  searchItems={searchItems}
+  brand={{ heading: 'typestyles', href: '/' }}
+  bleed
+>
+  {/* Without a `brand` slot the kit renders an empty brand link (TODO(var-ui#310): fixed upstream; drop once @var-ui/docs is bumped). */}
+  <span slot="brand">typestyles</span>
+  <KitSiteHead slot="head" />
+  <div class={home.page}>
+    <div class={home.hero}>
+      <div class={home.heroGrid} aria-hidden="true"></div>
+      <div class={home.heroInner}>
+        <div class={home.heroTop}>
+          <div class={home.heroCopy}>
+            <p class={home.eyebrow}>
+              <span class={home.eyebrowDot} aria-hidden="true"></span>
+              v0.5 &nbsp;·&nbsp; Apache 2.0 &nbsp;·&nbsp; Zero runtime
+            </p>
+            <h1 class={home.title}>
+              Styles that live in TypeScript, but behave like <span class={home.titleAccent}>real CSS</span>
+            </h1>
+            <p class={home.subtitle}>
+              Typed variants, design tokens as CSS variables, and predictable class names — without
+              locking you into a proprietary runtime or unreadable hashes in the DOM.
+            </p>
 
-          <div class={home.installChip} data-codeblock aria-label="Install TypeStyles">
-            <pre class={home.installChipPre}><code>npm i typestyles</code></pre>
-            <button
-              type="button"
-              class={home.installChipCopy}
-              data-codeblock-copy
-              data-copy-label="Copy install command"
-              data-copied-label="Copied"
-              aria-label="Copy install command"
-            >
-              Copy
-            </button>
+            <div class={home.installChip} data-codeblock aria-label="Install TypeStyles">
+              <pre class={home.installChipPre}><code>npm i typestyles</code></pre>
+              <button
+                type="button"
+                class={home.installChipCopy}
+                data-codeblock-copy
+                data-copy-label="Copy install command"
+                data-copied-label="Copied"
+                aria-label="Copy install command"
+              >
+                Copy
+              </button>
+            </div>
+
+            <div class={home.actions}>
+              <Button href="/docs/getting-started" tone="accent" appearance="solid" size="lg">
+                Get started
+                <span aria-hidden="true">&rarr;</span>
+              </Button>
+              <Button
+                href="https://github.com/phthalo-dev/typestyles"
+                appearance="outline"
+                size="lg"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span class={home.ghIcon} aria-hidden="true">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+                    ></path>
+                  </svg>
+                </span>
+                GitHub
+              </Button>
+            </div>
+
+            <p class={home.metaRow} aria-label="Quick facts">
+              <span>No runtime deps</span>
+              <span class={home.metaDivider} aria-hidden="true"></span>
+              <span>Tree-shakable ESM</span>
+              <span class={home.metaDivider} aria-hidden="true"></span>
+              <span>Works with {frameworks.join(' · ')}</span>
+            </p>
           </div>
-
-          <div class={home.actions}>
-            <a href="/docs/getting-started" class={home.cta}>
-              Get started
-              <span aria-hidden="true">&rarr;</span>
-            </a>
-            <a
-              href="https://github.com/phthalo-dev/typestyles"
-              class={home.ctaSecondary}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span class={home.ghIcon} aria-hidden="true">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
-                  ></path>
-                </svg>
-              </span>
-              GitHub
-            </a>
+          <div class={home.codeExampleWrap}>
+            <Code code={heroSample} lang="typescript" headerLabel="button.ts" />
           </div>
-
-          <p class={home.metaRow} aria-label="Quick facts">
-            <span>No runtime deps</span>
-            <span class={home.metaDivider} aria-hidden="true"></span>
-            <span>Tree-shakable ESM</span>
-            <span class={home.metaDivider} aria-hidden="true"></span>
-            <span>Works with {frameworks.join(' · ')}</span>
-          </p>
         </div>
-        <div class={home.codeExampleWrap}>
+      </div>
+    </div>
+
+    <section class:list={[home.section, home.sectionDense]} aria-labelledby="benefits-heading">
+      <header class={home.sectionHead}>
+        <p class={home.sectionKicker}>Why TypeStyles</p>
+        <h2 id="benefits-heading" class={home.sectionTitle}>CSS ergonomics with TypeScript rigor</h2>
+        <p class={home.sectionLead}>
+          Most CSS-in-JS forces a tradeoff: readable output or great types. TypeStyles is built around
+          CSS primitives — variables, layers, selectors — so your styles stay inspectable and your API
+          stays strict.
+        </p>
+      </header>
+
+      <div class={home.benefitStack}>
+        <article class={home.benefitHero}>
+          <div class={home.benefitHeroCopy}>
+            <h3 class={home.benefitHeroTitle}>Class names you can actually read</h3>
+            <p class={home.benefitHeroText}>
+              Variants compile to predictable, hyphenated selectors that mirror what you author.
+              Open DevTools and you’ll see <code>button button--intent-primary</code>, not
+              <code>_1g8a3b2</code>. No more archeology; no more guessing which style came from where.
+            </p>
+          </div>
+          <div class={home.classPreview} aria-label="Example compiled class names">
+            <p class={home.classPreviewLabel}>In the DOM</p>
+            <span class={home.classPreviewLine}>&lt;button class=<span class={home.classPreviewToken}>"button button--intent-primary"</span>&gt;</span>
+            <span class={home.classPreviewLine}>&lt;button class=<span class={home.classPreviewToken}>"button button--intent-ghost"</span>&gt;</span>
+            <span class={home.classPreviewLine}>&lt;div class=<span class={home.classPreviewToken}>"card card--tone-warning"</span>&gt;</span>
+          </div>
+        </article>
+
+        <div class={home.benefitRow}>
+          <article class={home.benefitCard}>
+            <p class={home.benefitNumber}>01 — Tokens</p>
+            <h3 class={home.benefitTitle}>Design tokens as CSS variables</h3>
+            <p class={home.benefitText}>
+              Tokens compile to real custom properties on the cascade, so legacy stylesheets and
+              third-party CSS can consume the same values — one source of truth across the stack.
+            </p>
+          </article>
+          <article class={home.benefitCard}>
+            <p class={home.benefitNumber}>02 — Adoption</p>
+            <h3 class={home.benefitTitle}>Incremental by default</h3>
+            <p class={home.benefitText}>
+              Ship TypeStyles beside existing CSS and frameworks. Colocate or split files, adopt one
+              component at a time, and mix with global styles without an all-or-nothing migration.
+            </p>
+          </article>
+          <article class={home.benefitCard}>
+            <p class={home.benefitNumber}>03 — Zero runtime</p>
+            <h3 class={home.benefitTitle}>Static CSS in production</h3>
+            <p class={home.benefitText}>
+              Bundler plugins for Vite, Next.js, Rollup, esbuild, and webpack extract styles at build
+              time into a plain <code>.css</code> file. No runtime injection, no <code>&lt;style&gt;</code>
+              tags — just cached CSS. Use the runtime in dev for instant HMR.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class={home.section} aria-labelledby="tokens-heading">
+      <div class={home.split}>
+        <div class:list={[home.splitProseFirst]}>
+          <header class={home.sectionHead}>
+            <p class={home.sectionKicker}>Tokens</p>
+            <h2 id="tokens-heading" class={home.sectionTitle}>One definition, every runtime surface</h2>
+            <p class={home.sectionLead}>
+              Tokens become standard custom properties, so TypeStyles, plain CSS, and even static assets
+              can agree on spacing, color, and type scales — including nested theme overrides when you
+              need them.
+            </p>
+          </header>
+          <ul class={home.proseList}>
+            <li>Theming via scoped class surfaces — swap full visual styles without rewiring components.</li>
+            <li>Autocomplete and literal types on token references inside your style objects.</li>
+            <li>Interop with hand-written stylesheets during long migrations.</li>
+          </ul>
+        </div>
+        <div class:list={[home.splitMediaSecond, home.codeExampleWrap]}>
+          <Code code={tokenSample} lang="typescript" headerLabel="tokens + legacy CSS" />
+        </div>
+      </div>
+    </section>
+
+    <section class={home.section} aria-labelledby="workflow-heading">
+      <div class={home.split}>
+        <div class:list={[home.splitMediaFirst, home.codeExampleWrap]}>
           <Code code={heroSample} lang="typescript" headerLabel="button.ts" />
         </div>
+        <div class:list={[home.splitProseSecond]}>
+          <header class={home.sectionHead}>
+            <p class={home.sectionKicker}>Workflow</p>
+            <h2 id="workflow-heading" class={home.sectionTitle}>From single file to design system</h2>
+            <p class={home.sectionLead}>
+              Keep styles beside components for speed, or extract shared definitions when patterns
+              stabilize. The API stays the same: callable style objects, destructurable classes, and
+              composition helpers that scale with your codebase.
+            </p>
+          </header>
+          <ul class={home.proseList}>
+            <li>Components are callable for props-driven class lists and destructurable for granular control.</li>
+            <li>Shared utilities like <code>cx()</code> merge internal and external classes safely.</li>
+            <li>Works with Vite, Next.js, Rollup, and Astro — pick the integration that matches your app.</li>
+          </ul>
+        </div>
       </div>
-    </div>
-  </div>
+      <div class={home.integrations}>
+        {frameworks.map((name) => <span class={home.integrationChip}>{name}</span>)}
+      </div>
+    </section>
 
-  <section class:list={[home.section, home.sectionDense]} aria-labelledby="benefits-heading">
-    <header class={home.sectionHead}>
-      <p class={home.sectionKicker}>Why TypeStyles</p>
-      <h2 id="benefits-heading" class={home.sectionTitle}>CSS ergonomics with TypeScript rigor</h2>
-      <p class={home.sectionLead}>
-        Most CSS-in-JS forces a tradeoff: readable output or great types. TypeStyles is built around
-        CSS primitives — variables, layers, selectors — so your styles stay inspectable and your API
-        stays strict.
+    <section class={home.ctaBand} aria-labelledby="cta-heading">
+      <h2 id="cta-heading" class={home.ctaBandTitle}>Build the design system you actually want to maintain</h2>
+      <p class={home.ctaBandLead}>
+        Start with one component, keep your CSS mental model, and let TypeScript catch mistakes before
+        they ship.
       </p>
-    </header>
-
-    <div class={home.benefitStack}>
-      <article class={home.benefitHero}>
-        <div class={home.benefitHeroCopy}>
-          <h3 class={home.benefitHeroTitle}>Class names you can actually read</h3>
-          <p class={home.benefitHeroText}>
-            Variants compile to predictable, hyphenated selectors that mirror what you author.
-            Open DevTools and you’ll see <code>button button--intent-primary</code>, not
-            <code>_1g8a3b2</code>. No more archeology; no more guessing which style came from where.
-          </p>
-        </div>
-        <div class={home.classPreview} aria-label="Example compiled class names">
-          <p class={home.classPreviewLabel}>In the DOM</p>
-          <span class={home.classPreviewLine}>&lt;button class=<span class={home.classPreviewToken}>"button button--intent-primary"</span>&gt;</span>
-          <span class={home.classPreviewLine}>&lt;button class=<span class={home.classPreviewToken}>"button button--intent-ghost"</span>&gt;</span>
-          <span class={home.classPreviewLine}>&lt;div class=<span class={home.classPreviewToken}>"card card--tone-warning"</span>&gt;</span>
-        </div>
-      </article>
-
-      <div class={home.benefitRow}>
-        <article class={home.benefitCard}>
-          <p class={home.benefitNumber}>01 — Tokens</p>
-          <h3 class={home.benefitTitle}>Design tokens as CSS variables</h3>
-          <p class={home.benefitText}>
-            Tokens compile to real custom properties on the cascade, so legacy stylesheets and
-            third-party CSS can consume the same values — one source of truth across the stack.
-          </p>
-        </article>
-        <article class={home.benefitCard}>
-          <p class={home.benefitNumber}>02 — Adoption</p>
-          <h3 class={home.benefitTitle}>Incremental by default</h3>
-          <p class={home.benefitText}>
-            Ship TypeStyles beside existing CSS and frameworks. Colocate or split files, adopt one
-            component at a time, and mix with global styles without an all-or-nothing migration.
-          </p>
-        </article>
-        <article class={home.benefitCard}>
-          <p class={home.benefitNumber}>03 — Zero runtime</p>
-          <h3 class={home.benefitTitle}>Static CSS in production</h3>
-          <p class={home.benefitText}>
-            Bundler plugins for Vite, Next.js, Rollup, esbuild, and webpack extract styles at build
-            time into a plain <code>.css</code> file. No runtime injection, no <code>&lt;style&gt;</code>
-            tags — just cached CSS. Use the runtime in dev for instant HMR.
-          </p>
-        </article>
+      <div class={home.ctaBandActions}>
+        <Button href="/docs/getting-started" tone="accent" appearance="solid" size="lg">
+          Read the docs
+          <span aria-hidden="true">&rarr;</span>
+        </Button>
+        <Button href="/docs/framework-comparison" appearance="outline" size="lg">
+          Compare approaches
+        </Button>
       </div>
-    </div>
-  </section>
-
-  <section class={home.section} aria-labelledby="tokens-heading">
-    <div class={home.split}>
-      <div class:list={[home.splitProseFirst]}>
-        <header class={home.sectionHead}>
-          <p class={home.sectionKicker}>Tokens</p>
-          <h2 id="tokens-heading" class={home.sectionTitle}>One definition, every runtime surface</h2>
-          <p class={home.sectionLead}>
-            Tokens become standard custom properties, so TypeStyles, plain CSS, and even static assets
-            can agree on spacing, color, and type scales — including nested theme overrides when you
-            need them.
-          </p>
-        </header>
-        <ul class={home.proseList}>
-          <li>Theming via scoped class surfaces — swap full visual styles without rewiring components.</li>
-          <li>Autocomplete and literal types on token references inside your style objects.</li>
-          <li>Interop with hand-written stylesheets during long migrations.</li>
-        </ul>
-      </div>
-      <div class:list={[home.splitMediaSecond, home.codeExampleWrap]}>
-        <Code code={tokenSample} lang="typescript" headerLabel="tokens + legacy CSS" />
-      </div>
-    </div>
-  </section>
-
-  <section class={home.section} aria-labelledby="workflow-heading">
-    <div class={home.split}>
-      <div class:list={[home.splitMediaFirst, home.codeExampleWrap]}>
-        <Code code={heroSample} lang="typescript" headerLabel="button.ts" />
-      </div>
-      <div class:list={[home.splitProseSecond]}>
-        <header class={home.sectionHead}>
-          <p class={home.sectionKicker}>Workflow</p>
-          <h2 id="workflow-heading" class={home.sectionTitle}>From single file to design system</h2>
-          <p class={home.sectionLead}>
-            Keep styles beside components for speed, or extract shared definitions when patterns
-            stabilize. The API stays the same: callable style objects, destructurable classes, and
-            composition helpers that scale with your codebase.
-          </p>
-        </header>
-        <ul class={home.proseList}>
-          <li>Components are callable for props-driven class lists and destructurable for granular control.</li>
-          <li>Shared utilities like <code>cx()</code> merge internal and external classes safely.</li>
-          <li>Works with Vite, Next.js, Rollup, and Astro — pick the integration that matches your app.</li>
-        </ul>
-      </div>
-    </div>
-    <div class={home.integrations}>
-      {frameworks.map((name) => <span class={home.integrationChip}>{name}</span>)}
-    </div>
-  </section>
-
-  <section class={home.ctaBand} aria-labelledby="cta-heading">
-    <h2 id="cta-heading" class={home.ctaBandTitle}>Build the design system you actually want to maintain</h2>
-    <p class={home.ctaBandLead}>
-      Start with one component, keep your CSS mental model, and let TypeScript catch mistakes before
-      they ship.
-    </p>
-    <div class={home.ctaBandActions}>
-      <a href="/docs/getting-started" class={home.cta}>
-        Read the docs
-        <span aria-hidden="true">&rarr;</span>
-      </a>
-      <a
-        href="/docs/framework-comparison"
-        class={home.ctaSecondary}
-      >
-        Compare approaches
-      </a>
-    </div>
-  </section>
-</DocsLayout>
+    </section>
+  </div>
+</DocsMarketingPage>
