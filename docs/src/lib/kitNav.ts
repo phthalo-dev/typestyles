@@ -47,12 +47,28 @@ function bodyWords(body: string): Set<string> {
 const MIN_BODY_WORD_LENGTH = 4;
 /** Words found in more than this share of pages do not tell pages apart. */
 const MAX_BODY_WORD_PAGE_SHARE = 0.5;
+/** Longer tokens are generated identifiers or encoded data, not search terms. */
+const MAX_BODY_WORD_LENGTH = 24;
+/**
+ * Body terms kept per page, rarest first. Every page inlines every page's terms (the kit has no
+ * lazy index), so this bounds the per-page HTML cost.
+ */
+export const MAX_BODY_TERMS_PER_PAGE = 40;
+
+function isSearchTerm(word: string): boolean {
+  return (
+    word.length >= MIN_BODY_WORD_LENGTH &&
+    word.length <= MAX_BODY_WORD_LENGTH &&
+    // hashes, base64 and hex-ish junk
+    (word.match(/[0-9]/g)?.length ?? 0) < 3
+  );
+}
 
 /**
  * Command-palette rows from the `search-index.json` data. The kit palette searches `title`,
  * `meta`, `keywords` and `headings` only (no body field, see specs/varui-docs-site-issues.md), so
- * each page's distinctive body words go into `keywords` after its category: a word that appears
- * only in the body still finds the page. Multi-word phrases match only within title, description
+ * each page's distinctive body words go into `keywords` after its category: its rarest words
+ * (capped per page) still find the page. Multi-word phrases match only within title, description
  * or headings.
  */
 export function toKitSearchItems(index: readonly SearchIndexItem[]): DocsSearchItem[] {
@@ -64,12 +80,14 @@ export function toKitSearchItems(index: readonly SearchIndexItem[]): DocsSearchI
 
   return index.map((entry, i) => {
     const own = [entry.title, entry.description ?? '', ...entry.headings].join(' ').toLowerCase();
-    const bodyTerms = [...words[i]].filter(
-      (word) =>
-        word.length >= MIN_BODY_WORD_LENGTH &&
-        (pageCount.get(word) ?? 0) <= maxPages &&
-        !own.includes(word),
-    );
+    const bodyTerms = [...words[i]]
+      .filter(
+        (word) =>
+          isSearchTerm(word) && (pageCount.get(word) ?? 0) <= maxPages && !own.includes(word),
+      )
+      // Rarest first (stable: ties keep first-occurrence order), then cap.
+      .sort((a, b) => (pageCount.get(a) ?? 0) - (pageCount.get(b) ?? 0))
+      .slice(0, MAX_BODY_TERMS_PER_PAGE);
     return {
       id: entry.slug,
       title: entry.title,

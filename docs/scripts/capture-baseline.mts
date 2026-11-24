@@ -5,6 +5,10 @@
  * docs/search indexes, sitemaps, MCP content). HTML bodies are not hashed: shell changes
  * may alter them, but must not alter any of the hashed outputs.
  *
+ * Doc content edits change the hashed outputs: after any intended change, run
+ * `vp run -F docs build && vp run -F docs parity:update` and commit `specs/baseline/`
+ * (`vp run ci` runs `vp run -F docs parity` and fails on drift).
+ *
  * Usage (after `vp run -F "docs..." build`):
  *   node docs/scripts/capture-baseline.mts            write specs/baseline/
  *   node docs/scripts/capture-baseline.mts --check    compare dist against specs/baseline/

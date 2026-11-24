@@ -70,11 +70,24 @@ Repo for all items: `phthalo-dev/var-ui` (packages are `@var-ui/*` 0.14.0). Not 
   `searchIndexUrl` returning items with a `body` field that is fetched on first open and matched after the existing
   fields (ranked below headings), or a documented `isMatch`/result-provider hook.
 - **Workaround (no kit DOM changes):** `toKitSearchItems()` in `docs/src/lib/kitNav.ts` puts each page's
-  distinctive body words in `keywords`. These are words of 4+ characters that appear in at most half of the pages
-  and are not already in the title, description or headings. A word that appears only in a page body finds that
-  page again. Limits: multi-word body phrases do not match, because the kit matches the whole query against each
-  field. Each page's HTML also grows by about 120 KB raw (about 36 KB gzipped), because every page inlines the
-  terms of all pages. Remove when the kit has a lazy index.
+  rarest body words in `keywords`, at most 40 per page (`MAX_BODY_TERMS_PER_PAGE`). A word qualifies if it has
+  4–24 characters and fewer than 3 digits (drops hashes and encoded junk), appears in at most half of the pages,
+  and is not already in the title, description or headings. Words are ordered by how few pages contain them.
+- **Cost (every page inlines every page's terms):** measured on the built site, the palette JSON is:
+
+  | Variant            | Raw      | Gzip    | Tokens page raw / gzip | Fonts page raw / gzip |
+  | ------------------ | -------- | ------- | ---------------------- | --------------------- |
+  | No body terms      | 39.6 KB  | 9.4 KB  | ~149 KB / –            | –                     |
+  | Uncapped (round 1) | 158.7 KB | 46.7 KB | 268.0 KB / 65.5 KB     | 212.2 KB / 57.3 KB    |
+  | Capped at 40 (now) | 59.3 KB  | 17.0 KB | 168.7 KB / 35.5 KB     | 112.9 KB / 27.3 KB    |
+
+  The body terms now cost about 20 KB raw and 7.6 KB gzip per page, down from about 119 KB and 37 KB.
+
+- **Recall trade-off:** there are 1,560 body terms in total, down from 11,028. Of the 2,232 words that occur
+  in exactly one page body, 1,239 (56%) are kept. Pages with more than 40 such words keep the first 40 in body
+  order. A word shared by two to half of the pages is kept only while the page has room. Multi-word body phrases
+  never match. Titles, descriptions, categories and h2/h3 headings are searched in full, as before.
+  Remove all of this when the kit has a lazy index.
 
 ## 9. Colour mode key differs between kit shell and the old playground shell
 

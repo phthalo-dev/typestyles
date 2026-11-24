@@ -80,6 +80,14 @@ Production CSS is emitted as `typestyles.css` and linked from `Head.astro`. Demo
 
 Guides use a unified markdown pipeline (`src/lib/docs.ts`) with GFM, syntax highlighting, and optional live demo expansion.
 
+## Output parity baseline
+
+`pnpm verify` (`vp run ci`) builds the docs and runs `vp run -F docs parity`, which compares `dist/` with
+`specs/baseline/`: URL list, heading ids, `llms.txt`, and content hashes of the `.md` views, `llms-full.txt`,
+the docs/search indexes, sitemaps and MCP content. **Any doc content edit (or other intended output change)
+changes those hashes**: after it, run `vp run -F docs build && vp run -F docs parity:update` and commit
+`specs/baseline/` with the change.
+
 ## Adding a live demo
 
 Live demos show **authored code + emitted CSS + rendered preview** on doc pages.

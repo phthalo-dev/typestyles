@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { docNavigation } from '../navigation';
 import { matchCommandItem } from '@var-ui/core/shared/commandSearch';
-import { toKitSearchItems, toKitSidebarSections, toKitTopNav } from './kitNav';
+import {
+  MAX_BODY_TERMS_PER_PAGE,
+  toKitSearchItems,
+  toKitSidebarSections,
+  toKitTopNav,
+} from './kitNav';
 
 describe('toKitSidebarSections', () => {
   const sections = toKitSidebarSections(docNavigation);
@@ -133,5 +138,57 @@ describe('toKitSidebarSections guards', () => {
         categories: [{ title: 'X', slug: 'x', items: [{ title: 'Broken' }] }],
       }),
     ).toThrow(/Broken/);
+  });
+});
+
+describe('toKitSearchItems body term budget', () => {
+  const row = (slug: string, body: string) => ({
+    slug: `/docs/${slug}`,
+    title: slug,
+    categoryTitle: 'Guides',
+    headings: [],
+    body,
+  });
+  // `shared` is in 2 of 4 pages (allowed); `common` is in 3 of 4 (over half: excluded).
+  const index = [
+    row('a', 'common shared alpha'),
+    row('b', 'common shared bravo'),
+    row('c', 'common charlie'),
+    row('d', 'delta'),
+  ];
+  const terms = (slug: string, items = toKitSearchItems(index)) =>
+    items.find((item) => item.id === `/docs/${slug}`)?.keywords?.slice(1) ?? [];
+
+  it('excludes words found in more than half of the pages, keeps words in half', () => {
+    expect(terms('a')).toEqual(expect.arrayContaining(['alpha', 'shared']));
+    expect(terms('a')).not.toContain('common');
+    expect(terms('c')).not.toContain('common');
+  });
+
+  it('caps each page at the rarest words and keeps the rarest body-only word', () => {
+    const many = Array.from(
+      { length: 120 },
+      (_, i) => `term${String.fromCharCode(97 + (i % 26))}${i}`,
+    );
+    const pages = [
+      row('big', [...many, 'uniqueword'].join(' ')),
+      // every `many` word also appears on one other page; `uniqueword` is only on `big`
+      row('other', many.join(' ')),
+      row('x', 'filler'),
+      row('y', 'filler'),
+    ];
+    const big = terms('big', toKitSearchItems(pages));
+    expect(big.length).toBe(MAX_BODY_TERMS_PER_PAGE);
+    expect(big[0]).toBe('uniqueword');
+    const found = toKitSearchItems(pages).filter((i) => matchCommandItem(i, 'uniqueword'));
+    expect(found.map((i) => i.id)).toEqual(['/docs/big']);
+  });
+
+  it('drops very long identifiers and digit-heavy junk', () => {
+    const items = toKitSearchItems([
+      row('j', 'averyveryverylongidentifiernameforsure abc12345def qmzx9a8b7 normalword'),
+      row('k', 'other'),
+    ]);
+    expect(terms('j', items)).toEqual(['normalword']);
   });
 });
