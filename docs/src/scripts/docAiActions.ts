@@ -1,4 +1,6 @@
 /**
+ * TODO(var-ui#341): drop once Menu items support target/rel.
+ *
  * The kit `Menu` renders `href` items as plain same-tab links (no `target` / `rel` option), so
  * external assistant links get them here.
  */

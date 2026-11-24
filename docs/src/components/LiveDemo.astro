@@ -58,6 +58,7 @@ const options = variants.map((v) => ({ value: v.id, label: v.label }));
         update together.
       </p>
     </div>
+    {/* TODO(var-ui#342): the kit default `name` is random; pass one for deterministic HTML. */}
     <SegmentedControl
       size="sm"
       name={`live-demo-${id}`}

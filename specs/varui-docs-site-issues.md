@@ -1,7 +1,7 @@
 # Issues found while moving the typestyles docs onto the Var UI docs kit
 
-Status: **not filed**. Each entry below is ready to become one GitHub issue. Versions: `@var-ui/*@0.14.0`,
-workspace `typestyles`. After filing, replace the "Workaround" paths' comments with `TODO(var-ui#N)` references.
+Status: **filed** (V1-V7 = var-ui#332-#338, V9-V13 = var-ui#339-#343, T1 = typestyles#391; V8 was already fixed upstream as var-ui#310). Each entry below became one GitHub issue. Versions: `@var-ui/*@0.14.0`,
+workspace `typestyles`. Workaround comments in the code now carry `TODO(var-ui#N)` references.
 
 Severity: **high** = wrong output or a second runtime; **medium** = real cost or a hand-rolled copy of kit code;
 **low** = polish or docs.

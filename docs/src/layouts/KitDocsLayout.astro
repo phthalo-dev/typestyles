@@ -50,7 +50,7 @@ const searchItems = await getKitSearchItems();
   showToc={toc.length > 0}
   tocContentSelector="[data-doc-article]"
 >
-  {/* Without a `brand` slot the kit renders an empty brand link (kit gap, see issues file). */}
+  {/* Without a `brand` slot the kit renders an empty brand link (TODO(var-ui#310): fixed upstream; drop once @var-ui/docs is bumped). */}
   <span slot="brand">typestyles</span>
   <KitSiteHead
     slot="head"

@@ -10,7 +10,7 @@ import { generateMcpContentIntegration } from './integrations/generateMcpContent
 /**
  * `varDocs()` registers its own `@typestyles/vite` extractor for the same entry and the same
  * `typestyles.css`. We keep `AstroTypestyles` below (explicit `mode: 'build'`) as the only
- * extractor, so drop the kit's copy. See specs/varui-docs-site-issues.md.
+ * extractor, so drop the kit's copy. TODO(var-ui#333): remove once varDocs() can skip its extractor.
  */
 function keepSingleTypestylesExtractor() {
   return {

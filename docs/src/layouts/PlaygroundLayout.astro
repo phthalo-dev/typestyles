@@ -4,6 +4,7 @@
  * `DocsMobileMenu` as every docs page, in an `AppShell` whose content fills the viewport (no
  * sidebar, TOC or page padding: the editor and preview own the space). Built like Var UI's own
  * playground layout (`DocsPage`/`DocsMarketingPage` would add a scrolling, padded main column).
+ * TODO(var-ui#338): replace with a kit tool-page layout; TODO(var-ui#343): kit pages lack initial-scale=1.
  *
  * Colour mode comes from the kit's `ThemeScript` (`theme-mode` key, `data-color-mode` on
  * `<html>`), shared with the docs pages. Playground internals are unchanged.
@@ -61,7 +62,7 @@ const currentPath = normalizeDocsPath(Astro.url.pathname);
         brand={brand}
         currentPath={currentPath}
       >
-        {/* Without a `brand` slot the kit renders an empty brand link (kit gap, see issues file). */}
+        {/* Without a `brand` slot the kit renders an empty brand link (TODO(var-ui#310): fixed upstream; drop once @var-ui/docs is bumped). */}
         <span slot="brand">typestyles</span>
       </DocsTopBar>
       <DocsMobileMenu slot="mobileNav" topNav={topNav} currentPath={currentPath} brand={brand}>

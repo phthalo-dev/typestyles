@@ -25,6 +25,7 @@ overrides:
   vite@*: 'catalog:'
   vitest@*: 'catalog:'
   astro>vite: npm:vite@^6.4.1
+  # TODO(var-ui#332): drop these overrides once core and astro peer-depend on typestyles.
   # @var-ui/core and @var-ui/astro hard-depend on a registry typestyles; keep exactly one runtime
   # (the workspace copy). @var-ui/docs peer-depends on it and @var-ui/icons does not use it.
   # Overrides silence pnpm's range check: `pnpm check:single-typestyles` warns when the workspace

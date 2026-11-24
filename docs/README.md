@@ -81,7 +81,7 @@ Production CSS is emitted as `typestyles.css` and linked by the kit (`DocsPage`,
 - **Head:** `src/components/KitSiteHead.astro` adds canonical, markdown alternate and llms/MCP links to every page.
 - **Kitchen sink:** `/docs/design-system/kitchen-sink` renders the Var UI components the site uses in one page; check
   it in light and dark mode after a Var UI bump.
-- **Known kit gaps** and the workaround for each are listed in `specs/varui-docs-site-issues.md`.
+- **Known kit gaps** and the workaround for each are listed in `specs/varui-docs-site-issues.md` (filed as var-ui#332-#343 and typestyles#391).
 
 ## Var UI version pin policy
 

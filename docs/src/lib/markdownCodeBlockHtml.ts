@@ -1,3 +1,4 @@
+// TODO(var-ui#336): drop this copy once the kit stops duplicating the source in data-var-ui-code.
 import { codeBlockMarkup } from '@var-ui/core';
 import { svg as copySvg } from '@var-ui/icons/glyphs/copy';
 import { escapeHtml } from './shikiTokens';

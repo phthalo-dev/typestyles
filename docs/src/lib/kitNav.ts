@@ -66,7 +66,7 @@ function isSearchTerm(word: string): boolean {
 
 /**
  * Command-palette rows from the `search-index.json` data. The kit palette searches `title`,
- * `meta`, `keywords` and `headings` only (no body field, see specs/varui-docs-site-issues.md), so
+ * `meta`, `keywords` and `headings` only (no body field, TODO(var-ui#334)), so
  * each page's distinctive body words go into `keywords` after its category: its rarest words
  * (capped per page) still find the page. Multi-word phrases match only within title, description
  * or headings.

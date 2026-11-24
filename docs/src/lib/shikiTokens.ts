@@ -3,6 +3,8 @@ import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
 import { designTokenShikiTheme } from '@var-ui/docs/shiki';
 
 /**
+ * TODO(var-ui#335): replace with a kit export once one exists.
+ *
  * Synchronous Shiki highlighter with the kit's design-token theme (`color.code.*`), so code
  * colours follow the active Var UI theme and colour mode through CSS variables (no per-mode HTML).
  *

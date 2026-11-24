@@ -1,4 +1,6 @@
 /**
+ * TODO(var-ui#337): replace with a kit markup helper and an exported initPackageInstall.
+ *
  * Install tabs from `expandInstallTabGroups` (kit `PackageInstall` structure). Delegated so View
  * Transitions keep working. Behaviour mirrors the kit's `initPackageInstall`: the chosen manager is
  * shared by every install block and remembered across visits (same storage key), and the tablist
