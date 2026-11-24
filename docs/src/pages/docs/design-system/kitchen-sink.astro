@@ -1,118 +1,230 @@
 ---
-// @ts-nocheck
+/**
+ * Kitchen sink of the Var UI components this docs site is built from (`@var-ui/astro`,
+ * `@var-ui/core`, `@var-ui/docs`), plus the site's own pieces built on them (install tabs, code
+ * blocks, live demo). Useful for checking a Var UI bump in both colour modes. Every component here
+ * keeps its own styles inside prose (the kit's prose rules sit in a lower layer).
+ */
 import KitDocsLayout from '../../../layouts/KitDocsLayout.astro';
-import Alert from '../../../components/Alert.astro';
-import Aside from '../../../components/Aside.astro';
-import Badge from '../../../components/Badge.astro';
-import Card from '../../../components/Card.astro';
-import CardGrid from '../../../components/CardGrid.astro';
+import {
+  Accordion,
+  AccordionItem,
+  Alert,
+  Badge,
+  Banner,
+  Button,
+  Card,
+  Chip,
+  Kbd,
+  Menu,
+  ProgressBar,
+  SegmentedControl,
+  Spinner,
+  StatusDot,
+  Steps,
+  Tabs,
+} from '@var-ui/astro';
 import Code from '../../../components/Code.astro';
-import FileTree from '../../../components/FileTree.astro';
-import LinkCard from '../../../components/LinkCard.astro';
-import Steps from '../../../components/Steps.astro';
+import LiveDemo from '../../../components/LiveDemo.astro';
 import { doc, docProseRoot } from '../../../styles';
-import { fileTree as fileTreeStyles, linkButton } from '@examples/design-system';
+import { renderDocBodyToHtml } from '../../../lib/docs';
 
+const tones = ['neutral', 'accent', 'success', 'warning', 'danger', 'info'] as const;
+
+/** Rendered through the markdown pipeline, as on every docs page (install tabs, headings). */
+const markdownHtml = renderDocBodyToHtml(`## Install tabs
+
+Markdown pages wrap install commands in a \`doc-install-tabs\` comment pair; the chosen package
+manager is remembered and shared across pages.
+
+<!-- doc-install-tabs -->
+
+\`\`\`bash
+pnpm add typestyles @typestyles/vite
+\`\`\`
+
+\`\`\`bash
+npm install typestyles @typestyles/vite
+\`\`\`
+
+\`\`\`bash
+yarn add typestyles @typestyles/vite
+\`\`\`
+
+<!-- /doc-install-tabs -->
+
+## Live demo
+
+Pages embed demos with a \`doc-live-demo\` comment. The preview, DOM and CSS panels follow the
+selected variant.
+`);
+
+const sampleCode = `import { createTypeStyles } from 'typestyles';
+
+const { recipe } = createTypeStyles({ scopeId: 'app' });
+
+export const button = recipe('button', {
+  base: { padding: '8px 16px', borderRadius: '6px' },
+  variants: {
+    intent: {
+      primary: { backgroundColor: '#0066ff', color: '#ffffff' },
+      ghost: { backgroundColor: 'transparent', color: '#0066ff' },
+    },
+  },
+});`;
 ---
 
 <KitDocsLayout
   currentPath="/docs/design-system/kitchen-sink"
-  title="Astro Design System Kitchen Sink - typestyles documentation"
+  title="Docs Kitchen Sink - typestyles documentation"
 >
   <article class={doc.root}>
-    <h1 class={doc.title}>Astro Design System Kitchen Sink</h1>
+    <h1 class={doc.title}>Docs kitchen sink</h1>
     <p class={doc.description}>
-      A single page that renders all current Astro design-system components used in this docs site.
+      The Var UI components this documentation site is built from, on one page. Switch the colour
+      mode in the appearance menu to check both themes.
     </p>
 
     <div class:list={[docProseRoot, doc.content]}>
-      <h2>Alert</h2>
-      <Alert variant="info" title="Info">
-        Informational callout with subtle appearance.
-      </Alert>
-      <Alert variant="tip" title="Tip" actionLabel="Read component docs" actionHref="/docs/component-library">
-        Tip with optional action link.
-      </Alert>
-      <Alert variant="warning" appearance="solid" title="Warning">
-        Solid warning surface for higher emphasis.
-      </Alert>
-      <Alert variant="danger" title="Danger">
-        <span slot="icon" aria-hidden="true">!</span>
-        Danger alert with icon slot content.
-      </Alert>
-
-      <h2>Aside</h2>
-      <Aside type="note">Aside note variant.</Aside>
-      <Aside type="tip">Aside tip variant.</Aside>
-      <Aside type="caution">Aside caution variant.</Aside>
-      <Aside type="danger">Aside danger variant.</Aside>
-
-      <h2>Badge</h2>
       <p>
-        <Badge>neutral</Badge>{' '}
-        <Badge variant="accent">accent</Badge>{' '}
-        <Badge variant="success">success</Badge>{' '}
-        <Badge variant="warning">warning</Badge>{' '}
-        <Badge variant="danger">danger</Badge>{' '}
-        <Badge variant="tip">tip</Badge>
+        The shell (top bar, sidebar, table of contents, search, appearance menu, mobile menu) is
+        <code>@var-ui/docs</code>. Page content uses <code>@var-ui/astro</code> components styled by
+        <code>@var-ui/core</code> recipes, which are written with typestyles.
       </p>
 
-      <h2>Card, CardGrid, and LinkCard</h2>
-      <CardGrid>
-        <Card title="Card title">Simple card body content.</Card>
-        <LinkCard
+      <h2>Button</h2>
+      <p data-not-prose class={doc.actions}>
+        <Button tone="accent" appearance="solid">Solid accent</Button>
+        <Button appearance="outline">Outline</Button>
+        <Button appearance="subtle">Subtle</Button>
+        <Button appearance="ghost">Ghost</Button>
+        <Button tone="danger" appearance="solid">Danger</Button>
+        <Button href="/docs/getting-started" tone="accent" appearance="outline" size="sm">
+          Link button
+        </Button>
+        <Button appearance="outline" disabled>Disabled</Button>
+      </p>
+
+      <h2>Alert</h2>
+      <Alert tone="info" title="Info">
+        Neutral context that supports the main content.
+      </Alert>
+      <Alert tone="success" title="Success" action={{ href: '/docs/components', label: 'Read the components guide' }}>
+        An alert can carry one action link.
+      </Alert>
+      <Alert tone="warning" appearance="solid" title="Warning">
+        Solid appearance for higher emphasis.
+      </Alert>
+      <Alert tone="danger" appearance="outline" title="Danger">
+        Outline appearance.
+      </Alert>
+
+      <h2>Banner</h2>
+      <Banner tone="accent" title="New release">
+        Page-level announcements use a banner.
+      </Banner>
+
+      <h2>Badge, chip and status dot</h2>
+      <p data-not-prose class={doc.actions}>
+        {tones.map((tone) => <Badge tone={tone}>{tone}</Badge>)}
+      </p>
+      <p data-not-prose class={doc.actions}>
+        {tones.map((tone) => <Chip tone={tone}>{tone}</Chip>)}
+      </p>
+      <p data-not-prose class={doc.actions}>
+        {tones.map((tone) => <StatusDot tone={tone} aria-label={tone} />)}
+      </p>
+
+      <h2>Card</h2>
+      <div data-not-prose class={doc.actions}>
+        <Card title="Card title" description="Static card with a title and description." />
+        <Card
           href="/docs/components"
           title="Components"
-          description="Go to the component system guide."
-          hint="Open guide ->"
+          description="Model variant-driven UI with recipes and slots."
+          hint="Open guide →"
         />
-      </CardGrid>
+      </div>
 
       <h2>Steps</h2>
       <Steps>
-        <li>
-          <p>Install typestyles and the related packages.</p>
-        </li>
-        <li>
-          <p>Import your component styles in your app entry.</p>
-        </li>
-        <li>
-          <p>Compose components and theme tokens in pages.</p>
-        </li>
+        <li>Install typestyles and a bundler plugin.</li>
+        <li>Import your styles from a side-effect entry so build extraction can emit CSS.</li>
+        <li>Compose recipes and tokens in your pages.</li>
       </Steps>
 
-      <h2>FileTree</h2>
-      <FileTree>
-        <ul class={fileTreeStyles.list}>
-          <li class={fileTreeStyles.item}>
-            <div class:list={[fileTreeStyles.row, fileTreeStyles.folder]}>src/</div>
-            <ul class={fileTreeStyles.listNested}>
-              <li class={fileTreeStyles.item}>
-                <div class:list={[fileTreeStyles.row, fileTreeStyles.file]}>components/</div>
-              </li>
-              <li class={fileTreeStyles.item}>
-                <div class:list={[fileTreeStyles.row, fileTreeStyles.file]}>styles.ts</div>
-              </li>
-            </ul>
-          </li>
-        </ul>
-      </FileTree>
+      <h2>Tabs</h2>
+      <Tabs
+        id="kitchen-sink-tabs"
+        tabs={[
+          { value: 'tokens', label: 'Tokens' },
+          { value: 'recipes', label: 'Recipes' },
+          { value: 'globals', label: 'Globals' },
+        ]}
+      >
+        <p slot="tokens">Design tokens become CSS custom properties.</p>
+        <p slot="recipes">Recipes turn variants into readable class names.</p>
+        <p slot="globals">Global rules, font faces and resets.</p>
+      </Tabs>
 
-      <h2>Code</h2>
-      <Code
-        lang="ts"
-        code={`import { button } from '@examples/design-system';
+      <h2>Segmented control</h2>
+      <div data-not-prose>
+        <SegmentedControl
+          name="kitchen-sink-segmented"
+          aria-label="Density"
+          options={[
+            { value: 'compact', label: 'Compact' },
+            { value: 'balanced', label: 'Balanced' },
+            { value: 'spacious', label: 'Spacious' },
+          ]}
+          defaultValue="balanced"
+        />
+      </div>
 
-const classes = button({ tone: 'primary', size: 'md' });
-console.log(classes.root);`}
-      />
+      <h2>Menu</h2>
+      <div data-not-prose>
+        <Menu
+          triggerLabel="Choose a package"
+          size="sm"
+          sections={[
+            {
+              items: [
+                { id: 'typestyles', label: 'typestyles' },
+                { id: 'vite', label: '@typestyles/vite' },
+                { id: 'next', label: '@typestyles/next' },
+              ],
+            },
+          ]}
+        />
+      </div>
 
-      <h2>Link button classes</h2>
+      <h2>Accordion</h2>
+      <Accordion>
+        <AccordionItem id="kitchen-sink-accordion-1" title="Does typestyles need a runtime?">
+          <p>No. With a bundler plugin the CSS is extracted at build time.</p>
+        </AccordionItem>
+        <AccordionItem id="kitchen-sink-accordion-2" title="Can I use cascade layers?">
+          <p>Yes. Pass <code>layers</code> to <code>createTypeStyles</code>.</p>
+        </AccordionItem>
+      </Accordion>
+
+      <h2>Progress and loading</h2>
+      <div data-not-prose class={doc.actions}>
+        <Spinner label="Loading" />
+        <ProgressBar value={64} label="Build" />
+      </div>
+
+      <h2>Keyboard keys and inline code</h2>
       <p>
-        <a class={linkButton({ intent: 'primary' }).className} href="/docs/getting-started">Primary</a>{' '}
-        <a class={linkButton({ intent: 'secondary' }).className} href="/docs/component-library">Secondary</a>{' '}
-        <a class={linkButton({ intent: 'ghost' }).className} href="/docs/tokens">Ghost</a>
+        Open search with <Kbd>⌘</Kbd> <Kbd>K</Kbd>. Inline code such as <code>createTypeStyles</code>
+        wraps on narrow screens.
       </p>
+
+      <h2>Code block</h2>
+      <Code lang="ts" code={sampleCode} />
+
+      <Fragment set:html={markdownHtml} />
     </div>
+    <LiveDemo id="components-variants" />
   </article>
 </KitDocsLayout>
