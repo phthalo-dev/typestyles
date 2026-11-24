@@ -1,6 +1,11 @@
-import { designTokens as t } from '@examples/design-system';
+import { designTokens as t } from '@var-ui/core';
 import { recipe } from './typestyles';
 
+/**
+ * Layout for the live demo frame. Chrome comes from the kit: `SegmentedControl` (variants), `stage`
+ * (preview surface, applied in `LiveDemo.astro`) and `codeBlock` markup (every code panel). Only
+ * the two preview elements below are demo content: their classes are replaced per variant.
+ */
 export const liveDemo = recipe({
   name: 'docs-live-demo',
   slots: [
@@ -9,93 +14,58 @@ export const liveDemo = recipe({
     'headerText',
     'title',
     'caption',
-    'variantList',
-    'variantButton',
     'preview',
     'previewButton',
     'previewCard',
-    'section',
-    'sectionLabel',
-    'sectionFile',
+    'panels',
+    'panel',
     'detailsGrid',
-    'detailSection',
-    'codeShell',
-    'outputShell',
   ] as const,
   styles: {
     base: {
       root: {
-        marginTop: t.space[6],
-        marginBottom: t.space[8],
+        display: 'flex',
+        flexDirection: 'column',
+        gap: t.space.sm.var,
+        marginBlock: `${t.space.lg.var} ${t.space.xl.var}`,
         minWidth: 0,
-        border: `1px solid ${t.color.border.default}`,
-        borderRadius: t.radius.lg,
-        overflow: 'hidden',
-        backgroundColor: t.color.surface.default,
       },
       header: {
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
-        gap: t.space[3],
-        padding: `${t.space[4]} ${t.space[4]} ${t.space[3]}`,
-        borderBottom: `1px solid ${t.color.border.default}`,
-        backgroundColor: t.color.surface.sunken,
+        gap: t.space.sm.var,
       },
       headerText: {
         display: 'flex',
         flexDirection: 'column',
-        gap: t.space[1],
+        gap: t.space.xxs.var,
         minWidth: 0,
         flex: '1 1 12rem',
       },
       title: {
         margin: 0,
-        fontSize: t.fontSize.sm,
-        fontWeight: t.fontWeight.semibold,
-        color: t.color.text.primary,
+        fontSize: t.fontSize.sm.var,
+        fontWeight: t.fontWeight.semibold.var,
+        color: t.color.text.primary.var,
       },
       caption: {
         margin: 0,
-        fontSize: t.fontSize.xs,
+        fontSize: t.fontSize.xs.var,
         lineHeight: 1.45,
-        color: t.color.text.secondary,
+        color: t.color.text.secondary.var,
         maxWidth: '42ch',
-      },
-      variantList: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: t.space[2],
-        flexShrink: 0,
-      },
-      variantButton: {
-        padding: `${t.space[1]} ${t.space[3]}`,
-        fontSize: t.fontSize.xs,
-        fontWeight: t.fontWeight.medium,
-        border: `1px solid ${t.color.border.default}`,
-        borderRadius: t.radius.md,
-        backgroundColor: t.color.surface.default,
-        color: t.color.text.secondary,
-        cursor: 'pointer',
-        transition: 'border-color 120ms ease, color 120ms ease, background-color 120ms ease',
-        '&[data-active="true"]': {
-          borderColor: t.color.accent.default,
-          color: t.color.accent.default,
-          backgroundColor: t.color.accent.subtle,
-        },
       },
       preview: {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: '96px',
-        padding: `${t.space[5]} ${t.space[4]}`,
-        borderBottom: `1px solid ${t.color.border.default}`,
-        backgroundColor: t.color.surface.raised,
-        backgroundImage: `linear-gradient(45deg, color-mix(in oklch, ${t.color.border.default} 22%, transparent) 25%, transparent 25%, transparent 75%, color-mix(in oklch, ${t.color.border.default} 22%, transparent) 75%, color-mix(in oklch, ${t.color.border.default} 22%, transparent)), linear-gradient(45deg, color-mix(in oklch, ${t.color.border.default} 22%, transparent) 25%, transparent 25%, transparent 75%, color-mix(in oklch, ${t.color.border.default} 22%, transparent) 75%, color-mix(in oklch, ${t.color.border.default} 22%, transparent))`,
-        backgroundPosition: '0 0, 8px 8px',
-        backgroundSize: '16px 16px',
+        minHeight: '7rem',
+        padding: `${t.space.lg.var} ${t.space.md.var}`,
+        border: `${t.borderWidth.default.var} solid ${t.color.border.default.var}`,
+        borderRadius: t.radius.lg.var,
+        overflow: 'hidden',
       },
       previewButton: {
         font: 'inherit',
@@ -103,78 +73,29 @@ export const liveDemo = recipe({
       previewCard: {
         minWidth: '200px',
         textAlign: 'center',
-        fontSize: t.fontSize.sm,
+        fontSize: t.fontSize.sm.var,
       },
-      section: {
-        padding: t.space[4],
-        borderBottom: `1px solid ${t.color.border.default}`,
+      panels: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: t.space.sm.var,
         minWidth: 0,
-        '&:last-child': {
-          borderBottom: 'none',
+      },
+      panel: {
+        minWidth: 0,
+        '& [data-codeblock-pre]': {
+          maxHeight: '16rem',
+          overflow: 'auto',
         },
-      },
-      sectionLabel: {
-        margin: `0 0 ${t.space[2]}`,
-        fontSize: t.fontSize.xs,
-        fontWeight: t.fontWeight.semibold,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        color: t.color.text.secondary,
-      },
-      sectionFile: {
-        fontWeight: t.fontWeight.medium,
-        color: t.color.text.primary,
-        textTransform: 'none',
-        letterSpacing: 'normal',
       },
       detailsGrid: {
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
-        gap: 0,
+        gap: t.space.sm.var,
         minWidth: 0,
-        borderBottom: 'none',
         '@media (max-width: 560px)': {
           gridTemplateColumns: '1fr',
         },
-      },
-      detailSection: {
-        padding: t.space[4],
-        minWidth: 0,
-        '&:first-child': {
-          borderRight: `1px solid ${t.color.border.default}`,
-          '@media (max-width: 560px)': {
-            borderRight: 'none',
-            borderBottom: `1px solid ${t.color.border.default}`,
-          },
-        },
-      },
-      codeShell: {
-        margin: 0,
-        borderRadius: t.radius.md,
-        backgroundColor: t.codeBlock.background,
-        overflow: 'auto',
-        '& [data-codeblock-pre]': {
-          margin: 0,
-          padding: t.space[3],
-          maxHeight: '260px',
-          fontSize: t.fontSize.xs,
-          lineHeight: 1.55,
-          whiteSpace: 'pre',
-          backgroundColor: 'transparent',
-        },
-        '& [data-codeblock] code': {
-          fontFamily: 'inherit',
-          fontSize: 'inherit',
-          fontWeight: 'inherit',
-          color: 'inherit',
-          backgroundColor: 'transparent',
-          padding: 0,
-          borderRadius: 0,
-          border: 'none',
-        },
-      },
-      outputShell: {
-        maxHeight: '200px',
       },
     },
   },

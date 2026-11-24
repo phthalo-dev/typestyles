@@ -20,6 +20,8 @@ const ALIASES: Record<string, string> = {
   shell: 'bash',
   zsh: 'bash',
   yml: 'yaml',
+  xml: 'html',
+  svg: 'html',
 };
 
 // Built once per process (module scope): ~10 grammars, no WASM.

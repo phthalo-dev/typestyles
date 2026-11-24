@@ -30,7 +30,8 @@ function setIconState(button: HTMLButtonElement, icon: Element, state: CopyState
 function setupCopyButton(button: HTMLButtonElement): void {
   const root = button.closest('[data-codeblock]');
   if (!root) return;
-  const codeEl = root.querySelector('pre code');
+  // Tabbed install blocks keep one `pre` per tab; copy the visible one.
+  const codeEl = root.querySelector('pre:not([hidden]) code');
   if (!codeEl) return;
 
   const icon = button.querySelector('[data-codeblock-copy-icon]');

@@ -48,6 +48,9 @@ export function createDocHighlighter(
   aliases: Record<string, string>,
 ): DocHighlighter {
   const core = createHighlighterCoreSync({
+    // Cast: the kit builds its theme from typed CSS variable refs (`colors['editor.foreground']` is a
+    // `CSSVarRef` object that stringifies to `var(--…)`) and `readonly` tuples, which Shiki's
+    // `ThemeRegistrationRaw` (string colours, mutable arrays) rejects. At runtime they are strings.
     themes: [designTokenShikiTheme as never],
     langs,
     engine: createJavaScriptRegexEngine(),

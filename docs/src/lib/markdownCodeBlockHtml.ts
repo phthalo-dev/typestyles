@@ -19,8 +19,12 @@ function attrs(map: Record<string, string | undefined>): string {
  * `data-codeblock-copy` handled by `scripts/docsCodeBlockCopy.ts` (one delegated listener,
  * survives view transitions). The kit's `data-var-ui-*` hooks are therefore left off.
  */
-export function markdownCodeBlockHtml(safeLang: string, highlighted: string): string {
-  const m = codeBlockMarkup({ code: '', language: safeLang });
+export function markdownCodeBlockHtml(
+  safeLang: string,
+  highlighted: string,
+  filename?: string,
+): string {
+  const m = codeBlockMarkup({ code: '', language: safeLang, filename });
   const copyButton = m.copyButton as Record<string, string>;
   const button = {
     class: copyButton.class,
@@ -32,7 +36,11 @@ export function markdownCodeBlockHtml(safeLang: string, highlighted: string): st
   return [
     `<div ${attrs({ ...m.root, 'data-codeblock': '' })}>`,
     `<div ${attrs(m.header)}>`,
-    `<div ${attrs(m.title)}><span ${attrs(lang.attributes)}>${escapeHtml(lang.text)}</span></div>`,
+    `<div ${attrs(m.title)}>${
+      m.filename
+        ? `<span ${attrs(m.filename.attributes)}>${escapeHtml(m.filename.text)}</span>`
+        : ''
+    }<span ${attrs(lang.attributes)}>${escapeHtml(lang.text)}</span></div>`,
     `<div ${attrs(m.actions!)}>`,
     `<button ${attrs(button)}><span ${attrs(m.copyIcon)}>${copySvg}</span></button>`,
     `<span ${attrs(m.feedback!)}></span>`,

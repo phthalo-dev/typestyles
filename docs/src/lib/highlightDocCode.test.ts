@@ -8,6 +8,8 @@ const samples: Array<[string, string]> = [
   ['css', '.a { color: red; } /* c */'],
   ['bash', 'pnpm add typestyles # install\necho "hi"'],
   ['html', '<div class="a">hi</div>'],
+  ['xml', '<div class="a">\n  <div class="b">…</div>\n</div>'],
+  ['svg', '<svg viewBox="0 0 1 1"><path d="M0 0"/></svg>'],
 ];
 
 describe('highlightDocCode', () => {

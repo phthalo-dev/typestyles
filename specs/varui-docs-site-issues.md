@@ -163,3 +163,30 @@ Also changed:
 - **Related:** `codeBlockMarkup()`'s copy button carries the raw source in `data-var-ui-code`, which doubles page
   weight for long fences. Docs copy `pre code` text through their own delegated handler instead, so the kit's
   `initCodeBlockCopy` is not used on doc pages.
+
+## 12. `PackageInstall` is Astro-only and builds its own ids; no string/markup entry point
+
+- **Repro:** typestyles docs expand `<!-- doc-install-tabs -->` regions on markdown strings (before `marked`), so
+  `PackageInstall.astro` cannot be rendered. It also takes a `packages` string and derives all four commands
+  itself, so it cannot show commands that come from content.
+- **Expected:** a `packageInstallMarkup({ commands, … })` helper next to `codeBlockMarkup` (the tab slots `tabs` /
+  `tab` exist in the `codeBlock` recipe, but `codeBlockMarkup` has no tabs part), and `initPackageInstall`
+  exported from `@var-ui/docs` (it is only reachable as `src/scripts/packageInstall.ts`).
+- **Workaround:** `docs/src/lib/expandInstallTabGroups.ts` builds the markup from the `codeBlock` recipe slots
+  directly (same classes and `data-package-install` / `data-package-manager` hooks as `PackageInstall`);
+  `docs/src/scripts/docInstallTabs.ts` re-implements the kit's tab behaviour (shared choice under the same
+  `var-docs-package-manager` key, arrows, Home, End). The bun tab is derived from the pnpm command (HTML only).
+
+## 13. `Menu` `href` items cannot open in a new tab
+
+- **Repro:** `Menu` `sections[].items[]` with `href: 'https://claude.ai/…'` renders `<a role="menuitem" href>`;
+  `MenuItemDefinition` has no `target` / `rel`.
+- **Expected:** `external?: boolean` (or `target` / `rel`) on `MenuItemDefinition`.
+- **Workaround:** `docs/src/scripts/docAiActions.ts` sets `target="_blank" rel="noopener noreferrer"` on
+  `[data-doc-ai-actions] a[role=menuitem]` after load (links open in the same tab without JS).
+
+## 14. `SegmentedControl` has no documented way to listen for changes from a page script
+
+- The change event (`var-ui:segmented-control-change`, `detail.id`) is exported as
+  `SEGMENTED_CONTROL_CHANGE_EVENT` from `@var-ui/astro`'s `scripts/segmentedControl`, but the name is not in the
+  component docs; `LiveDemo` listens for the literal string. Minor; document it on the component.

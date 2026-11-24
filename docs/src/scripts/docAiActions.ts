@@ -1,4 +1,20 @@
+/**
+ * The kit `Menu` renders `href` items as plain same-tab links (no `target` / `rel` option), so
+ * external assistant links get them here.
+ */
+function externalizeMenuLinks(): void {
+  document
+    .querySelectorAll<HTMLAnchorElement>('[data-doc-ai-actions] a[role="menuitem"]')
+    .forEach((a) => {
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+    });
+}
+
 export function attachDocAiActions(): void {
+  externalizeMenuLinks();
+  document.addEventListener('astro:page-load', externalizeMenuLinks);
+
   const handler = async (event: Event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
