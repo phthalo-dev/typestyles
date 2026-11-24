@@ -3,6 +3,22 @@
 Published pages live under `content/docs/` and appear in the sidebar via `src/navigation.ts`.
 Internal research notes live under `research/` and are not built or indexed.
 
+## How pages are rendered
+
+- `src/navigation.ts` is the single source for the sidebar order. `src/lib/kitNav.ts` maps it to the Var UI docs
+  kit (`@var-ui/docs`): top nav, sidebar sections and the search palette items.
+- Every guide is built by `src/pages/docs/[slug].astro`: markdown goes through `getDocBySlug` (`src/lib/docs.ts`,
+  marked + kit code blocks + install tabs + live-demo markers) and renders inside `src/layouts/KitDocsLayout.astro`,
+  which wraps the kit's `DocsPage` (top bar, sidebar, TOC, search, appearance menu, mobile menu).
+- The same pipeline produces the `.md` views, `llms.txt` / `llms-full.txt`, the search and docs indexes and the MCP
+  content. `pnpm verify` checks those outputs against `specs/baseline/` (`vp run -F docs parity`); after an
+  intended content change, rebuild and run `vp run -F docs parity:update`, then commit `specs/baseline/`.
+- Non-guide pages: home (`src/pages/index.astro`, kit `DocsMarketingPage`), `/playground`
+  (`src/layouts/PlaygroundLayout.astro`), changelogs (`src/pages/docs/changelog/`), and the kitchen sink of Var UI
+  components (`src/pages/docs/design-system/kitchen-sink.astro`).
+- Var UI packages are pinned to exact versions and bumped together with `typestyles`; see
+  [README — Var UI version pin policy](./README.md#var-ui-version-pin-policy).
+
 ## Getting Started
 
 - getting-started.md

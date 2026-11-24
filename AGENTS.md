@@ -26,6 +26,15 @@ CSS-in-TypeScript: type-safe style objects, design tokens as CSS custom properti
 
 Package manager: **pnpm** (workspace). Node 20+ recommended.
 
+**Docs site and Var UI.** The docs shell comes from the [Var UI](https://github.com/phthalo-dev/var-ui) docs kit
+(`@var-ui/docs`, `@var-ui/astro`, `@var-ui/core`, `@var-ui/icons`), which is built on typestyles. Those packages are
+pinned to **exact** versions in `docs/package.json` and bumped together with `typestyles`; if Var UI lags behind a
+typestyles release, hold the pins back. `pnpm-workspace.yaml` overrides `@var-ui/*>typestyles` to the workspace copy,
+and `pnpm check:single-typestyles` (in `pnpm verify`) fails if a second `typestyles` is installed. `pnpm verify` also
+builds the docs and compares the output with `specs/baseline/` (`vp run -F docs parity`); after an intended content
+change run `vp run -F docs build && vp run -F docs parity:update` and commit `specs/baseline/`. Details:
+`docs/README.md`.
+
 ## Key commands
 
 Run from the **repository root**:
